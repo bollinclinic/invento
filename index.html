@@ -26,6 +26,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
     --pine:#2B6168;      /* primary — Bollin teal (from logo) */
@@ -761,11 +762,12 @@
 
 <script>
 /* =============================================================
-   CONFIG — paste your Apps Script Web App URL here (ends /exec).
-   Leave empty to run in demo mode with sample data.
+   CONFIG — Supabase project this build talks to.
+   Leave SUPABASE_URL empty to run in demo mode with sample data.
    ============================================================= */
 const CONFIG = {
-  API_URL: "https://script.google.com/macros/s/AKfycbzROzVGU8k6cZqiFjH2RuuVwh-NHDmY7mUyCt_QARIUcnKkbBlxEQtK1-k2aUtM6HKZ/exec"
+  SUPABASE_URL: "https://ozkragagmtdjjlkvygjc.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96a3JhZ2FnbXRkampsa3Z5Z2pjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwNTM5NTMsImV4cCI6MjEwMjYyOTk1M30.16yVOfJqDoyY7KYXnPn3KocwToCwWEYDRv8PGo-52nA"
 };
 const TRACKER_TAB = {consumables:'Consumables',meds:'Meds',garments:'Garments',instruments:'Instruments',linen:'Linen'};
 
@@ -1062,7 +1064,7 @@ function dashboardView(){
   return `
     <h1>Dashboard</h1>
     <div class="sub">Live position across all five trackers</div>
-    ${LIVE ? '' : '<div class="note">Demo mode — sample data only. Paste your Apps Script URL into CONFIG.API_URL to connect the live Google Sheet.</div>'}
+    ${LIVE ? '' : '<div class="note">Demo mode — sample data only. Set CONFIG.SUPABASE_URL to connect the live Supabase project.</div>'}
     <div class="tiles">
       <div class="tile warn ${low.length?'attn':''}" onclick="nav('dash-low')"><span class="ic">📉</span><div class="n">${low.length}</div><div class="l">Low stock items</div></div>
       <div class="tile bad ${out.length?'attn':''}"  onclick="nav('dash-out')"><span class="ic">🚫</span><div class="n">${out.length}</div><div class="l">Out of stock</div></div>
@@ -1371,7 +1373,7 @@ function alertsView(){
 }
 
 /* ---------------- sterilisation: use -> dispatch -> receive ---------------- */
-state.dispatch = state.dispatch || (CONFIG.API_URL ? [] : [
+state.dispatch = state.dispatch || (CONFIG.SUPABASE_URL ? [] : [
   {_row:null, ref:'', dateSent:null, sentBy:'', name:'Basic Plastic Tray', code:'SET03488-006',
    qtyOut:41, batch:'', dateUsed:'2026-07-14', usedBy:'Lisa', dateReturned:null, qtyIn:null, returnedBy:'', status:'Pending Collection'},
   {_row:null, ref:'BC-DISP-014', dateSent:'2026-07-13', sentBy:'Lisa', name:'Light Handle', code:'SIN07949-031',
@@ -1840,7 +1842,7 @@ function sterilScan(code){
 }
 
 /* ---------------- implants ---------------- *//* ---------------- implants ---------------- */
-state.implants = state.implants || (CONFIG.API_URL ? [] : [
+state.implants = state.implants || (CONFIG.SUPABASE_URL ? [] : [
   {_row:null, initials:'JS', pat:'PAT-1041', surgeon:'Mr Siddiqui', surgeryDate:'2026-07-28',
    details:'Mentor CPG 323 350cc', qty:2, remarks:'', dateOrdered:'2026-07-10', orderedBy:'Reception',
    status:'Ordered', receivedBy:'', receivedQty:null, storage:'', scannedRef:'', returnDetails:'', returnedQty:null, returnedBy:''},
@@ -3679,7 +3681,7 @@ async function endProc(){
     // make sure the latest cart is persisted first (belt and braces)
     await procTempSave(true);
     const res = await api({action:'procConsumeBatch', procedureId:id,
-      lines: cart.map(l=>({tracker:l.tracker, code:l.code||'', barcode:l.barcode||'', name:l.name, qty:l.qty})),
+      lines: cart.map(l=>({item_id:l._row||null, tracker:l.tracker, code:l.code||'', barcode:l.barcode||'', name:l.name, qty:l.qty})),
       by:myName||''});
     if(res && res.failed && res.failed.length){
       // some lines could not be consumed — keep the procedure open with those lines still in the cart
@@ -5165,21 +5167,544 @@ function render(){
 }
 
 /* ---------------- Google Sheets API layer ---------------- */
-const LIVE = !!CONFIG.API_URL;
+const LIVE = !!CONFIG.SUPABASE_URL;
 state.alerts = state.alerts || [];
 
+/* =============================================================
+   Supabase data layer
+   ------------------------------------------------------------
+   Everything below stands in for the old Apps Script api(): every
+   call site elsewhere in this file still does `api({action:'x', ...})`
+   with the exact same payload shapes as before — only the internals
+   of api() changed, from "POST to Apps Script" to "call Supabase".
+   This keeps ~5000 lines of view/business logic completely untouched.
+   ============================================================= */
+const sb = LIVE ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY,
+  { auth: { persistSession: true, autoRefreshToken: true } }) : null;
+// Safety net matching the old "AUTH error -> signOut + showLogin" behaviour: if the
+// Supabase client itself decides the session is gone (expired refresh token etc.), drop
+// back to the login screen instead of leaving the app silently unable to load data.
+if(LIVE) sb.auth.onAuthStateChange((event)=>{
+  if(event==='SIGNED_OUT' && session){ session=null; myName=''; try{localStorage.removeItem('bollin_session');}catch(e){}
+    if(typeof paintName==='function') paintName();
+    if(typeof showLogin==='function') showLogin('Session expired — please sign in again'); }
+});
+
+function synthEmail(username){ return String(username||'').trim().toLowerCase() + '@bollin.local'; }
+function numOrNull(v){ return v===''||v==null ? null : Number(v); }
+function strOrNull(v){ return v===''||v==null ? null : v; }
+function low(v){ return String(v||'').toLowerCase(); }
+
+/* ---- row-shape translators: Postgres snake_case <-> old Sheet-header PascalCase ----
+   _row on every translated row is the record's real uuid — it stood for a fragile
+   sheet row number before; every call site that read/passed it already just treats
+   it as "the identifier for this record", so a uuid drops in with zero code changes. */
+function itemToSheetRow(it){
+  return {_row: it.id, Code: it.code, Barcode: it.barcode, Name: it.name, Category: it.category,
+    Supplier: it.supplier, Location: it.location, Unit: it.unit, Qty: it.qty, ReorderLevel: it.reorder_level,
+    UnitCost: it.unit_cost, Expiry: it.expiry, Batch: it.batch, Notes: it.notes, Status: it.status,
+    Obsolete: it.obsolete ? 'yes' : '', ObsoleteBy: it.obsolete_by, ObsoleteAt: it.obsolete_at,
+    QtyInTray: it.qty_in_tray, CyclesToDate: it.cycles_to_date};
+}
+function fieldsToItemRow(f){
+  f = f||{}; const out = {};
+  if('Code' in f) out.code = strOrNull(f.Code);
+  if('Barcode' in f) out.barcode = strOrNull(f.Barcode);
+  if('Name' in f) out.name = f.Name;
+  if('Category' in f) out.category = strOrNull(f.Category);
+  if('Supplier' in f) out.supplier = strOrNull(f.Supplier);
+  if('Location' in f) out.location = strOrNull(f.Location);
+  if('Unit' in f) out.unit = f.Unit || 'Each';
+  if('Qty' in f) out.qty = Number(f.Qty)||0;
+  if('ReorderLevel' in f) out.reorder_level = Number(f.ReorderLevel)||0;
+  if('UnitCost' in f) out.unit_cost = numOrNull(f.UnitCost);
+  if('Expiry' in f) out.expiry = strOrNull(f.Expiry);
+  if('Batch' in f) out.batch = strOrNull(f.Batch);
+  if('Notes' in f) out.notes = strOrNull(f.Notes);
+  if('Status' in f) out.status = strOrNull(f.Status);
+  if('Obsolete' in f) out.obsolete = low(f.Obsolete)==='yes';
+  if('ObsoleteBy' in f) out.obsolete_by = strOrNull(f.ObsoleteBy);
+  if('ObsoleteAt' in f) out.obsolete_at = strOrNull(f.ObsoleteAt);
+  if('QtyInTray' in f) out.qty_in_tray = numOrNull(f.QtyInTray);
+  return out;
+}
+function implantToSheetRow(m){
+  return {_row: m.id, Timestamp: m.created_at, PatientInitials: m.patient_initials, PATNumber: m.pat_number,
+    Surgeon: m.surgeon, SurgeryDate: m.surgery_date, ImplantDetails: m.details, Qty: m.qty, Remarks: m.remarks,
+    DateOrdered: m.date_ordered, OrderedBy: m.ordered_by, Status: m.status, ReceivedBy: m.received_by,
+    ReceivedDate: m.received_date, ReceivedQty: m.received_qty, StorageLocation: m.storage_location,
+    ScannedRef: m.scanned_ref, ReturnDetails: m.return_details, ReturnedQty: m.returned_qty,
+    ReturnedBy: m.returned_by, ReturnedDate: m.returned_date, Notes: m.notes};
+}
+const IMPLANT_FIELD_MAP = {PatientInitials:'patient_initials', PATNumber:'pat_number', Surgeon:'surgeon',
+  SurgeryDate:'surgery_date', ImplantDetails:'details', Qty:'qty', Remarks:'remarks',
+  DateOrdered:'date_ordered', OrderedBy:'ordered_by', Status:'status', ReceivedBy:'received_by',
+  ReceivedDate:'received_date', ReceivedQty:'received_qty', StorageLocation:'storage_location',
+  ScannedRef:'scanned_ref', ReturnDetails:'return_details', ReturnedQty:'returned_qty',
+  ReturnedBy:'returned_by', ReturnedDate:'returned_date', Notes:'notes'};
+function fieldsToImplantRow(f){
+  const out = {};
+  Object.keys(f||{}).forEach(k=>{ if(IMPLANT_FIELD_MAP[k]) out[IMPLANT_FIELD_MAP[k]] = strOrNull(f[k]); });
+  return out;
+}
+function assetToSheetRow(a){
+  return {_row: a.id, Name: a.name, SerialNumber: a.serial_number, Function: a.function, Supplier: a.supplier,
+    SupplierContact: a.supplier_contact, Location: a.location, LastMaintenance: a.last_maintenance,
+    NextMaintenanceDue: a.next_maintenance_due, Status: a.status, Notes: a.notes};
+}
+const ASSET_FIELD_MAP = {Name:'name', SerialNumber:'serial_number', Function:'function', Supplier:'supplier',
+  SupplierContact:'supplier_contact', Location:'location', LastMaintenance:'last_maintenance',
+  NextMaintenanceDue:'next_maintenance_due', Status:'status', Notes:'notes'};
+function fieldsToAssetRow(f){
+  const out = {};
+  Object.keys(f||{}).forEach(k=>{ if(ASSET_FIELD_MAP[k]) out[ASSET_FIELD_MAP[k]] = strOrNull(f[k]); });
+  return out;
+}
+function gasToSheetRow(g){
+  return {Timestamp: g.ts, Date: g.date, By: g.by,
+    O2_LeftBank: g.o2_left_bank, O2_RightBank: g.o2_right_bank, O2_Pipeline: g.o2_pipeline, O2_InUseBank: g.o2_in_use_bank,
+    O2_DeliveryBooked: g.o2_delivery_booked ? 'Yes' : '',
+    Air_LeftBank: g.air_left_bank, Air_RightBank: g.air_right_bank, Air_Pipeline: g.air_pipeline, Air_InUseBank: g.air_in_use_bank,
+    Air_DeliveryBooked: g.air_delivery_booked ? 'Yes' : '',
+    Helium_Total: g.helium_total, Helium_Full: g.helium_full, Helium_Empty: g.helium_empty,
+    TrolleyO2_Total: g.trolley_o2_total, TrolleyO2_Full: g.trolley_o2_full, TrolleyO2_Empty: g.trolley_o2_empty,
+    TrolleyO2_NextDelivery: g.trolley_o2_next_delivery,
+    Vacuum_DutyPump: g.vacuum_duty_pump, Vacuum_Status: g.vacuum_status,
+    Airflow_TH1_Off: g.airflow_th1_off ? 'Yes' : 'No', Airflow_TH2_Off: g.airflow_th2_off ? 'Yes' : 'No', Notes: g.notes};
+}
+function fieldsToGasRow(f){
+  f = f||{};
+  return {date: strOrNull(f.Date), by: strOrNull(f.By),
+    o2_left_bank: numOrNull(f.O2_LeftBank), o2_right_bank: numOrNull(f.O2_RightBank), o2_pipeline: numOrNull(f.O2_Pipeline),
+    o2_in_use_bank: strOrNull(f.O2_InUseBank), o2_delivery_booked: f.O2_DeliveryBooked==='Yes',
+    air_left_bank: numOrNull(f.Air_LeftBank), air_right_bank: numOrNull(f.Air_RightBank), air_pipeline: numOrNull(f.Air_Pipeline),
+    air_in_use_bank: strOrNull(f.Air_InUseBank), air_delivery_booked: f.Air_DeliveryBooked==='Yes',
+    helium_total: numOrNull(f.Helium_Total), helium_full: numOrNull(f.Helium_Full), helium_empty: numOrNull(f.Helium_Empty),
+    trolley_o2_total: numOrNull(f.TrolleyO2_Total), trolley_o2_full: numOrNull(f.TrolleyO2_Full), trolley_o2_empty: numOrNull(f.TrolleyO2_Empty),
+    trolley_o2_next_delivery: strOrNull(f.TrolleyO2_NextDelivery),
+    vacuum_duty_pump: strOrNull(f.Vacuum_DutyPump), vacuum_status: strOrNull(f.Vacuum_Status),
+    airflow_th1_off: f.Airflow_TH1_Off==='Yes', airflow_th2_off: f.Airflow_TH2_Off==='Yes', notes: strOrNull(f.Notes)};
+}
+function dispatchToSheetRow(d){
+  return {_row: d.id, DispatchRef: d.dispatch_ref, DateSent: d.date_sent, SentBy: d.sent_by,
+    ItemName: d.item_name, Code: d.code, CountOut: d.count_out, BatchLot: d.batch_lot,
+    DateUsed: d.date_used, UsedBy: d.used_by, DateReturned: d.date_returned, CountIn: d.count_in,
+    ReturnedBy: d.returned_by, Status: d.status};
+}
+function requestToSheetRow(r){
+  return {_row: r.id, Timestamp: r.requested_at, By: r.requested_by, Item: r.item, Qty: r.qty, Size: r.size,
+    Status: r.status, HandledBy: r.handled_by, DateResponded: r.responded_at, Remarks: r.remarks};
+}
+function alertToSheetRow(a){
+  return {_row: a.id, Timestamp: a.ts, Type: a.type, Tracker: a.tracker, Code: a.code, Item: a.name,
+    Detail: a.detail, Status: a.status};
+}
+function assetGuard(){ if(!isAdmin()) throw new Error('Admin access required'); }
+
+/* ---- auth ---- */
+async function sbSignIn(username, password){
+  const {data, error} = await sb.auth.signInWithPassword({email: synthEmail(username), password});
+  if(error) throw new Error(error.message==='Invalid login credentials' ? 'Wrong username or password' : error.message);
+  const {data: prof, error: pErr} = await sb.from('profiles').select('username,display_name,role').eq('id', data.user.id).single();
+  if(pErr || !prof) throw new Error('Signed in, but no profile found for this account');
+  return {token: data.session.access_token, role: prof.role, displayName: prof.display_name, username: prof.username};
+}
+async function sbChangePassword(oldPassword, newPassword){
+  const {data: u} = await sb.auth.getUser();
+  const email = u && u.user ? u.user.email : synthEmail(session.username);
+  const check = await sb.auth.signInWithPassword({email, password: oldPassword});
+  if(check.error) throw new Error('Current password is wrong');
+  const {error} = await sb.auth.updateUser({password: newPassword});
+  if(error) throw new Error(error.message);
+}
+
+/* ---- the dispatcher ---- */
 async function api(payload){
-  if(session) payload.token = session.token;
-  const res = await fetch(CONFIG.API_URL, {
-    method:'POST', body: JSON.stringify(payload),
-    headers:{'Content-Type':'text/plain;charset=utf-8'}   // simple request: no CORS preflight
-  });
-  const data = await res.json();
-  if(!data.ok){
-    if(data.error==='AUTH'){ signOut(); showLogin('Session expired — please sign in again'); }
-    throw new Error(data.message||data.error||'Server error');
+  const a = payload.action;
+
+  if(a==='login'){
+    const r = await sbSignIn(payload.username, payload.password);
+    return {ok:true, ...r};
   }
-  return data;
+  if(a==='changePassword'){ await sbChangePassword(payload.oldPassword, payload.newPassword); return {ok:true}; }
+
+  if(a==='getAll'){
+    const [itemsRes, txRes, reqRes, alertRes, impRes, dispRes, storesRes, gasRes, setRes,
+           profRes, sampRes] = await Promise.all([
+      sb.rpc('get_items'),
+      sb.from('activity_log').select('*').order('ts',{ascending:false}).limit(200),
+      sb.from('stock_requests').select('*').order('requested_at',{ascending:false}),
+      sb.from('alerts').select('*').order('ts',{ascending:false}).limit(100),
+      sb.from('implants').select('*').order('created_at',{ascending:false}),
+      sb.from('dispatch_log').select('*').order('date_used',{ascending:false,nullsFirst:false}),
+      sb.from('stores').select('*'),
+      sb.from('gas_checks').select('*').order('ts',{ascending:false}).limit(180),
+      sb.from('settings').select('*'),
+      sb.from('profiles').select('id,username,display_name,role').eq('id',(await sb.auth.getUser()).data.user.id).single(),
+      sb.from('specimens').select('*, sample_collections(*)').order('created_at',{ascending:false})
+    ]);
+    [itemsRes,txRes,reqRes,alertRes,impRes,dispRes,storesRes,gasRes,setRes,profRes,sampRes].forEach(r=>{
+      if(r.error) throw new Error(r.error.message);
+    });
+    const role = profRes.data.role;
+    const rank = ROLE_RANK[role]||0;
+    const items = {Consumables:[], Meds:[], Garments:[], Instruments:[], Linen:[]};
+    (itemsRes.data||[]).forEach(it=>{
+      const tab = TRACKER_TAB[it.tracker]; if(!tab) return;
+      const row = itemToSheetRow(it);
+      if(rank<1) delete row.UnitCost;
+      items[tab].push(row);
+    });
+    let procedures = [], procLines = [];
+    {
+      const {data: procData, error: procErr} = await sb.rpc('get_procedures');
+      if(procErr) throw new Error(procErr.message);
+      procedures = (procData||[]).map(p=>({ProcedureID:p.id, Date:p.date, Surgeon:p.surgeon,
+        Procedure:p.procedure_name, PatientRef:p.patient_ref, StartedBy:p.started_by, Status:p.status,
+        StartTime:p.start_time, EndTime:p.end_time, TotalCost:p.total_cost, Notes:p.notes,
+        CartJSON: JSON.stringify(p.cart||[]), Room:p.room}));
+      if(rank>=2){
+        const {data: lineData, error: lineErr} = await sb.from('procedure_lines').select('*')
+          .order('ts',{ascending:false}).limit(500);
+        if(lineErr) throw new Error(lineErr.message);
+        procLines = (lineData||[]).map(l=>({ProcedureID:l.procedure_id, Timestamp:l.ts, Tracker:l.tracker,
+          Code:l.code, Name:l.name, Qty:l.qty, UnitCost:l.unit_cost, LineCost:l.line_cost, By:l.by}));
+      }
+    }
+    let rota = [];
+    if(role==='superadmin'){
+      const [{data: days, error: dErr}, {data: theatres, error: tErr}] = await Promise.all([
+        sb.from('rota_days').select('*'), sb.from('rota_theatres').select('*')
+      ]);
+      if(dErr) throw new Error(dErr.message); if(tErr) throw new Error(tErr.message);
+      rota = (days||[]).map(d=>{
+        const out = {Date: d.date, Theatres: d.theatres, HCAWard: d.hca_ward, HCATheatre: d.hca_theatre,
+          WardNurse: d.ward_nurse, NightNurse: d.night_nurse, RecoveryNurse: d.recovery_nurse,
+          RMODay: d.rmo_day, RMONight: d.rmo_night, HousekeepingAM: d.housekeeping_am, HousekeepingPM: d.housekeeping_pm,
+          ReceptionAM: d.reception_am, ReceptionPM: d.reception_pm, Notes: d.notes,
+          AcksJSON: JSON.stringify(d.acks||{}), StarsJSON: JSON.stringify(d.stars||{})};
+        [1,2].forEach(n=>{
+          const th = (theatres||[]).find(t=>t.day_id===d.id && t.theatre_number===n) || {};
+          out['T'+n+'_Type']=th.type||''; out['T'+n+'_Detail']=th.detail||''; out['T'+n+'_Colour']=th.colour||'';
+          out['T'+n+'_CasesJSON']=JSON.stringify(th.cases||[]);
+          out['T'+n+'_Surgeon']=th.surgeon||''; out['T'+n+'_Surgeon2']=th.surgeon2||''; out['T'+n+'_Surgeon3']=th.surgeon3||'';
+          out['T'+n+'_Anaesthetist']=th.anaesthetist||''; out['T'+n+'_SFA']=th.sfa||'';
+          out['T'+n+'_Scrub1']=th.scrub1||''; out['T'+n+'_Scrub2']=th.scrub2||'';
+          out['T'+n+'_Scrub3']=th.scrub3||''; out['T'+n+'_ODP']=th.odp||'';
+        });
+        return out;
+      });
+    }
+    const samples = (sampRes.data||[]).map(s=>{
+      const c = s.sample_collections||{};
+      return {_row:s.id, SampleID:s.id, Date:c.date, PatientInitials:c.patient_initials, PATNumber:c.pat_number,
+        Surgeon:c.surgeon, SpecimenNo:s.specimen_no, SampleDetails:s.details, Category:s.category,
+        Formalin: s.formalin===true?'Yes':s.formalin===false?'No':'', DateCollected:s.date_collected,
+        DateSent:s.date_sent, DateResult:s.date_result, By:c.logged_by, Notes:s.notes};
+    });
+    return {ok:true, role, displayName: profRes.data.display_name, items,
+      transactions: (txRes.data||[]).map(t=>({Timestamp:t.ts, Direction:t.direction, Tracker:t.tracker,
+        Code:t.code, Name:t.name, Qty:t.qty, By:t.by, Batch:t.batch, Expiry:t.expiry, Note:t.note, Activity:t.activity})),
+      requests: (reqRes.data||[]).map(requestToSheetRow),
+      alerts: (alertRes.data||[]).map(alertToSheetRow),
+      implants: (impRes.data||[]).map(implantToSheetRow),
+      dispatch: (dispRes.data||[]).map(dispatchToSheetRow),
+      barcodeLinks: [],
+      stores: (storesRes.data||[]).map(s=>({_row:s.id, Tracker:s.tracker, Store:s.store})),
+      assets: rank>=2 ? (await sb.from('assets').select('*')).data.map(assetToSheetRow) : [],
+      gasChecks: (gasRes.data||[]).map(gasToSheetRow),
+      settings: (setRes.data||[]).map(s=>({Key:s.key, Value:s.value, Description:s.description})),
+      procedures, procLines,
+      users: rank>=2 ? (await sb.from('profiles').select('*')).data.map(u=>({Username:u.username,
+        DisplayName:u.display_name, Role:u.role, Active:u.active?'yes':'no'})) : [],
+      rota, samples, serverTime: new Date().toISOString()};
+  }
+
+  if(a==='getTransactions'){
+    let q = sb.from('activity_log').select('*').order('ts',{ascending:true}).limit(3000);
+    if(payload.from) q = q.gte('ts', payload.from);
+    if(payload.to) q = q.lte('ts', payload.to);
+    const {data, error} = await q; if(error) throw new Error(error.message);
+    return {ok:true, transactions: (data||[]).map(t=>({Timestamp:t.ts, Direction:t.direction, Tracker:t.tracker,
+      Code:t.code, Name:t.name, Qty:t.qty, By:t.by, Batch:t.batch, Expiry:t.expiry, Note:t.note, Activity:t.activity}))};
+  }
+
+  if(a==='move'){
+    const {data, error} = await sb.rpc('move_stock', {p_item_id: payload.row, p_direction: payload.dir,
+      p_qty: payload.qty, p_batch: strOrNull(payload.batch), p_expiry: strOrNull(payload.expiry), p_note: strOrNull(payload.note)});
+    if(error) throw new Error(error.message);
+    return {ok:true, newQty: data.newQty, name: data.name};
+  }
+  if(a==='link'){
+    const {error} = await sb.rpc('link_barcode', {p_item_id: payload.row || payload.code, p_barcode: payload.barcode});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='addItem'){
+    const row = fieldsToItemRow(payload.fields);
+    row.tracker = low(payload.tracker);
+    const {data, error} = await sb.from('items').insert(row).select().single();
+    if(error) throw new Error(error.message);
+    return {ok:true, row: data.id};
+  }
+  if(a==='updateItem'){
+    const row = fieldsToItemRow(payload.fields);
+    const {error} = await sb.from('items').update(row).eq('id', payload.row);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='setBarcodes'){
+    let done=0; const errors=[];
+    for(const en of (payload.entries||[])){
+      const {error} = await sb.from('items').update({barcode: en.barcode})
+        .eq('tracker', low(en.tracker)).eq('code', en.code);
+      if(error) errors.push(en.code+': '+error.message); else done++;
+    }
+    return {ok:true, done, errors};
+  }
+  if(a==='clearBarcode'){
+    const {error} = await sb.from('items').update({barcode: null}).eq('id', payload.row);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='moveStore'){
+    const {error} = await sb.from('items').update({location: payload.toStore}).in('id', payload.rows||[]);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='instrumentDelete'){
+    const {error} = await sb.from('items').delete().eq('id', payload.row).eq('tracker','instruments');
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+
+  if(a==='request'){
+    const {error} = await sb.from('stock_requests').insert({requested_by: payload.by, item: payload.item,
+      qty: payload.qty, size: strOrNull(payload.size)});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='respond'){
+    const {error} = await sb.from('stock_requests').update({status: payload.status, handled_by: payload.by,
+      responded_at: new Date().toISOString(), remarks: strOrNull(payload.remarks)}).eq('id', payload.row);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='ack'){
+    const {error} = await sb.from('alerts').update({status:'Acknowledged', ack_by: payload.by,
+      ack_at: new Date().toISOString()}).eq('id', payload.row);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+
+  if(a==='implantAdd'){
+    const {error} = await sb.from('implants').insert(fieldsToImplantRow(payload.fields));
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='implantUpdate'){
+    const {error} = await sb.from('implants').update(fieldsToImplantRow(payload.fields)).eq('id', payload.row);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+
+  if(a==='useLog'){
+    const {data, error} = await sb.rpc('use_log', {p_lines: payload.lines, p_date: strOrNull(payload.date)});
+    if(error) throw new Error(error.message);
+    return {ok:true, added: data.added};
+  }
+  if(a==='useEdit'){
+    const {error} = await sb.rpc('use_edit', {p_id: payload.row, p_name: strOrNull(payload.name),
+      p_code: strOrNull(payload.code), p_qty: numOrNull(payload.qty)});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='useDelete'){
+    const {error} = await sb.rpc('use_delete', {p_id: payload.row});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='dispatchAssign'){
+    const {error} = await sb.rpc('dispatch_assign', {p_ids: payload.rows, p_ref: payload.ref,
+      p_date: strOrNull(payload.date), p_batch: strOrNull(payload.batch), p_instructions: strOrNull(payload.instructions)});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='dispatchReceive'){
+    const {error} = await sb.rpc('dispatch_receive', {p_ids: payload.rows});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='dispatchAdd'){
+    const {error} = await sb.rpc('dispatch_add', {p_ref: payload.ref, p_lines: payload.lines,
+      p_date: strOrNull(payload.date), p_batch: strOrNull(payload.batch)});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='dispatchReturn'){
+    const {error} = await sb.rpc('dispatch_return', {p_id: payload.row, p_qty_in: numOrNull(payload.qtyIn)});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='instrumentAdd'){
+    const {error} = await sb.rpc('instrument_add', {p_fields: payload.fields});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+
+  if(a==='storeAdd'){
+    const {error} = await sb.from('stores').insert({tracker: low(payload.tracker), store: payload.store});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='storeRemove'){
+    const {error} = await sb.from('stores').delete().eq('id', payload.row);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+
+  if(a==='assetAdd'){
+    assetGuard();
+    const {error} = await sb.from('assets').insert(fieldsToAssetRow(payload.fields));
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='assetUpdate'){
+    assetGuard();
+    const {error} = await sb.from('assets').update(fieldsToAssetRow(payload.fields)).eq('id', payload.row);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='gasCheckAdd'){
+    const {error} = await sb.from('gas_checks').insert(fieldsToGasRow(payload.fields));
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+
+  if(a==='setSetting'){
+    const {error} = await sb.from('settings').upsert({key: payload.key, value: String(payload.value),
+      description:'Saved from the app'});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='medPresetsSave'){
+    const {error} = await sb.rpc('save_med_preset', {p_value: payload.json});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+
+  if(a==='userSetRole'){
+    const {error} = await sb.from('profiles').update({role: payload.role}).eq('username', low(payload.username));
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+
+  if(a==='stocktake'){
+    const entries = (payload.entries||[]).map(e=>({tracker: low(e.tracker), item_id: e.row, code: e.code,
+      item: e.item, expected: e.expected, counted: e.counted, store: e.store}));
+    const {data, error} = await sb.rpc('stocktake_apply', {p_entries: entries, p_check_type: payload.checkType,
+      p_apply: !!payload.apply});
+    if(error) throw new Error(error.message);
+    return {ok:true, saved: data.saved};
+  }
+
+  if(a==='procStart'){
+    const {data, error} = await sb.rpc('proc_start', {p_date: payload.date, p_surgeon: strOrNull(payload.surgeon),
+      p_procedure_name: strOrNull(payload.procedure), p_patient_ref: strOrNull(payload.patientRef), p_room: payload.room});
+    if(error) throw new Error(error.message);
+    return {ok:true, procedureId: data.id};
+  }
+  if(a==='procSaveCart'){
+    const {error} = await sb.rpc('proc_save_cart', {p_procedure_id: payload.procedureId, p_cart: payload.cart});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='procConsumeBatch'){
+    const {data, error} = await sb.rpc('proc_consume_batch', {p_procedure_id: payload.procedureId,
+      p_lines: payload.lines});
+    if(error) throw new Error(error.message);
+    return {ok: data.ok, consumed: data.consumed, failed: data.failed, total: data.total};
+  }
+  if(a==='procCancel'){
+    const {error} = await sb.rpc('proc_cancel', {p_procedure_id: payload.procedureId});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='procUpdateMeta'){
+    const {error} = await sb.from('procedures').update({surgeon: strOrNull(payload.surgeon),
+      procedure_name: strOrNull(payload.procedure), date: payload.date, patient_ref: strOrNull(payload.patientRef)})
+      .eq('id', payload.procedureId);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='procReopen'){
+    const {data, error} = await sb.rpc('proc_reopen', {p_procedure_id: payload.procedureId});
+    if(error) throw new Error(error.message);
+    return {ok:true, restored: data.restored, failed: data.failed,
+      cart: (await sb.from('procedures').select('cart').eq('id',payload.procedureId).single()).data.cart};
+  }
+  if(a==='procDelete'){
+    const {data, error} = await sb.rpc('proc_delete', {p_procedure_id: payload.procedureId});
+    if(error) throw new Error(error.message);
+    return {ok:true, restored: data.restored, failed: data.failed};
+  }
+
+  if(a==='rotaSave'){
+    const f = payload.fields;
+    const {data: day, error: dErr} = await sb.from('rota_days').upsert({date: payload.date,
+      theatres: Number(f.Theatres)||0, hca_ward: strOrNull(f.HCAWard), hca_theatre: strOrNull(f.HCATheatre),
+      ward_nurse: strOrNull(f.WardNurse), night_nurse: strOrNull(f.NightNurse), recovery_nurse: strOrNull(f.RecoveryNurse),
+      rmo_day: strOrNull(f.RMODay), rmo_night: strOrNull(f.RMONight), housekeeping_am: strOrNull(f.HousekeepingAM),
+      housekeeping_pm: strOrNull(f.HousekeepingPM), reception_am: strOrNull(f.ReceptionAM), reception_pm: strOrNull(f.ReceptionPM),
+      notes: strOrNull(f.Notes), acks: JSON.parse(f.AcksJSON||'{}'), stars: JSON.parse(f.StarsJSON||'{}')},
+      {onConflict:'date'}).select().single();
+    if(dErr) throw new Error(dErr.message);
+    for(const n of [1,2]){
+      const {error: tErr} = await sb.from('rota_theatres').upsert({day_id: day.id, theatre_number: n,
+        type: f['T'+n+'_Type']||'GA', detail: strOrNull(f['T'+n+'_Detail']), colour: strOrNull(f['T'+n+'_Colour']),
+        surgeon: strOrNull(f['T'+n+'_Surgeon']), surgeon2: strOrNull(f['T'+n+'_Surgeon2']), surgeon3: strOrNull(f['T'+n+'_Surgeon3']),
+        anaesthetist: strOrNull(f['T'+n+'_Anaesthetist']), sfa: strOrNull(f['T'+n+'_SFA']),
+        scrub1: strOrNull(f['T'+n+'_Scrub1']), scrub2: strOrNull(f['T'+n+'_Scrub2']), scrub3: strOrNull(f['T'+n+'_Scrub3']),
+        odp: strOrNull(f['T'+n+'_ODP']), cases: JSON.parse(f['T'+n+'_CasesJSON']||'[]')}, {onConflict:'day_id,theatre_number'});
+      if(tErr) throw new Error(tErr.message);
+    }
+    return {ok:true};
+  }
+
+  if(a==='sampleSave'){
+    const f = payload.fields;
+    let collectionId = null;
+    const {data: existing} = await sb.from('sample_collections').select('id')
+      .eq('date', f.Date).eq('patient_initials', f.PatientInitials||'').eq('pat_number', f.PATNumber||'')
+      .eq('surgeon', f.Surgeon||'').limit(1);
+    if(existing && existing.length) collectionId = existing[0].id;
+    else {
+      const {data: created, error: cErr} = await sb.from('sample_collections').insert({date: f.Date,
+        patient_initials: strOrNull(f.PatientInitials), pat_number: strOrNull(f.PATNumber),
+        surgeon: strOrNull(f.Surgeon), logged_by: strOrNull(f.By)}).select().single();
+      if(cErr) throw new Error(cErr.message);
+      collectionId = created.id;
+    }
+    const specimen = {collection_id: collectionId, specimen_no: strOrNull(f.SpecimenNo), details: f.SampleDetails,
+      category: strOrNull(f.Category), formalin: f.Formalin==='Yes'?true:f.Formalin==='No'?false:null,
+      date_collected: strOrNull(f.DateCollected), date_sent: strOrNull(f.DateSent), date_result: strOrNull(f.DateResult),
+      notes: strOrNull(f.Notes)};
+    if(payload.sampleId){
+      const {error} = await sb.from('specimens').update(specimen).eq('id', payload.sampleId);
+      if(error) throw new Error(error.message);
+      return {ok:true, sampleId: payload.sampleId};
+    }
+    const {data: created, error} = await sb.from('specimens').insert(specimen).select().single();
+    if(error) throw new Error(error.message);
+    return {ok:true, sampleId: created.id};
+  }
+  if(a==='sampleDelete'){
+    const {error} = await sb.from('specimens').delete().eq('id', payload.sampleId);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+
+  throw new Error('Unknown action: '+a);
 }
 
 function mapItem(tab, r){
@@ -5373,22 +5898,19 @@ async function doLogin(){
   if(!u || !p){ $('#loginErr').textContent = 'Enter username and password'; return; }
   $('#loginErr').textContent = 'Signing in…';
   try{
-    const res = await fetch(CONFIG.API_URL, {method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'login', username:u, password:p})});
-    const data = await res.json();
-    if(!data.ok){ $('#loginErr').textContent = data.error||'Sign-in failed'; return; }
+    const data = await sbSignIn(u, p);
     session = {token:data.token, role:data.role, displayName:data.displayName, username:data.username};
     myName = data.displayName;
     try{ localStorage.setItem('bollin_session', JSON.stringify(session)); }catch(e){}
     hideLogin(); paintName();
     if(!(currentView in TRACKER_TAB) && !viewAllowed(currentView)) nav('dashboard');
     loadAll();
-  }catch(err){ $('#loginErr').textContent = 'Could not reach the server'; }
+  }catch(err){ $('#loginErr').textContent = err.message||'Sign-in failed'; }
 }
 function signOut(){
   session = null; myName='';
   try{ localStorage.removeItem('bollin_session'); }catch(e){}
+  if(LIVE) sb.auth.signOut().catch(()=>{});
   paintName(); showLogin();
 }
 function openPw(){
