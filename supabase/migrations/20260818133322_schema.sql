@@ -43,11 +43,18 @@ create table profiles (
   created_at timestamptz not null default now()
 );
 
--- app_role_rank() reads the CALLING user's own profile row. It relies on the
--- "select own profile" RLS policy (added in the RLS migration) to succeed
--- without needing SECURITY DEFINER — it runs with the caller's own privileges.
+-- app_role_rank() reads the CALLING user's own profile row. SECURITY DEFINER
+-- is required here, not optional: this function is also used inside profiles'
+-- OWN "admin reads all" RLS policy. If its internal query went through RLS
+-- like a normal caller, checking that policy would call this function, whose
+-- query would re-check the same policy, calling this function again —
+-- infinite recursion (Postgres error 54001 "stack depth limit exceeded").
+-- SECURITY DEFINER makes the internal lookup bypass RLS entirely, breaking
+-- the cycle. Confirmed live: this exact recursion fired for every admin+
+-- login, since only the rank>=2 "read all profiles" path touches the
+-- self-referencing policy branch.
 create or replace function app_role_rank() returns int
-language sql stable set search_path = public as $$
+language sql stable security definer set search_path = public as $$
   select coalesce(role_rank((select role from profiles where id = auth.uid())), -1);
 $$;
 

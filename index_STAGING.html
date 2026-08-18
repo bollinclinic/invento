@@ -28,13 +28,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-  /* STAGING build marker — striped top border + badge, see body::before / .stagingtag below */
-  body::before{content:"";position:fixed;top:0;left:0;right:0;height:4px;
-      background:repeating-linear-gradient(45deg,#B08A3E,#B08A3E 10px,#8A6E2E 10px,#8A6E2E 20px);z-index:200}
-  .stagingtag{margin-left:10px;padding:4px 11px;border-radius:99px;font-family:'Inter',system-ui,sans-serif;
-      font-size:11px;font-weight:800;letter-spacing:1.5px;color:#7A5A14;background:#F3E7C6;
-      border:1px solid #E0CC97;white-space:nowrap}
-  @media (max-width:760px){ .stagingtag{font-size:9.5px;padding:3px 8px;letter-spacing:1px} }
   :root{
     --pine:#2B6168;      /* primary — Bollin teal (from logo) */
     --pine-deep:#1C4A50;
@@ -438,7 +431,6 @@
   <header class="scanbar">
     <a class="brand" href="#dashboard" onclick="goHome(event)" title="Bollin Clinic Stock Manager — home">
       <img src="logo.png" alt="Bollin Clinic Stock Manager"></a>
-    <span class="stagingtag" title="This is the staging test site — not live clinic data">STAGING</span>
     <button class="cog" onclick="toggleThemePop(event)" title="Appearance & themes" aria-label="Appearance">⚙</button>
     <div class="scanwrap" title="Netum scanner is captured anywhere in the app">
       <span class="pulse" aria-hidden="true"></span>
@@ -471,7 +463,6 @@
     <div class="navsec">Checks</div>
     <a href="#gas" data-view="gas">Gas room checks</a>
     <a href="#stocktake" data-view="stocktake">Stocktake</a>
-    <a href="#labels" data-view="labels">Labels</a>
     <a href="#values" data-view="values">Stock value</a>
     <div class="navsec">Admin</div>
     <a href="#stores" data-view="stores">Stores & transfers</a>
@@ -5410,6 +5401,14 @@ async function api(payload){
         Formalin: s.formalin===true?'Yes':s.formalin===false?'No':'', DateCollected:s.date_collected,
         DateSent:s.date_sent, DateResult:s.date_result, By:c.logged_by, Notes:s.notes};
     });
+    let assets = [], users = [];
+    if(rank>=2){
+      const [assetsRes, usersRes] = await Promise.all([sb.from('assets').select('*'), sb.from('profiles').select('*')]);
+      if(assetsRes.error) throw new Error(assetsRes.error.message);
+      if(usersRes.error) throw new Error(usersRes.error.message);
+      assets = (assetsRes.data||[]).map(assetToSheetRow);
+      users = (usersRes.data||[]).map(u=>({Username:u.username, DisplayName:u.display_name, Role:u.role, Active:u.active?'yes':'no'}));
+    }
     return {ok:true, role, displayName: profRes.data.display_name, items,
       transactions: (txRes.data||[]).map(t=>({Timestamp:t.ts, Direction:t.direction, Tracker:t.tracker,
         Code:t.code, Name:t.name, Qty:t.qty, By:t.by, Batch:t.batch, Expiry:t.expiry, Note:t.note, Activity:t.activity})),
@@ -5419,12 +5418,9 @@ async function api(payload){
       dispatch: (dispRes.data||[]).map(dispatchToSheetRow),
       barcodeLinks: [],
       stores: (storesRes.data||[]).map(s=>({_row:s.id, Tracker:s.tracker, Store:s.store})),
-      assets: rank>=2 ? (await sb.from('assets').select('*')).data.map(assetToSheetRow) : [],
-      gasChecks: (gasRes.data||[]).map(gasToSheetRow),
+      assets, gasChecks: (gasRes.data||[]).map(gasToSheetRow),
       settings: (setRes.data||[]).map(s=>({Key:s.key, Value:s.value, Description:s.description})),
-      procedures, procLines,
-      users: rank>=2 ? (await sb.from('profiles').select('*')).data.map(u=>({Username:u.username,
-        DisplayName:u.display_name, Role:u.role, Active:u.active?'yes':'no'})) : [],
+      procedures, procLines, users,
       rota, samples, serverTime: new Date().toISOString()};
   }
 
@@ -5870,6 +5866,11 @@ async function loadAll(){
   }catch(err){
     $('#scanEcho').textContent = '';
     toast('Could not reach the sheet: '+err.message);
+    console.error('loadAll failed:', err);
+    // Even on a partial/failed sync, nav must still reflect the role we already know from
+    // login — otherwise it's stuck showing the pre-login (everything hidden) state, which
+    // looks exactly like a permissions bug even for a superadmin.
+    if(session){ paintName(); applyNavPerms(); }
   }
   render();
 }
