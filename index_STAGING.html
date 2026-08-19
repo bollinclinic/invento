@@ -3372,6 +3372,47 @@ let _procPreview = null;        // {label, rows:[{date,surgeon,procedure,patient
                                  // the on-screen mirror of whatever the report filter last matched
 let _procEditCell = null;       // {id, field} — which history-row cell is being inline-edited
 let _procViewing = null;        // {p, lines} — the procedure currently shown read-only on screen
+// Report filter state — tracked explicitly (not read live from the DOM) so selections
+// survive the re-render that View/Download trigger, instead of snapping back to defaults.
+let _procRepRange = 'month';    // week/month/year/custom
+let _procRepFrom = '';
+let _procRepTo = '';
+let _procRepView = 'date';      // date/theatre/surgeon/procedure/missing
+let _procRepTheatre = PROC_ROOMS[0];
+let _procRepSurgeon = '';
+let _procRepProcedure = '';
+function procRepSetRange(v){ _procRepRange=v; render(); }
+function procRepSetFrom(v){ _procRepFrom=v; render(); }
+function procRepSetTo(v){ _procRepTo=v; render(); }
+function procRepSetView(v){ _procRepView=v; render(); }
+function procRepSetTheatre(v){ _procRepTheatre=v; render(); }
+function procRepSetSurgeon(v){ _procRepSurgeon=v; render(); }
+function procRepSetProcedure(v){ _procRepProcedure=v; render(); }
+function procRepSurgeonNames(){ return [...new Set(state.procedures.filter(p=>p.status!=='Open').map(p=>p.surgeon).filter(Boolean))].sort(); }
+function procRepProcedureNames(){ return [...new Set(state.procedures.filter(p=>p.status!=='Open').map(p=>p.procedure).filter(Boolean))].sort(); }
+function procRepResolveRange(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  let from, to, label;
+  if(_procRepRange==='week'){
+    from=new Date(today); from.setDate(from.getDate()-((from.getDay()+6)%7));
+    to=new Date(from); to.setDate(to.getDate()+6);
+    label=from.toLocaleDateString('en-GB')+' - '+to.toLocaleDateString('en-GB');
+  } else if(_procRepRange==='year'){
+    from=new Date(today.getFullYear(),0,1);
+    to=new Date(today.getFullYear(),11,31);
+    label=String(today.getFullYear());
+  } else if(_procRepRange==='custom'){
+    if(!_procRepFrom || !_procRepTo){ toast('Pick both custom dates'); return null; }
+    from=new Date(_procRepFrom); to=new Date(_procRepTo);
+    label=from.toLocaleDateString('en-GB')+' - '+to.toLocaleDateString('en-GB');
+  } else {
+    from=new Date(today.getFullYear(),today.getMonth(),1);
+    to=new Date(today.getFullYear(),today.getMonth()+1,0);
+    label=from.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  }
+  to.setHours(23,59,59);
+  return {from, to, label};
+}
 function procSyncActive(){ activeProc = _procByRoom[_procRoom] || null; return activeProc; }
 function procClearRoom(id){
   // remove the procedure with this id from its room slot (used on end/cancel)
@@ -3624,25 +3665,38 @@ function procHistoryPanel(){
       </td>`:'<td></td>'}</tr>`).join('');
   const cols = 4 + (showMoney?1:0) + 1;
   const report = showMoney ? `
-    <h1 style="font-size:16px;margin-top:26px">Case sheets report</h1>
-    <div class="sub">Covers every closed procedure matching the selection, however many there are — downloads as one PDF and mirrors the same list on screen below.</div>
-    <div class="toolrow" style="align-items:center">
-      <select id="procRepRange" onchange="$('#procRepCustom').style.display=this.value==='custom'?'flex':'none'">
-        <option value="week">This week</option>
-        <option value="month" selected>This month</option>
-        <option value="year">This year</option>
-        <option value="custom">Custom dates</option>
+    <div class="toolrow" style="align-items:center;margin-top:26px">
+      <select onchange="procRepSetRange(this.value)">
+        <option value="week" ${_procRepRange==='week'?'selected':''}>This week</option>
+        <option value="month" ${_procRepRange==='month'?'selected':''}>This month</option>
+        <option value="year" ${_procRepRange==='year'?'selected':''}>This year</option>
+        <option value="custom" ${_procRepRange==='custom'?'selected':''}>Custom dates</option>
       </select>
-      <span id="procRepCustom" style="display:none;gap:6px;align-items:center">
-        <input id="procRepFrom" type="date" style="padding:8px;border:1px solid var(--line);border-radius:8px">
+      ${_procRepRange==='custom'?`<span style="display:flex;gap:6px;align-items:center">
+        <input type="date" value="${_procRepFrom}" onchange="procRepSetFrom(this.value)" style="padding:8px;border:1px solid var(--line);border-radius:8px">
         <span>to</span>
-        <input id="procRepTo" type="date" style="padding:8px;border:1px solid var(--line);border-radius:8px">
-      </span>
-      <button class="btn" onclick="procReportView('range')" title="Show the matching cases on screen — no PDF">View</button>
-      <button class="btn primary" onclick="procReportPDF('range')">Download PDF</button>
-      <button class="btn" onclick="procReportPDF('surgeon')">By surgeon…</button>
-      <button class="btn" onclick="procReportPDF('procedure')">By procedure…</button>
-      <button class="btn" onclick="procMissingItemsPDF()" title="Lists only the procedures in the selected date range with zero recorded line items — a worklist for manual itemizing">Missing items only…</button>
+        <input type="date" value="${_procRepTo}" onchange="procRepSetTo(this.value)" style="padding:8px;border:1px solid var(--line);border-radius:8px">
+      </span>`:''}
+      <select onchange="procRepSetView(this.value)">
+        <option value="date" ${_procRepView==='date'?'selected':''}>By Date</option>
+        <option value="theatre" ${_procRepView==='theatre'?'selected':''}>By Theatre</option>
+        <option value="surgeon" ${_procRepView==='surgeon'?'selected':''}>By Surgeon</option>
+        <option value="procedure" ${_procRepView==='procedure'?'selected':''}>By Procedure</option>
+        <option value="missing" ${_procRepView==='missing'?'selected':''}>Missing items only</option>
+      </select>
+      ${_procRepView==='theatre'?`<select onchange="procRepSetTheatre(this.value)">
+        ${PROC_ROOMS.map(r=>`<option value="${r}" ${_procRepTheatre===r?'selected':''}>${r}</option>`).join('')}
+      </select>`:''}
+      ${_procRepView==='surgeon'?`<select onchange="procRepSetSurgeon(this.value)">
+        <option value="">Choose surgeon…</option>
+        ${procRepSurgeonNames().map(n=>`<option value="${n.replace(/"/g,'&quot;')}" ${_procRepSurgeon===n?'selected':''}>${n}</option>`).join('')}
+      </select>`:''}
+      ${_procRepView==='procedure'?`<select onchange="procRepSetProcedure(this.value)">
+        <option value="">Choose procedure…</option>
+        ${procRepProcedureNames().map(n=>`<option value="${n.replace(/"/g,'&quot;')}" ${_procRepProcedure===n?'selected':''}>${n}</option>`).join('')}
+      </select>`:''}
+      <button class="btn" onclick="procReportView()" title="Show the matching cases on screen — no PDF">View</button>
+      <button class="btn primary" onclick="procReportPDF()">Download PDF</button>
     </div>` : '';
   const preview = showMoney ? procPreviewTable(_procPreview) : '';
   const pager = totalPages>1 ? `<div class="toolrow" style="justify-content:center;flex-wrap:wrap;gap:4px;margin-top:10px">
@@ -3651,7 +3705,7 @@ function procHistoryPanel(){
     </div>` : '';
   const viewBlock = showMoney ? procViewBlockHtml() : '';
   return `${summary}${report}${preview}${viewBlock}
-    <h1 style="font-size:16px;margin-top:22px">Procedures — page ${_procHistPage} of ${totalPages} (${closedAll.length} total), newest surgery date first</h1>
+    <h1 style="font-size:16px;margin-top:22px">Procedures — page ${_procHistPage} of ${totalPages} (${closedAll.length} total)</h1>
     <div class="sub">Double-click a surgeon, date, or patient number to correct it — this never touches stock or line items.</div>
     <table><thead><tr><th>Surgeon / procedure</th><th>Date</th><th>Patient</th><th>Status</th>${showMoney?'<th class="qty">Total £</th>':''}<th></th></tr></thead>
     <tbody>${rows||`<tr><td colspan="${cols}" style="color:var(--ink-soft)">No completed procedures yet.</td></tr>`}</tbody></table>
@@ -4006,45 +4060,39 @@ async function downloadProcPDF(procId){
   }catch(err){ toast('Could not download PDF — '+err.message); }
 }
 
-/* ---- bulk case-sheet report: week / month / custom / by surgeon / by procedure ----
-   Unlike the "Recent procedures" table (capped at 20 for the on-screen list), this
-   covers EVERY matching closed procedure, however many there are. */
-function procReportRows(mode){
-  const closed = state.procedures.filter(p=>p.status!=='Open');
-  if(mode==='range'){
-    const r = resolveRange('procRep');
-    if(!r) return null;
-    const rows = closed.filter(p=>{ const d=p.date?new Date(p.date):null; return d && d>=r.from && d<=r.to; })
-      .sort((a,b)=> new Date(a.date)-new Date(b.date));
-    return {rows, label:r.label};
+/* ---- bulk case-sheet report: date range plus one Custom View filter (theatre / surgeon /
+   procedure / missing-only). Unlike the "Procedures" table (paginated 50 at a time), this
+   covers EVERY matching closed procedure, however many there are. Selecting a filter never
+   fetches or downloads anything by itself — only the View/Download buttons do. */
+function procReportRows(){
+  const r = procRepResolveRange();
+  if(!r) return null;
+  let rows = state.procedures.filter(p=>p.status!=='Open')
+    .filter(p=>{ const d=p.date?new Date(p.date):null; return d && d>=r.from && d<=r.to; });
+  let label = r.label;
+  if(_procRepView==='theatre'){
+    rows = rows.filter(p=>p.room===_procRepTheatre);
+    label += ' · '+_procRepTheatre;
+  } else if(_procRepView==='surgeon'){
+    if(!_procRepSurgeon){ toast('Pick a surgeon'); return null; }
+    rows = rows.filter(p=>(p.surgeon||'')===_procRepSurgeon);
+    label += ' · '+_procRepSurgeon;
+  } else if(_procRepView==='procedure'){
+    if(!_procRepProcedure){ toast('Pick a procedure'); return null; }
+    rows = rows.filter(p=>(p.procedure||'')===_procRepProcedure);
+    label += ' · '+_procRepProcedure;
   }
-  if(mode==='surgeon'){
-    const names=[...new Set(closed.map(p=>p.surgeon).filter(Boolean))].sort();
-    if(!names.length){ toast('No surgeons on record'); return null; }
-    const name = prompt('Surgeon name (exact or part):\n'+names.join('\n'));
-    if(name===null || !name.trim()) return null;
-    const q=name.toLowerCase().trim();
-    const rows = closed.filter(p=>(p.surgeon||'').toLowerCase().includes(q)).sort((a,b)=>new Date(a.date)-new Date(b.date));
-    return {rows, label:'Surgeon: '+name};
-  }
-  if(mode==='procedure'){
-    const names=[...new Set(closed.map(p=>p.procedure).filter(Boolean))].sort();
-    if(!names.length){ toast('No procedures on record'); return null; }
-    const name = prompt('Procedure name (exact or part):\n'+names.join('\n'));
-    if(name===null || !name.trim()) return null;
-    const q=name.toLowerCase().trim();
-    const rows = closed.filter(p=>(p.procedure||'').toLowerCase().includes(q)).sort((a,b)=>new Date(a.date)-new Date(b.date));
-    return {rows, label:'Procedure: '+name};
-  }
-  return null;
+  rows = rows.slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+  return {rows, label};
 }
 // Shared by the report's "View" and "Download PDF" buttons — fetches lines fresh, scoped to
 // exactly the procedures matching the filter (never the capped state.procLines cache), and
-// always mirrors the result into the on-screen preview.
-async function procReportFetch(mode){
-  const data = procReportRows(mode);
+// always mirrors the result into the on-screen preview. "Missing items only" filters down to
+// zero-line cases after fetching, since that's the only way to know which have none.
+async function procReportFetch(){
+  const data = procReportRows();
   if(!data) return null;
-  const {rows, label} = data;
+  let {rows, label} = data;
   if(!rows.length){ toast('No procedures match that selection'); return null; }
   const ids = rows.map(p=>p.procedureId).filter(id=>!String(id).startsWith('PROC-LOCAL'));
   const {data: lineData, error: lineErr} = ids.length
@@ -4055,24 +4103,31 @@ async function procReportFetch(mode){
     code:l.code||'', name:l.name||'', qty:Number(l.qty)||0,
     unitCost:l.unit_cost===''||l.unit_cost==null?'':Number(l.unit_cost),
     lineCost:l.line_cost===''||l.line_cost==null?'':Number(l.line_cost), by:l.by||''}));
-  const withLines = rows.map(p=>({p, lines: reportLines.filter(l=>l.procedureId===p.procedureId)}));
-  _procPreview = { label, showLines:true, rows: withLines.map(({p,lines})=>({
+  let withLines = rows.map(p=>({p, lines: reportLines.filter(l=>l.procedureId===p.procedureId)}));
+  if(_procRepView==='missing'){
+    withLines = withLines.filter(({lines})=>!lines.length);
+    if(!withLines.length){ toast('Every procedure in that range has itemized lines — nothing missing'); return null; }
+    rows = withLines.map(x=>x.p);
+    label += ' · missing items only';
+  }
+  const showLines = _procRepView!=='missing';
+  _procPreview = { label, showLines, rows: withLines.map(({p,lines})=>({
     date:p.date, surgeon:p.surgeon, procedure:p.procedure, patientRef:p.patientRef,
     lines: lines.length, total: lines.length?lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0):(Number(p.totalCost)||0) })) };
-  return {rows, label, withLines};
+  return {rows, label, withLines, missingOnly: _procRepView==='missing'};
 }
-async function procReportView(mode){
+async function procReportView(){
   if(!(session&&isAdmin())) return;
-  const result = await procReportFetch(mode);
+  const result = await procReportFetch();
   if(!result) { render(); return; }
   render();
   toast(result.rows.length+' case(s) shown on screen — no PDF generated');
 }
-async function procReportPDF(mode){
+async function procReportPDF(){
   if(!(session&&isAdmin())) return;
-  const result = await procReportFetch(mode);
+  const result = await procReportFetch();
   if(!result){ render(); return; }
-  const {rows, label, withLines} = result;
+  const {rows, label, withLines, missingOnly} = result;
   render();
   if(!window.jspdf){ toast('PDF library still loading — try again in a second'); return; }
   const { jsPDF } = window.jspdf;
@@ -4080,6 +4135,34 @@ async function procReportPDF(mode){
   if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh the page and try again'); return; }
   const logo = await loadProcLogo();
   const W = doc.internal.pageSize.getWidth();
+
+  if(missingOnly){
+    // Compact worklist only — every row is empty by definition, so a full per-case page for
+    // each would just be blank noise. This is what you pull alongside the old hashirhub.uk
+    // app's case PDFs to re-itemize by hand.
+    if(logo) doc.addImage(logo.dataUrl,'PNG',12,10,16*(logo.img.width/logo.img.height),16);
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(43,97,104);
+    doc.text('Procedures Missing Itemized Detail', W-12, 15, {align:'right'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90,90,90);
+    doc.text(label+'  ·  '+rows.length+' case(s) have no recorded line items', W-12, 20.5, {align:'right'});
+    doc.text('Printed '+new Date().toLocaleString('en-GB')+(myName?' by '+myName:''), W-12, 25, {align:'right'});
+    doc.setDrawColor(176,138,62); doc.setLineWidth(0.8); doc.line(12,28,W-12,28);
+    doc.autoTable({
+      startY:32, margin:{left:12,right:12},
+      head:[['Date','Surgeon','Procedure','Patient','Total £']],
+      body: rows.map(p=>[p.date?new Date(p.date).toLocaleDateString('en-GB'):'—', p.surgeon||'—',
+        p.procedure||'—', p.patientRef||'—', '£'+(Number(p.totalCost)||0).toFixed(2)]),
+      styles:{fontSize:8.5,cellPadding:2}, headStyles:{fillColor:[43,97,104],textColor:255},
+      alternateRowStyles:{fillColor:[242,247,246]},
+      didDrawPage: d=>{ doc.setFontSize(7.5); doc.setTextColor(140,140,140);
+        doc.text('Bollin Clinic Stock Manager — Missing itemized detail '+label, 12, doc.internal.pageSize.getHeight()-6);
+        doc.text('Page '+d.pageNumber, W-12, doc.internal.pageSize.getHeight()-6, {align:'right'}); }
+    });
+    doc.save('Procedures_Missing_Items_'+label.replace(/[^0-9A-Za-z]+/g,'_')+'.pdf');
+    toast(rows.length+' procedure(s) with no line items listed');
+    return;
+  }
+
   const grandTotal = withLines.reduce((s,{p,lines})=>s+(lines.length?lines.reduce((s2,l)=>s2+(Number(l.lineCost)||0),0):(Number(p.totalCost)||0)),0);
   const noItemized = withLines.filter(({lines})=>!lines.length).length;
 
@@ -4116,55 +4199,6 @@ async function procReportPDF(mode){
 
   doc.save('Procedure_Report_'+label.replace(/[^0-9A-Za-z]+/g,'_')+'.pdf');
   toast(rows.length+' case sheet(s) downloaded in one PDF');
-}
-
-// Worklist of procedures with zero recorded line items in the selected date range, so the
-// old hashirhub.uk app's case PDFs can be pulled for those specific cases and re-entered by
-// hand — a case genuinely has no line data (e.g. it predates the app, or nothing was ever
-// scanned), it isn't a report bug.
-async function procMissingItemsPDF(){
-  if(!(session&&isAdmin())) return;
-  const data = procReportRows('range');
-  if(!data) return;
-  const {rows, label} = data;
-  if(!rows.length){ toast('No procedures match that selection'); return; }
-  const ids = rows.map(p=>p.procedureId).filter(id=>!String(id).startsWith('PROC-LOCAL'));
-  const {data: lineData, error: lineErr} = ids.length
-    ? await sb.from('procedure_lines').select('procedure_id').in('procedure_id', ids)
-    : {data:[], error:null};
-  if(lineErr){ toast('Could not check line items — '+lineErr.message); return; }
-  const hasLines = new Set((lineData||[]).map(l=>l.procedure_id));
-  const missing = rows.filter(p=>!hasLines.has(p.procedureId));
-  _procPreview = { label: label+' — missing items', showLines:false,
-    rows: missing.map(p=>({date:p.date, surgeon:p.surgeon, procedure:p.procedure, patientRef:p.patientRef, total:Number(p.totalCost)||0})) };
-  render();
-  if(!missing.length){ toast('Every procedure in that range has itemized lines — nothing missing'); return; }
-  if(!window.jspdf){ toast('PDF library still loading — try again in a second'); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
-  if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh the page and try again'); return; }
-  const logo = await loadProcLogo();
-  const W = doc.internal.pageSize.getWidth();
-  if(logo) doc.addImage(logo.dataUrl,'PNG',12,10,16*(logo.img.width/logo.img.height),16);
-  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(43,97,104);
-  doc.text('Procedures Missing Itemized Detail', W-12, 15, {align:'right'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90,90,90);
-  doc.text(label+'  ·  '+missing.length+' of '+rows.length+' case(s) have no recorded line items', W-12, 20.5, {align:'right'});
-  doc.text('Printed '+new Date().toLocaleString('en-GB')+(myName?' by '+myName:''), W-12, 25, {align:'right'});
-  doc.setDrawColor(176,138,62); doc.setLineWidth(0.8); doc.line(12,28,W-12,28);
-  doc.autoTable({
-    startY:32, margin:{left:12,right:12},
-    head:[['Date','Surgeon','Procedure','Patient','Total £']],
-    body: missing.map(p=>[p.date?new Date(p.date).toLocaleDateString('en-GB'):'—', p.surgeon||'—',
-      p.procedure||'—', p.patientRef||'—', '£'+(Number(p.totalCost)||0).toFixed(2)]),
-    styles:{fontSize:8.5,cellPadding:2}, headStyles:{fillColor:[43,97,104],textColor:255},
-    alternateRowStyles:{fillColor:[242,247,246]},
-    didDrawPage: d=>{ doc.setFontSize(7.5); doc.setTextColor(140,140,140);
-      doc.text('Bollin Clinic Stock Manager — Missing itemized detail '+label, 12, doc.internal.pageSize.getHeight()-6);
-      doc.text('Page '+d.pageNumber, W-12, doc.internal.pageSize.getHeight()-6, {align:'right'}); }
-  });
-  doc.save('Procedures_Missing_Items_'+label.replace(/[^0-9A-Za-z]+/g,'_')+'.pdf');
-  toast(missing.length+' procedure(s) with no line items listed');
 }
 
 /* ---------------- sticker printer (admin) ---------------- */
