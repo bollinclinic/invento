@@ -3366,6 +3366,8 @@ let _procHistPage = 1;          // current page of the "Procedures" history list
 const PROC_HIST_PAGE_SIZE = 50;
 let _procPreview = null;        // {label, rows:[{date,surgeon,procedure,patientRef,lines,total}]} —
                                  // the on-screen mirror of whatever the report filter last matched
+let _procEditCell = null;       // {id, field} — which history-row cell is being inline-edited
+let _procViewing = null;        // {p, lines} — the procedure currently shown read-only on screen
 function procSyncActive(){ activeProc = _procByRoom[_procRoom] || null; return activeProc; }
 function procClearRoom(id){
   // remove the procedure with this id from its room slot (used on end/cancel)
@@ -3476,6 +3478,97 @@ function procConsolePanel(){
     </div>`;
 }
 
+// ---- inline double-click edit of surgeon/date/patient in the Procedures history list ----
+// Uses the existing plain procUpdateMeta action (a metadata-only UPDATE, no status/stock
+// involvement) so bulk date/surgeon cleanup never touches consumed stock or line items.
+function procStartEditCell(id, field){
+  if(!(session&&isAdmin())) return;
+  _procEditCell = {id, field}; render();
+  requestAnimationFrame(()=>{ const el=document.getElementById('procEditInput'); if(el){ el.focus(); if(el.select) el.select(); } });
+}
+function procCancelEditCell(){ _procEditCell=null; render(); }
+async function procSaveEditCell(id, field, value){
+  if(!_procEditCell || _procEditCell.id!==id || _procEditCell.field!==field) return; // already handled by the other of blur/Enter
+  _procEditCell = null;
+  const p = state.procedures.find(x=>x.procedureId===id);
+  if(!p){ render(); return; }
+  const trimmed = String(value).trim();
+  if(field==='date'){
+    if(!trimmed){ toast('Date cannot be blank'); render(); return; }
+    if(trimmed===String(p.date||'').slice(0,10)){ render(); return; }
+    p.date = trimmed;
+  } else if(field==='surgeon'){
+    if(trimmed===(p.surgeon||'')){ render(); return; }
+    p.surgeon = trimmed;
+  } else if(field==='patient'){
+    if(trimmed===(p.patientRef||'')){ render(); return; }
+    p.patientRef = trimmed;
+  }
+  render();
+  if(!(LIVE && !String(id).startsWith('PROC-LOCAL'))) return;
+  try{
+    await api({action:'procUpdateMeta', procedureId:id, surgeon:p.surgeon, procedure:p.procedure, date:p.date, patientRef:p.patientRef, by:myName||''});
+    toast('Updated');
+  }catch(err){ toast('Not saved — '+err.message); }
+}
+function procEditableCell(p, field, displayHtml, inputType){
+  const editing = _procEditCell && _procEditCell.id===p.procedureId && _procEditCell.field===field;
+  if(editing){
+    const raw = field==='date' ? (p.date?String(p.date).slice(0,10):'') : field==='patient' ? (p.patientRef||'') : (p.surgeon||'');
+    return `<input id="procEditInput" type="${inputType}" value="${String(raw).replace(/"/g,'&quot;')}"
+      style="width:100%;padding:4px 6px;border:1px solid var(--pine);border-radius:6px;font:inherit"
+      onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){procCancelEditCell()}"
+      onblur="procSaveEditCell('${p.procedureId}','${field}',this.value)">`;
+  }
+  return `<span ondblclick="procStartEditCell('${p.procedureId}','${field}')" title="Double-click to edit" style="cursor:text;border-bottom:1px dotted var(--ink-soft)">${displayHtml}</span>`;
+}
+
+// ---- read-only on-screen viewer (View button) — no reopen, no stock touched ----
+async function procViewOnScreen(procId){
+  const p = state.procedures.find(x=>x.procedureId===procId);
+  if(!p){ toast('Procedure not found'); return; }
+  let lines = [];
+  if(String(procId).startsWith('PROC-LOCAL')){
+    lines = state.procLines.filter(l=>l.procedureId===procId);
+  } else {
+    const {data: lineData, error: lineErr} = await sb.from('procedure_lines').select('*').eq('procedure_id', procId).order('ts',{ascending:true});
+    if(lineErr){ toast('Could not load line items — '+lineErr.message); return; }
+    lines = (lineData||[]).map(l=>({procedureId:l.procedure_id, ts:l.ts, tracker:(l.tracker||'').toLowerCase(),
+      code:l.code||'', name:l.name||'', qty:Number(l.qty)||0,
+      unitCost:l.unit_cost===''||l.unit_cost==null?'':Number(l.unit_cost),
+      lineCost:l.line_cost===''||l.line_cost==null?'':Number(l.line_cost), by:l.by||''}));
+  }
+  _procViewing = {p, lines};
+  render();
+  requestAnimationFrame(()=>{ const el=document.getElementById('procViewBlock'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); });
+}
+function procCloseView(){ _procViewing=null; render(); }
+function procViewBlockHtml(){
+  if(!_procViewing) return '';
+  const {p, lines} = _procViewing;
+  const showMoney = (session && isAdmin());
+  const total = lines.length ? lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0) : (Number(p.totalCost)||0);
+  const rows = lines.length ? lines.map(l=>`<tr>
+      <td data-label="">${l.name}</td>
+      <td data-label="Tracker">${TRACKER_LABEL[l.tracker]||l.tracker}</td>
+      <td class="qty" data-label="Qty">${l.qty}</td>
+      ${showMoney?`<td class="qty" data-label="Unit £">${l.unitCost===''||l.unitCost==null?'—':'£'+Number(l.unitCost).toFixed(2)}</td>
+      <td class="qty" data-label="Line £">${l.unitCost===''||l.unitCost==null?'—':'£'+(Number(l.unitCost)*l.qty).toFixed(2)}</td>`:''}
+    </tr>`).join('')
+    : `<tr><td colspan="${showMoney?5:3}" style="color:var(--ink-soft)">No itemized cost lines recorded for this case — only the total survives.</td></tr>`;
+  return `<div id="procViewBlock" style="border:2px solid var(--pine);border-radius:12px;padding:16px;margin-top:18px">
+    <div class="toolrow" style="justify-content:space-between;align-items:center">
+      <h1 style="font-size:16px;margin:0">Viewing: ${p.surgeon||'—'} — ${p.procedure||'—'}</h1>
+      <button class="btn" onclick="procCloseView()">✕ Close</button>
+    </div>
+    <div class="sub">Date: ${p.date?new Date(p.date).toLocaleDateString('en-GB'):'—'} · Patient: ${p.patientRef||'—'} · Status: ${p.status}</div>
+    <table style="margin-top:10px"><thead><tr><th>Item</th><th>Tracker</th><th class="qty">Qty</th>${showMoney?'<th class="qty">Unit £</th><th class="qty">Line £</th>':''}</tr></thead>
+      <tbody>${rows}</tbody>
+      ${showMoney?`<tfoot><tr><td colspan="${lines.length?3:1}"></td><td colspan="2" class="qty" style="font-weight:bold">Total £${total.toFixed(2)}</td></tr></tfoot>`:''}
+    </table>
+  </div>`;
+}
+
 function procPreviewTable(preview){
   if(!preview) return '';
   const {label, rows, showLines} = preview;
@@ -3514,12 +3607,13 @@ function procHistoryPanel(){
       <table><thead><tr><th>Surgeon</th><th class="qty">Total consumed £</th></tr></thead><tbody>${sumRows||'<tr><td colspan="2" style="color:var(--ink-soft)">No procedures yet.</td></tr>'}</tbody></table>`;
   }
   const rows = closed.map(p=>`<tr>
-    <td data-label=""><strong>${p.surgeon||'—'}</strong><div style="font-size:12px;color:var(--ink-soft)">${p.procedure||''}</div></td>
-    <td data-label="Date">${p.date?new Date(p.date).toLocaleDateString('en-GB'):'—'}</td>
-    <td data-label="Patient">${p.patientRef||'—'}</td>
+    <td data-label="">${procEditableCell(p,'surgeon','<strong>'+(p.surgeon||'—')+'</strong>','text')}<div style="font-size:12px;color:var(--ink-soft)">${p.procedure||''}</div></td>
+    <td data-label="Date">${procEditableCell(p,'date', p.date?new Date(p.date).toLocaleDateString('en-GB'):'—', 'date')}</td>
+    <td data-label="Patient">${procEditableCell(p,'patient', p.patientRef||'—', 'text')}</td>
     <td data-label="Status">${p.status}</td>
     ${showMoney?`<td class="qty" data-label="Total £">£${(Number(p.totalCost)||0).toFixed(2)}</td>`:''}
     ${(session&&isAdmin())?`<td class="rowbtns" data-label="">
+        <button onclick="procViewOnScreen('${p.procedureId}')" title="View this case's items on screen — read-only, no reopen">View</button>
         <button onclick="downloadProcPDF('${p.procedureId}')">PDF</button>
         <button onclick="procEditClosed('${p.procedureId}')" title="Reopen this procedure for editing — its consumed stock is returned until you end it again">Edit</button>
         <button onclick="procDeleteClosed('${p.procedureId}')" style="color:var(--red)" title="Delete this procedure and return all consumed stock to the inventories">Delete</button>
@@ -3549,8 +3643,10 @@ function procHistoryPanel(){
       ${Array.from({length:totalPages},(_,i)=>i+1).map(n=>
         `<button class="btn${n===_procHistPage?' primary':''}" style="min-width:34px;padding:6px 4px" onclick="procHistGoPage(${n})">${n}</button>`).join('')}
     </div>` : '';
-  return `${summary}${report}${preview}
-    <h1 style="font-size:16px;margin-top:22px">Procedures — page ${_procHistPage} of ${totalPages} (${closedAll.length} total)</h1>
+  const viewBlock = showMoney ? procViewBlockHtml() : '';
+  return `${summary}${report}${preview}${viewBlock}
+    <h1 style="font-size:16px;margin-top:22px">Procedures — page ${_procHistPage} of ${totalPages} (${closedAll.length} total), newest surgery date first</h1>
+    <div class="sub">Double-click a surgeon, date, or patient number to correct it — this never touches stock or line items.</div>
     <table><thead><tr><th>Surgeon / procedure</th><th>Date</th><th>Patient</th><th>Status</th>${showMoney?'<th class="qty">Total £</th>':''}<th></th></tr></thead>
     <tbody>${rows||`<tr><td colspan="${cols}" style="color:var(--ink-soft)">No completed procedures yet.</td></tr>`}</tbody></table>
     ${pager}`;
