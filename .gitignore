@@ -3,3 +3,4 @@ secrets/
 .env.*
 supabase/.temp/
 Screen Shots/
+MIGRATION_REVIEW_*.csv
