@@ -3368,8 +3368,6 @@ let _procRoom = PROC_ROOMS[0];  // the room whose console is showing
 let activeProc = null;          // the current room's open procedure (or null)
 let _procHistPage = 1;          // current page of the "Procedures" history list
 const PROC_HIST_PAGE_SIZE = 50;
-let _procPreview = null;        // {label, rows:[{date,surgeon,procedure,patientRef,lines,total}]} —
-                                 // the on-screen mirror of whatever the report filter last matched
 let _procEditCell = null;       // {id, field} — which history-row cell is being inline-edited
 let _procViewing = null;        // {p, lines} — the procedure currently shown read-only on screen
 // Report filter state — tracked explicitly (not read live from the DOM) so selections
@@ -3388,6 +3386,8 @@ function procRepSetView(v){ _procRepView=v; render(); }
 function procRepSetTheatre(v){ _procRepTheatre=v; render(); }
 function procRepSetSurgeon(v){ _procRepSurgeon=v; render(); }
 function procRepSetProcedure(v){ _procRepProcedure=v; render(); }
+let _procListFilter = null; // {rows, label} — when set, the Procedures list below shows only
+                             // these (set by View, cleared by Clear filter), instead of everything.
 function procRepSurgeonNames(){ return [...new Set(state.procedures.filter(p=>p.status!=='Open').map(p=>p.surgeon).filter(Boolean))].sort(); }
 function procRepProcedureNames(){ return [...new Set(state.procedures.filter(p=>p.status!=='Open').map(p=>p.procedure).filter(Boolean))].sort(); }
 function procRepResolveRange(){
@@ -3548,17 +3548,28 @@ async function procSaveEditCell(id, field, value){
   } else if(field==='patient'){
     if(trimmed===(p.patientRef||'')){ render(); return; }
     p.patientRef = trimmed;
+  } else if(field==='room'){
+    if(trimmed===(p.room||'')){ render(); return; }
+    p.room = trimmed || null;
   }
   render();
   if(!(LIVE && !String(id).startsWith('PROC-LOCAL'))) return;
   try{
-    await api({action:'procUpdateMeta', procedureId:id, surgeon:p.surgeon, procedure:p.procedure, date:p.date, patientRef:p.patientRef, by:myName||''});
+    await api({action:'procUpdateMeta', procedureId:id, surgeon:p.surgeon, procedure:p.procedure, date:p.date, patientRef:p.patientRef, room:p.room||null, by:myName||''});
     toast('Updated');
   }catch(err){ toast('Not saved — '+err.message); }
 }
 function procEditableCell(p, field, displayHtml, inputType){
   const editing = _procEditCell && _procEditCell.id===p.procedureId && _procEditCell.field===field;
   if(editing){
+    if(field==='room'){
+      return `<select id="procEditInput" style="width:100%;padding:4px 6px;border:1px solid var(--pine);border-radius:6px;font:inherit"
+        onkeydown="if(event.key==='Escape'){procCancelEditCell()}"
+        onchange="this.blur()" onblur="procSaveEditCell('${p.procedureId}','room',this.value)">
+        <option value="">— unassigned —</option>
+        ${PROC_ROOMS.map(r=>`<option value="${r}" ${p.room===r?'selected':''}>${r}</option>`).join('')}
+      </select>`;
+    }
     const raw = field==='date' ? (p.date?String(p.date).slice(0,10):'') : field==='patient' ? (p.patientRef||'') : (p.surgeon||'');
     return `<input id="procEditInput" type="${inputType}" value="${String(raw).replace(/"/g,'&quot;')}"
       style="width:100%;padding:4px 6px;border:1px solid var(--pine);border-radius:6px;font:inherit"
@@ -3614,26 +3625,12 @@ function procViewBlockHtml(){
   </div>`;
 }
 
-function procPreviewTable(preview){
-  if(!preview) return '';
-  const {label, rows, showLines} = preview;
-  const body = rows.map(r=>`<tr>
-    <td data-label="Date">${r.date?new Date(r.date).toLocaleDateString('en-GB'):'—'}</td>
-    <td data-label="Surgeon">${r.surgeon||'—'}</td>
-    <td data-label="Procedure">${r.procedure||'—'}</td>
-    <td data-label="Patient">${r.patientRef||'—'}</td>
-    ${showLines?`<td class="qty" data-label="Lines" style="${r.lines?'':'color:var(--red);font-style:italic'}">${r.lines||'none'}</td>`:''}
-    <td class="qty" data-label="Total £">£${(Number(r.total)||0).toFixed(2)}</td>
-  </tr>`).join('');
-  return `<h1 style="font-size:16px;margin-top:22px">On-screen: ${label} (${rows.length} case${rows.length===1?'':'s'})</h1>
-    <div class="sub">Same set as the last PDF you generated from the filter above.</div>
-    <table><thead><tr><th>Date</th><th>Surgeon</th><th>Procedure</th><th>Patient</th>${showLines?'<th class="qty">Lines</th>':''}<th class="qty">Total £</th></tr></thead>
-    <tbody>${body||'<tr><td colspan="'+(showLines?6:5)+'" style="color:var(--ink-soft)">No procedures match.</td></tr>'}</tbody></table>`;
-}
 function procHistGoPage(n){ _procHistPage = n; render(); }
+function procClearListFilter(){ _procListFilter=null; _procHistPage=1; render(); }
 function procHistoryPanel(){
   const showMoney = (session && isAdmin());    // financials ADMIN ONLY (#3)
-  const closedAll = state.procedures.filter(p=>p.status!=='Open').slice()
+  const source = _procListFilter ? _procListFilter.rows : state.procedures.filter(p=>p.status!=='Open');
+  const closedAll = source.slice()
     .sort((a,b)=> new Date(b.date||0)-new Date(a.date||0) || new Date(b.endTime||b.startTime||0)-new Date(a.endTime||a.startTime||0));
   const totalPages = Math.max(1, Math.ceil(closedAll.length/PROC_HIST_PAGE_SIZE));
   if(_procHistPage>totalPages) _procHistPage=totalPages;
@@ -3655,6 +3652,7 @@ function procHistoryPanel(){
     <td data-label="">${procEditableCell(p,'surgeon','<strong>'+(p.surgeon||'—')+'</strong>','text')}<div style="font-size:12px;color:var(--ink-soft)">${p.procedure||''}</div></td>
     <td data-label="Date">${procEditableCell(p,'date', p.date?new Date(p.date).toLocaleDateString('en-GB'):'—', 'date')}</td>
     <td data-label="Patient">${procEditableCell(p,'patient', p.patientRef||'—', 'text')}</td>
+    <td data-label="Theatre">${procEditableCell(p,'room', p.room||'—', 'text')}</td>
     <td data-label="Status">${p.status}</td>
     ${showMoney?`<td class="qty" data-label="Total £">£${(Number(p.totalCost)||0).toFixed(2)}</td>`:''}
     ${(session&&isAdmin())?`<td class="rowbtns" data-label="">
@@ -3663,7 +3661,7 @@ function procHistoryPanel(){
         <button onclick="procEditClosed('${p.procedureId}')" title="Reopen this procedure for editing — its consumed stock is returned until you end it again">Edit</button>
         <button onclick="procDeleteClosed('${p.procedureId}')" style="color:var(--red)" title="Delete this procedure and return all consumed stock to the inventories">Delete</button>
       </td>`:'<td></td>'}</tr>`).join('');
-  const cols = 4 + (showMoney?1:0) + 1;
+  const cols = 5 + (showMoney?1:0) + 1;
   const report = showMoney ? `
     <div class="toolrow" style="align-items:center;margin-top:26px">
       <select onchange="procRepSetRange(this.value)">
@@ -3695,19 +3693,21 @@ function procHistoryPanel(){
         <option value="">Choose procedure…</option>
         ${procRepProcedureNames().map(n=>`<option value="${n.replace(/"/g,'&quot;')}" ${_procRepProcedure===n?'selected':''}>${n}</option>`).join('')}
       </select>`:''}
-      <button class="btn" onclick="procReportView()" title="Show the matching cases on screen — no PDF">View</button>
+      <button class="btn" onclick="procApplyFilter()" title="Filter the Procedures list below to match — no PDF">View</button>
       <button class="btn primary" onclick="procReportPDF()">Download PDF</button>
     </div>` : '';
-  const preview = showMoney ? procPreviewTable(_procPreview) : '';
   const pager = totalPages>1 ? `<div class="toolrow" style="justify-content:center;flex-wrap:wrap;gap:4px;margin-top:10px">
       ${Array.from({length:totalPages},(_,i)=>i+1).map(n=>
         `<button class="btn${n===_procHistPage?' primary':''}" style="min-width:34px;padding:6px 4px" onclick="procHistGoPage(${n})">${n}</button>`).join('')}
     </div>` : '';
   const viewBlock = showMoney ? procViewBlockHtml() : '';
-  return `${summary}${report}${preview}${viewBlock}
-    <h1 style="font-size:16px;margin-top:22px">Procedures — page ${_procHistPage} of ${totalPages} (${closedAll.length} total)</h1>
-    <div class="sub">Double-click a surgeon, date, or patient number to correct it — this never touches stock or line items.</div>
-    <table><thead><tr><th>Surgeon / procedure</th><th>Date</th><th>Patient</th><th>Status</th>${showMoney?'<th class="qty">Total £</th>':''}<th></th></tr></thead>
+  const heading = _procListFilter
+    ? `Procedures matching: ${_procListFilter.label} — page ${_procHistPage} of ${totalPages} (${closedAll.length} total) <button class="btn" style="margin-left:8px;padding:3px 10px;font-size:12px" onclick="procClearListFilter()">✕ Clear filter</button>`
+    : `Procedures — page ${_procHistPage} of ${totalPages} (${closedAll.length} total)`;
+  return `${summary}${report}${viewBlock}
+    <h1 style="font-size:16px;margin-top:22px">${heading}</h1>
+    <div class="sub">Double-click a surgeon, date, patient number, or theatre to correct it — this never touches stock or line items.</div>
+    <table><thead><tr><th>Surgeon / procedure</th><th>Date</th><th>Patient</th><th>Theatre</th><th>Status</th>${showMoney?'<th class="qty">Total £</th>':''}<th></th></tr></thead>
     <tbody>${rows||`<tr><td colspan="${cols}" style="color:var(--ink-soft)">No completed procedures yet.</td></tr>`}</tbody></table>
     ${pager}`;
 }
@@ -4085,9 +4085,8 @@ function procReportRows(){
   rows = rows.slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
   return {rows, label};
 }
-// Shared by the report's "View" and "Download PDF" buttons — fetches lines fresh, scoped to
-// exactly the procedures matching the filter (never the capped state.procLines cache), and
-// always mirrors the result into the on-screen preview. "Missing items only" filters down to
+// Used by "Download PDF" — fetches lines fresh, scoped to exactly the procedures matching
+// the filter (never the capped state.procLines cache). "Missing items only" filters down to
 // zero-line cases after fetching, since that's the only way to know which have none.
 async function procReportFetch(){
   const data = procReportRows();
@@ -4110,18 +4109,31 @@ async function procReportFetch(){
     rows = withLines.map(x=>x.p);
     label += ' · missing items only';
   }
-  const showLines = _procRepView!=='missing';
-  _procPreview = { label, showLines, rows: withLines.map(({p,lines})=>({
-    date:p.date, surgeon:p.surgeon, procedure:p.procedure, patientRef:p.patientRef,
-    lines: lines.length, total: lines.length?lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0):(Number(p.totalCost)||0) })) };
   return {rows, label, withLines, missingOnly: _procRepView==='missing'};
 }
-async function procReportView(){
+// "View" — filters the Procedures list below to match the current selection. No PDF, no
+// separate preview block; the actual list changes. Everything but "Missing items only" is
+// already in state.procedures, so only that mode needs a (lightweight) fetch.
+async function procApplyFilter(){
   if(!(session&&isAdmin())) return;
-  const result = await procReportFetch();
-  if(!result) { render(); return; }
+  const data = procReportRows();
+  if(!data) return;
+  let {rows, label} = data;
+  if(_procRepView==='missing'){
+    const ids = rows.map(p=>p.procedureId).filter(id=>!String(id).startsWith('PROC-LOCAL'));
+    const {data: lineData, error: lineErr} = ids.length
+      ? await sb.from('procedure_lines').select('procedure_id').in('procedure_id', ids)
+      : {data:[], error:null};
+    if(lineErr){ toast('Could not check line items — '+lineErr.message); return; }
+    const hasLines = new Set((lineData||[]).map(l=>l.procedure_id));
+    rows = rows.filter(p=>!hasLines.has(p.procedureId));
+    label += ' · missing items only';
+    if(!rows.length){ toast('Every procedure in that range has itemized lines — nothing missing'); return; }
+  }
+  _procListFilter = {rows, label};
+  _procHistPage = 1;
   render();
-  toast(result.rows.length+' case(s) shown on screen — no PDF generated');
+  toast(rows.length+' procedure(s) matching — list filtered below');
 }
 async function procReportPDF(){
   if(!(session&&isAdmin())) return;
@@ -6016,7 +6028,8 @@ async function api(payload){
     // go through the RPC (SECURITY DEFINER, same as every other procedure mutation).
     const {error} = await sb.rpc('proc_update_meta', {p_procedure_id: payload.procedureId,
       p_date: payload.date, p_surgeon: strOrNull(payload.surgeon),
-      p_procedure_name: strOrNull(payload.procedure), p_patient_ref: strOrNull(payload.patientRef)});
+      p_procedure_name: strOrNull(payload.procedure), p_patient_ref: strOrNull(payload.patientRef),
+      p_room: strOrNull(payload.room)});
     if(error) throw new Error(error.message);
     return {ok:true};
   }

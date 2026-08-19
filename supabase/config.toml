@@ -15,7 +15,11 @@ schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 # The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
 # for accidental or malicious requests.
-max_rows = 1000
+# Raised from the 1000 default: this silently truncated real queries (procedure_lines report
+# fetches, activity log) once real data volume passed 1000 rows, with no error — just missing
+# rows. The app doesn't paginate its own reads, so the API layer needs enough headroom for the
+# largest real table (activity_log, ~5200+ rows and growing) plus real room to grow.
+max_rows = 20000
 # Controls whether new tables, views, sequences and functions created in the `public` schema by
 # `postgres` are reachable through the Data API roles (`anon`, `authenticated`, `service_role`)
 # without explicit GRANTs. When unset, new entities are NOT auto-exposed, matching the new cloud
