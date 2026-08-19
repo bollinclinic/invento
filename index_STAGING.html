@@ -1368,7 +1368,7 @@ function alertsView(){
       <td class="rowbtns" data-label="">${a.status==='Sent'||a.status==='Escalated'?`<button onclick="ackAlert(${ix})">Acknowledge</button>`:''}</td></tr>`).join('');
   return `<h1>Alerts</h1><div class="sub">Low stock, out of stock and expiry alerts — acknowledge here or from the email. Unacknowledged alerts escalate automatically.</div>
     <table><thead><tr><th>Item</th><th>Type</th><th>Detail</th><th>Raised</th><th>Status</th><th></th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="6" style="color:var(--ink-soft)">No alerts. The daily check runs at 8am once the sheet is connected.</td></tr>'}</tbody></table>`;
+    <tbody>${rows||'<tr><td colspan="6" style="color:var(--ink-soft)">No alerts yet.</td></tr>'}</tbody></table>`;
 }
 
 /* ---------------- sterilisation: use -> dispatch -> receive ---------------- */
@@ -1793,7 +1793,7 @@ async function saveInstrument(){
         Category:it.cat, Description:$('#inDesc').value.trim(), QtyInTray:it.qty,
         Expiry:it.expiry, Notes:$('#inNotes').value.trim(), Status:'At Bollin'}});
       loadAll();
-    }catch(err){ toast('Not saved to sheet — '+err.message); }
+    }catch(err){ toast('Not saved — '+err.message); }
   }
 }
 
@@ -1926,7 +1926,7 @@ async function saveImplant(){
       Qty:im.qty, Remarks:im.remarks,
       DateOrdered:im.dateOrdered, OrderedBy:im.orderedBy, Status:im.status}});
       loadAll();
-    }catch(err){ toast('Not saved to sheet — '+err.message); }
+    }catch(err){ toast('Not saved — '+err.message); }
   }
 }
 async function setImplantStatus(ix, status){
@@ -1935,7 +1935,7 @@ async function setImplantStatus(ix, status){
   render(); toast(im.initials+' ('+im.pat+') → '+status);
   if(LIVE && im._row){
     try{ await api({action:'implantUpdate', row:im._row, fields:{Status:status}}); }
-    catch(err){ toast('Not saved to sheet — '+err.message); loadAll(); }
+    catch(err){ toast('Not saved — '+err.message); loadAll(); }
   }
 }
 function openReceive(ix, scannedRef){
@@ -1959,7 +1959,7 @@ async function saveReceive(){
     try{ await api({action:'implantUpdate', row:rcvImp._row, fields:{
       Status:'Delivered', ReceivedBy:by, ReceivedQty:qty, StorageLocation:loc,
       ReceivedDate:new Date().toISOString(), ScannedRef:rcvRef||''}}); }
-    catch(err){ toast('Not saved to sheet — '+err.message); loadAll(); }
+    catch(err){ toast('Not saved — '+err.message); loadAll(); }
   }
 }
 function openReturn(ix){
@@ -1980,7 +1980,7 @@ async function saveReturn(){
     try{ await api({action:'implantUpdate', row:retImp._row, fields:{
       ReturnDetails:det, ReturnedQty:qty, ReturnedBy:retImp.returnedBy,
       ReturnedDate:new Date().toISOString()}}); }
-    catch(err){ toast('Not saved to sheet — '+err.message); loadAll(); }
+    catch(err){ toast('Not saved — '+err.message); loadAll(); }
   }
 }
 function implantScan(code){
@@ -2276,7 +2276,7 @@ async function saveStocktake(){
       await api({action:'stocktake', checkType:stk.type, by:myName||'Unknown',
                  apply:stk.apply, entries});
     }catch(err){
-      toast('Not saved to sheet — ' + err.message);
+      toast('Not saved — ' + err.message);
       loadAll();
     }
   }
@@ -2466,7 +2466,7 @@ async function saveNewItem(){
       fields.Barcode = it.barcode; fields.Status = it.status;
       await api({action:'addItem', tracker:TRACKER_TAB[tracker], fields});
       loadAll();   // pick up the sheet row number
-    }catch(err){ toast('Not saved to sheet — '+err.message); }
+    }catch(err){ toast('Not saved — '+err.message); }
   }
 }
 
@@ -2560,8 +2560,8 @@ async function assignCodes(){
   render();
   toast(entries.length+' codes generated');
   if(LIVE){
-    try{ await api({action:'setBarcodes', entries}); toast('Saved to sheet'); }
-    catch(err){ toast('Not saved to sheet — '+err.message); }
+    try{ await api({action:'setBarcodes', entries}); toast('Saved'); }
+    catch(err){ toast('Not saved — '+err.message); }
   }
 }
 const selLbl = new Set();
@@ -3140,7 +3140,7 @@ async function saveGasCheck(){
   render();
   if(LIVE){
     try{ await api({action:'gasCheckAdd', fields}); loadAll(); }
-    catch(err){ toast('Not saved to sheet — '+err.message); }
+    catch(err){ toast('Not saved — '+err.message); }
   }
 }
 
@@ -3521,7 +3521,7 @@ async function startProc(){
     try{
       const res = await api({action:'procStart', surgeon, procedure, date, patientRef, room, by:myName||''});
       if(res.procedureId){ _procByRoom[room].procedureId = res.procedureId; }
-    }catch(err){ toast('Not saved to sheet — '+err.message); }
+    }catch(err){ toast('Not saved — '+err.message); }
   }
 }
 
@@ -3583,11 +3583,9 @@ function renderProcPicker(){
     'Searching '+pool.length+' items — '+order.map(t=>(TRACKER_LABEL[t]||t)+' '+(cnt[t]||0)).join(' · ')+
     (hiddenObs?' <span style="color:var(--amber)">(+'+hiddenObs+' hidden: marked obsolete)</span>':'')+'</div>';
   if(missing.length) diag += '<div style="padding:8px 12px;font-size:12px;color:var(--red);background:var(--red-bg);border-bottom:1px solid var(--line)">'+
-    '⚠ '+missing.map(t=>TRACKER_LABEL[t]||t).join(', ')+' loaded 0 items from the backend. In the Google Sheet, check the tab is named exactly '+
-    missing.map(t=>'&quot;'+(TRACKER_TAB[t]||t)+'&quot;').join(', ')+
-    ' and that row 1 is the header row (Code | Barcode | Name | …), then reload the app.</div>';
+    '⚠ '+missing.map(t=>TRACKER_LABEL[t]||t).join(', ')+' loaded 0 items from the backend — reload the app, and if it persists, report this.</div>';
   if(noname>3) diag += '<div style="padding:8px 12px;font-size:12px;color:var(--red);background:var(--red-bg);border-bottom:1px solid var(--line)">'+
-    '⚠ '+noname+' items have no name — a tab&#39;s header row may have been moved or overwritten. Check row 1 of each tracker tab.</div>';
+    '⚠ '+noname+' items have no name — please report this.</div>';
   let list;
   if(!q){ list = pool.slice(0,40); }
   else {
@@ -4506,7 +4504,7 @@ async function rotaSaveDay(date){
   toast('Rota saved — '+rotaNice(date,{day:'numeric',month:'short'}));
   if(LIVE){
     try{ await api({action:'rotaSave', date:date, fields:f, by:myName||''}); }
-    catch(err){ toast('Not saved to sheet — '+err.message); }
+    catch(err){ toast('Not saved — '+err.message); }
   }
 }
 function rotaCopyPrev(date){
@@ -5165,7 +5163,7 @@ function render(){
   else m.innerHTML = trackerView(v);
 }
 
-/* ---------------- Google Sheets API layer ---------------- */
+/* ---------------- Supabase data layer ---------------- */
 const LIVE = !!CONFIG.SUPABASE_URL;
 state.alerts = state.alerts || [];
 
@@ -5712,9 +5710,11 @@ async function api(payload){
 }
 
 function mapItem(tab, r){
-  // Every text field is String-coerced: Google Sheets returns a NUMBER for cells that
-  // contain only digits (e.g. an item named "70141"), and a numeric name crashes every
-  // .toLowerCase() search in the app, silently freezing pickers and lists.
+  // Every text field is still String-coerced defensively, even though Postgres columns
+  // are properly typed now — this is what protected every .toLowerCase() search site from
+  // crashing on a numeric-looking name back when the backend was Google Sheets (which
+  // returns a NUMBER for any all-digits cell), and there's no reason to remove a safety
+  // net that costs nothing.
   const S = v => v!=null ? String(v) : '';
   return {tracker: tab.toLowerCase(), _row: r._row,
     code: S(r.Code), barcode: S(r.Barcode),
@@ -5862,10 +5862,10 @@ async function loadAll(){
       try{ localStorage.setItem('bollin_session', JSON.stringify(session)); }catch(e){}
       paintName(); applyNavPerms(); }
     $('#scanEcho').textContent = '';
-    toast('Synced with Google Sheets');
+    toast('Synced');
   }catch(err){
     $('#scanEcho').textContent = '';
-    toast('Could not reach the sheet: '+err.message);
+    toast('Could not reach the server: '+err.message);
     console.error('loadAll failed:', err);
     // Even on a partial/failed sync, nav must still reflect the role we already know from
     // login — otherwise it's stuck showing the pre-login (everything hidden) state, which
