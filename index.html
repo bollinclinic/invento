@@ -3498,7 +3498,25 @@ function procHistoryPanel(){
         <button onclick="procDeleteClosed('${p.procedureId}')" style="color:var(--red)" title="Delete this procedure and return all consumed stock to the inventories">Delete</button>
       </td>`:'<td></td>'}</tr>`).join('');
   const cols = 4 + (showMoney?1:0) + 1;
-  return `${summary}
+  const report = showMoney ? `
+    <h1 style="font-size:16px;margin-top:26px">Case sheets report</h1>
+    <div class="sub">Covers every closed procedure matching the selection — not just the 20 shown below — as one PDF with a summary page followed by each case's full itemized sheet.</div>
+    <div class="toolrow" style="align-items:center">
+      <select id="procRepRange" onchange="$('#procRepCustom').style.display=this.value==='custom'?'flex':'none'">
+        <option value="week">This week</option>
+        <option value="month" selected>This month</option>
+        <option value="custom">Custom dates</option>
+      </select>
+      <span id="procRepCustom" style="display:none;gap:6px;align-items:center">
+        <input id="procRepFrom" type="date" style="padding:8px;border:1px solid var(--line);border-radius:8px">
+        <span>to</span>
+        <input id="procRepTo" type="date" style="padding:8px;border:1px solid var(--line);border-radius:8px">
+      </span>
+      <button class="btn primary" onclick="procReportPDF('range')">Download PDF</button>
+      <button class="btn" onclick="procReportPDF('surgeon')">By surgeon…</button>
+      <button class="btn" onclick="procReportPDF('procedure')">By procedure…</button>
+    </div>` : '';
+  return `${summary}${report}
     <h1 style="font-size:16px;margin-top:22px">Recent procedures</h1>
     <table><thead><tr><th>Surgeon / procedure</th><th>Date</th><th>Patient</th><th>Status</th>${showMoney?'<th class="qty">Total £</th>':''}<th></th></tr></thead>
     <tbody>${rows||`<tr><td colspan="${cols}" style="color:var(--ink-soft)">No completed procedures yet.</td></tr>`}</tbody></table>`;
@@ -3787,26 +3805,23 @@ async function procDeleteClosed(procId){
   }catch(err){ toast('Could not delete — '+err.message); loadAll(); }
 }
 
-async function downloadProcPDF(procId){
-  const p = state.procedures.find(x=>x.procedureId===procId);
-  const lines = state.procLines.filter(l=>l.procedureId===procId);
-  if(!p){ toast('Procedure not found'); return; }
-  // Some historical cases (mostly from early on) have a recorded total but no surviving
-  // line-item detail — the total on the procedure record is still the real figure, so
-  // prefer it over summing (zero) lines, and say plainly when there's nothing itemized.
-  const total = lines.length ? lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0) : (Number(p.totalCost)||0);
-  if(!lines.length && !confirm('No itemized cost lines were ever recorded for this case — only the total (£'+total.toFixed(2)+') survives. Download a case sheet with just the total, no item breakdown?')) return;
-  if(!window.jspdf){ toast('PDF library still loading — try again in a second'); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
-  if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh the page and try again'); return; }
-  const W = doc.internal.pageSize.getWidth();
+async function loadProcLogo(){
   try{
     const blob = await fetch('logo.png').then(x=>x.blob());
     const dataUrl = await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(blob);});
     const img = await new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);setTimeout(()=>res(null),1500);i.src=dataUrl;});
-    if(img) doc.addImage(dataUrl,'PNG',12,10,16*(img.width/img.height),16);
-  }catch(e){}
+    return img ? {dataUrl, img} : null;
+  }catch(e){ return null; }
+}
+// Draws one procedure's case-sheet onto the doc's CURRENT page (caller adds pages as needed).
+// Shared by the single-case download and the bulk report below, so both stay in sync.
+function drawProcCasePage(doc, p, lines, logo){
+  const W = doc.internal.pageSize.getWidth();
+  if(logo) doc.addImage(logo.dataUrl,'PNG',12,10,16*(logo.img.width/logo.img.height),16);
+  // Some historical cases (mostly from early on) have a recorded total but no surviving
+  // line-item detail — the total on the procedure record is still the real figure, so
+  // prefer it over summing (zero) lines, and say plainly when there's nothing itemized.
+  const total = lines.length ? lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0) : (Number(p.totalCost)||0);
   doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(43,97,104);
   doc.text('Procedure Case Sheet', W-12, 15, {align:'right'});
   doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(60,60,60);
@@ -3823,10 +3838,107 @@ async function downloadProcPDF(procId){
       : [['No itemized cost lines recorded for this case — only the total survives.','','','','']],
     styles:{fontSize:9,cellPadding:2.5}, headStyles:{fillColor:[43,97,104],textColor:255},
     foot:[['','','','Total','£'+total.toFixed(2)]], footStyles:{fillColor:[240,236,220],textColor:[43,97,104],fontStyle:'bold'} });
+  return total;
+}
+async function downloadProcPDF(procId){
+  const p = state.procedures.find(x=>x.procedureId===procId);
+  const lines = state.procLines.filter(l=>l.procedureId===procId);
+  if(!p){ toast('Procedure not found'); return; }
+  const totalPreview = lines.length ? lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0) : (Number(p.totalCost)||0);
+  if(!lines.length && !confirm('No itemized cost lines were ever recorded for this case — only the total (£'+totalPreview.toFixed(2)+') survives. Download a case sheet with just the total, no item breakdown?')) return;
+  if(!window.jspdf){ toast('PDF library still loading — try again in a second'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh the page and try again'); return; }
+  const logo = await loadProcLogo();
+  drawProcCasePage(doc, p, lines, logo);
   try{
     doc.save('Procedure_'+(p.surgeon||'case').replace(/[^A-Za-z]+/g,'_')+'_'+(p.date||'')+'.pdf');
     toast('Case sheet downloaded');
   }catch(err){ toast('Could not download PDF — '+err.message); }
+}
+
+/* ---- bulk case-sheet report: week / month / custom / by surgeon / by procedure ----
+   Unlike the "Recent procedures" table (capped at 20 for the on-screen list), this
+   covers EVERY matching closed procedure, however many there are. */
+function procReportRows(mode){
+  const closed = state.procedures.filter(p=>p.status!=='Open');
+  if(mode==='range'){
+    const r = resolveRange('procRep');
+    if(!r) return null;
+    const rows = closed.filter(p=>{ const d=p.date?new Date(p.date):null; return d && d>=r.from && d<=r.to; })
+      .sort((a,b)=> new Date(a.date)-new Date(b.date));
+    return {rows, label:r.label};
+  }
+  if(mode==='surgeon'){
+    const names=[...new Set(closed.map(p=>p.surgeon).filter(Boolean))].sort();
+    if(!names.length){ toast('No surgeons on record'); return null; }
+    const name = prompt('Surgeon name (exact or part):\n'+names.join('\n'));
+    if(name===null || !name.trim()) return null;
+    const q=name.toLowerCase().trim();
+    const rows = closed.filter(p=>(p.surgeon||'').toLowerCase().includes(q)).sort((a,b)=>new Date(a.date)-new Date(b.date));
+    return {rows, label:'Surgeon: '+name};
+  }
+  if(mode==='procedure'){
+    const names=[...new Set(closed.map(p=>p.procedure).filter(Boolean))].sort();
+    if(!names.length){ toast('No procedures on record'); return null; }
+    const name = prompt('Procedure name (exact or part):\n'+names.join('\n'));
+    if(name===null || !name.trim()) return null;
+    const q=name.toLowerCase().trim();
+    const rows = closed.filter(p=>(p.procedure||'').toLowerCase().includes(q)).sort((a,b)=>new Date(a.date)-new Date(b.date));
+    return {rows, label:'Procedure: '+name};
+  }
+  return null;
+}
+async function procReportPDF(mode){
+  if(!(session&&isAdmin())) return;
+  const data = procReportRows(mode);
+  if(!data) return;
+  const {rows, label} = data;
+  if(!rows.length){ toast('No procedures match that selection'); return; }
+  if(!window.jspdf){ toast('PDF library still loading — try again in a second'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh the page and try again'); return; }
+  const logo = await loadProcLogo();
+  const W = doc.internal.pageSize.getWidth();
+  const withLines = rows.map(p=>({p, lines: state.procLines.filter(l=>l.procedureId===p.procedureId)}));
+  const grandTotal = withLines.reduce((s,{p,lines})=>s+(lines.length?lines.reduce((s2,l)=>s2+(Number(l.lineCost)||0),0):(Number(p.totalCost)||0)),0);
+  const noItemized = withLines.filter(({lines})=>!lines.length).length;
+
+  // cover/summary page
+  if(logo) doc.addImage(logo.dataUrl,'PNG',12,10,16*(logo.img.width/logo.img.height),16);
+  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(43,97,104);
+  doc.text('Procedure Case Sheets Report', W-12, 15, {align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90,90,90);
+  doc.text(label+'  ·  '+rows.length+' case(s)  ·  total £'+grandTotal.toFixed(2)+
+    (noItemized?'  ·  '+noItemized+' with no itemized detail':''), W-12, 20.5, {align:'right'});
+  doc.text('Printed '+new Date().toLocaleString('en-GB')+(myName?' by '+myName:''), W-12, 25, {align:'right'});
+  doc.setDrawColor(176,138,62); doc.setLineWidth(0.8); doc.line(12,28,W-12,28);
+  doc.autoTable({
+    startY:32, margin:{left:12,right:12},
+    head:[['Date','Surgeon','Procedure','Patient','Lines','Total £']],
+    body: withLines.map(({p,lines})=>{
+      const t = lines.length ? lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0) : (Number(p.totalCost)||0);
+      return [p.date?new Date(p.date).toLocaleDateString('en-GB'):'—', p.surgeon||'—', p.procedure||'—',
+        p.patientRef||'—', lines.length||'none', '£'+t.toFixed(2)];
+    }),
+    styles:{fontSize:8.5,cellPadding:2}, headStyles:{fillColor:[43,97,104],textColor:255},
+    alternateRowStyles:{fillColor:[242,247,246]},
+    didParseCell: d=>{ if(d.section==='body' && d.column.index===4 && d.cell.raw==='none'){ d.cell.styles.textColor=[166,27,27]; d.cell.styles.fontStyle='italic'; } },
+    didDrawPage: d=>{ doc.setFontSize(7.5); doc.setTextColor(140,140,140);
+      doc.text('Bollin Clinic Stock Manager — Procedure report '+label, 12, doc.internal.pageSize.getHeight()-6);
+      doc.text('Page '+d.pageNumber, W-12, doc.internal.pageSize.getHeight()-6, {align:'right'}); }
+  });
+
+  // one full case-sheet page per procedure, same order as the summary table
+  for(const {p, lines} of withLines){
+    doc.addPage();
+    drawProcCasePage(doc, p, lines, logo);
+  }
+
+  doc.save('Procedure_Report_'+label.replace(/[^0-9A-Za-z]+/g,'_')+'.pdf');
+  toast(rows.length+' case sheet(s) downloaded in one PDF');
 }
 
 /* ---------------- sticker printer (admin) ---------------- */
