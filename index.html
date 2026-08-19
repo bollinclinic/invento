@@ -1194,6 +1194,10 @@ function resolveRange(prefix){
     from=new Date(today.getFullYear(),today.getMonth(),1);
     to=new Date(today.getFullYear(),today.getMonth()+1,0);
     label=from.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  } else if(range==='year'){
+    from=new Date(today.getFullYear(),0,1);
+    to=new Date(today.getFullYear(),11,31);
+    label=String(today.getFullYear());
   } else {
     if(!$('#'+prefix+'From').value || !$('#'+prefix+'To').value){ toast('Pick both custom dates'); return null; }
     from=new Date($('#'+prefix+'From').value); to=new Date($('#'+prefix+'To').value);
@@ -3387,7 +3391,7 @@ function procView(){
     return `<button onclick="procSwitchRoom('${r}')" style="padding:9px 16px;border:none;border-radius:10px 10px 0 0;
       border-bottom:3px solid ${on?'var(--pine)':'transparent'};background:${on?'var(--card)':'transparent'};
       font-weight:${on?'700':'600'};font-size:14px;color:${on?'var(--pine)':'var(--ink-soft)'};cursor:pointer;display:inline-flex;align-items:center;gap:7px">
-      <span class="led ${running?'green':'amber'}" style="margin:0"></span>${r}${running?'':' <span style="font-weight:400;font-size:12px">(free)</span>'}</button>`;
+      <span class="led ${running?'green':'amber'}" style="margin:0"></span>${r}</button>`;
   }).join('');
   const runningCount = procRoomsRunning().length;
   return `<h1>Procedure case costing</h1>
@@ -3603,8 +3607,8 @@ function procHistoryPanel(){
     state.procedures.forEach(p=>{ const k=p.surgeon||'—'; bySurgeon[k]=(bySurgeon[k]||0)+(Number(p.totalCost)||0); });
     const sumRows = Object.keys(bySurgeon).sort().map(s=>`<tr><td data-label="">${s}</td>
       <td class="qty" data-label="Total £">£${bySurgeon[s].toFixed(2)}</td></tr>`).join('');
-    summary = `<h1 style="font-size:16px;margin-top:26px">Cost by surgeon</h1>
-      <table><thead><tr><th>Surgeon</th><th class="qty">Total consumed £</th></tr></thead><tbody>${sumRows||'<tr><td colspan="2" style="color:var(--ink-soft)">No procedures yet.</td></tr>'}</tbody></table>`;
+    summary = `<details style="margin-top:26px"><summary style="cursor:pointer;font-size:16px;font-weight:700;padding:4px 0">Cost by surgeon</summary>
+      <table style="margin-top:10px"><thead><tr><th>Surgeon</th><th class="qty">Total consumed £</th></tr></thead><tbody>${sumRows||'<tr><td colspan="2" style="color:var(--ink-soft)">No procedures yet.</td></tr>'}</tbody></table></details>`;
   }
   const rows = closed.map(p=>`<tr>
     <td data-label="">${procEditableCell(p,'surgeon','<strong>'+(p.surgeon||'—')+'</strong>','text')}<div style="font-size:12px;color:var(--ink-soft)">${p.procedure||''}</div></td>
@@ -3626,6 +3630,7 @@ function procHistoryPanel(){
       <select id="procRepRange" onchange="$('#procRepCustom').style.display=this.value==='custom'?'flex':'none'">
         <option value="week">This week</option>
         <option value="month" selected>This month</option>
+        <option value="year">This year</option>
         <option value="custom">Custom dates</option>
       </select>
       <span id="procRepCustom" style="display:none;gap:6px;align-items:center">
@@ -3633,6 +3638,7 @@ function procHistoryPanel(){
         <span>to</span>
         <input id="procRepTo" type="date" style="padding:8px;border:1px solid var(--line);border-radius:8px">
       </span>
+      <button class="btn" onclick="procReportView('range')" title="Show the matching cases on screen — no PDF">View</button>
       <button class="btn primary" onclick="procReportPDF('range')">Download PDF</button>
       <button class="btn" onclick="procReportPDF('surgeon')">By surgeon…</button>
       <button class="btn" onclick="procReportPDF('procedure')">By procedure…</button>
@@ -4032,37 +4038,50 @@ function procReportRows(mode){
   }
   return null;
 }
-async function procReportPDF(mode){
-  if(!(session&&isAdmin())) return;
+// Shared by the report's "View" and "Download PDF" buttons — fetches lines fresh, scoped to
+// exactly the procedures matching the filter (never the capped state.procLines cache), and
+// always mirrors the result into the on-screen preview.
+async function procReportFetch(mode){
   const data = procReportRows(mode);
-  if(!data) return;
+  if(!data) return null;
   const {rows, label} = data;
-  if(!rows.length){ toast('No procedures match that selection'); return; }
-  if(!window.jspdf){ toast('PDF library still loading — try again in a second'); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
-  if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh the page and try again'); return; }
-  // Fetched fresh, scoped to exactly the procedures in this report — state.procLines is a
-  // recent-only cache (capped when loaded) and would silently under-report older cases.
+  if(!rows.length){ toast('No procedures match that selection'); return null; }
   const ids = rows.map(p=>p.procedureId).filter(id=>!String(id).startsWith('PROC-LOCAL'));
   const {data: lineData, error: lineErr} = ids.length
     ? await sb.from('procedure_lines').select('*').in('procedure_id', ids).order('ts',{ascending:true})
     : {data:[], error:null};
-  if(lineErr){ toast('Could not load line items — '+lineErr.message); return; }
+  if(lineErr){ toast('Could not load line items — '+lineErr.message); return null; }
   const reportLines = (lineData||[]).map(l=>({procedureId:l.procedure_id, ts:l.ts, tracker:(l.tracker||'').toLowerCase(),
     code:l.code||'', name:l.name||'', qty:Number(l.qty)||0,
     unitCost:l.unit_cost===''||l.unit_cost==null?'':Number(l.unit_cost),
     lineCost:l.line_cost===''||l.line_cost==null?'':Number(l.line_cost), by:l.by||''}));
-  const logo = await loadProcLogo();
-  const W = doc.internal.pageSize.getWidth();
   const withLines = rows.map(p=>({p, lines: reportLines.filter(l=>l.procedureId===p.procedureId)}));
-  const grandTotal = withLines.reduce((s,{p,lines})=>s+(lines.length?lines.reduce((s2,l)=>s2+(Number(l.lineCost)||0),0):(Number(p.totalCost)||0)),0);
-  const noItemized = withLines.filter(({lines})=>!lines.length).length;
-  // mirror the same set on screen (#3) — same rows, line counts, and totals as the PDF
   _procPreview = { label, showLines:true, rows: withLines.map(({p,lines})=>({
     date:p.date, surgeon:p.surgeon, procedure:p.procedure, patientRef:p.patientRef,
     lines: lines.length, total: lines.length?lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0):(Number(p.totalCost)||0) })) };
+  return {rows, label, withLines};
+}
+async function procReportView(mode){
+  if(!(session&&isAdmin())) return;
+  const result = await procReportFetch(mode);
+  if(!result) { render(); return; }
   render();
+  toast(result.rows.length+' case(s) shown on screen — no PDF generated');
+}
+async function procReportPDF(mode){
+  if(!(session&&isAdmin())) return;
+  const result = await procReportFetch(mode);
+  if(!result){ render(); return; }
+  const {rows, label, withLines} = result;
+  render();
+  if(!window.jspdf){ toast('PDF library still loading — try again in a second'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh the page and try again'); return; }
+  const logo = await loadProcLogo();
+  const W = doc.internal.pageSize.getWidth();
+  const grandTotal = withLines.reduce((s,{p,lines})=>s+(lines.length?lines.reduce((s2,l)=>s2+(Number(l.lineCost)||0),0):(Number(p.totalCost)||0)),0);
+  const noItemized = withLines.filter(({lines})=>!lines.length).length;
 
   // cover/summary page
   if(logo) doc.addImage(logo.dataUrl,'PNG',12,10,16*(logo.img.width/logo.img.height),16);
@@ -5957,9 +5976,13 @@ async function api(payload){
     return {ok:true};
   }
   if(a==='procUpdateMeta'){
-    const {error} = await sb.from('procedures').update({surgeon: strOrNull(payload.surgeon),
-      procedure_name: strOrNull(payload.procedure), date: payload.date, patient_ref: strOrNull(payload.patientRef)})
-      .eq('id', payload.procedureId);
+    // A direct table .update() here silently no-ops: procedures has no SELECT policy
+    // (financial-data masking), and PostgREST needs SELECT visibility to locate a row for
+    // a client-issued UPDATE — it returns success with zero rows affected, no error. Must
+    // go through the RPC (SECURITY DEFINER, same as every other procedure mutation).
+    const {error} = await sb.rpc('proc_update_meta', {p_procedure_id: payload.procedureId,
+      p_date: payload.date, p_surgeon: strOrNull(payload.surgeon),
+      p_procedure_name: strOrNull(payload.procedure), p_patient_ref: strOrNull(payload.patientRef)});
     if(error) throw new Error(error.message);
     return {ok:true};
   }
