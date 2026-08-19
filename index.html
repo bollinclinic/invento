@@ -3791,7 +3791,11 @@ async function downloadProcPDF(procId){
   const p = state.procedures.find(x=>x.procedureId===procId);
   const lines = state.procLines.filter(l=>l.procedureId===procId);
   if(!p){ toast('Procedure not found'); return; }
-  const total = lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0);
+  // Some historical cases (mostly from early on) have a recorded total but no surviving
+  // line-item detail — the total on the procedure record is still the real figure, so
+  // prefer it over summing (zero) lines, and say plainly when there's nothing itemized.
+  const total = lines.length ? lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0) : (Number(p.totalCost)||0);
+  if(!lines.length && !confirm('No itemized cost lines were ever recorded for this case — only the total (£'+total.toFixed(2)+') survives. Download a case sheet with just the total, no item breakdown?')) return;
   if(!window.jspdf){ toast('PDF library still loading — try again in a second'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
@@ -3813,9 +3817,10 @@ async function downloadProcPDF(procId){
   doc.setDrawColor(176,138,62); doc.setLineWidth(0.6); doc.line(12,54,W-12,54);
   doc.autoTable({ startY:58, margin:{left:12,right:12},
     head:[['Item','Tracker','Qty','Unit £','Line £']],
-    body: lines.map(l=>[l.name, TRACKER_LABEL[l.tracker]||l.tracker, l.qty,
+    body: lines.length ? lines.map(l=>[l.name, TRACKER_LABEL[l.tracker]||l.tracker, l.qty,
       l.unitCost===''||l.unitCost==null?'—':Number(l.unitCost).toFixed(2),
-      l.lineCost===''||l.lineCost==null?'—':Number(l.lineCost).toFixed(2)]),
+      l.lineCost===''||l.lineCost==null?'—':Number(l.lineCost).toFixed(2)])
+      : [['No itemized cost lines recorded for this case — only the total survives.','','','','']],
     styles:{fontSize:9,cellPadding:2.5}, headStyles:{fillColor:[43,97,104],textColor:255},
     foot:[['','','','Total','£'+total.toFixed(2)]], footStyles:{fillColor:[240,236,220],textColor:[43,97,104],fontStyle:'bold'} });
   try{
