@@ -743,7 +743,9 @@
     <div class="m-row"><label>Patient initials</label><input id="smpInit" type="text" maxlength="6" placeholder="e.g. C.R."></div>
     <div class="m-row"><label>PAT number</label><input id="smpPat" type="text" placeholder="e.g. PAT-00944"></div>
     <div class="m-row"><label>Surgeon</label><input id="smpSurg" list="rotaNames" type="text" placeholder="e.g. Mr Aftab Siddiqui"></div>
+    <div class="m-row"><label>Date collected</label><input id="smpCollected" type="date"></div>
   </div>
+  <div class="sub" style="margin-top:6px">Date collected is set once for the whole visit. Once saved, any user can mark the whole set as Sent, then Result Received — no date entry needed for those, they're stamped automatically.</div>
   <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between">
     <strong style="font-size:13.5px">Specimens</strong>
     <button class="btn" onclick="smpAddRow()">＋ Add specimen</button>
@@ -984,27 +986,82 @@ async function saveMove(){
 
 /* ---------------- views ---------------- */
 function escapeAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// ---- superadmin double-click data cleanup on tracker item lists ----
+// Same lightweight pattern as the Procedures history list: double-click a cell, edit inline,
+// save on blur/Enter via the (now-fixed) updateItem action. Status is excluded — it's a
+// computed display value (from qty/reorder/dispatch state), not a stored field to edit.
+let _itemEditCell = null; // {i, field} — i is the index into state.items
+function itemStartEditCell(i, field){
+  if(!(session && session.role==='superadmin')) return;
+  _itemEditCell = {i, field}; render();
+  requestAnimationFrame(()=>{ const el=document.getElementById('itemEditInput'); if(el){ el.focus(); if(el.select) el.select(); } });
+}
+function itemCancelEditCell(){ _itemEditCell=null; render(); }
+async function itemSaveEditCell(i, field, value){
+  if(!_itemEditCell || _itemEditCell.i!==i || _itemEditCell.field!==field) return;
+  _itemEditCell = null;
+  const it = state.items[i];
+  if(!it){ render(); return; }
+  const trimmed = String(value).trim();
+  const FIELD_KEY = {name:'name', code:'code', cat:'cat', loc:'loc', expiry:'expiry', qty:'qty'};
+  const key = FIELD_KEY[field];
+  let newVal = trimmed;
+  if(field==='qty') newVal = Math.max(0, parseInt(trimmed||'0',10));
+  if(field==='expiry') newVal = trimmed || null;
+  if(String(it[key]==null?'':it[key]) === String(newVal==null?'':newVal)){ render(); return; }
+  if(field==='name' && !trimmed){ toast('Name cannot be blank'); render(); return; }
+  it[key] = newVal;
+  render();
+  if(!LIVE) return;
+  const FIELD_TO_API = {name:'Name', code:'Code', cat:'Category', loc:'Location', expiry:'Expiry', qty:'Qty'};
+  try{
+    await api({action:'updateItem', tracker:TRACKER_TAB[it.tracker], row:it._row, fields:{[FIELD_TO_API[field]]: newVal}});
+    toast('Updated');
+  }catch(err){ toast('Not saved — '+err.message); loadAll(); }
+}
+function itemEditableCell(it, i, field, displayHtml, inputType){
+  const editing = _itemEditCell && _itemEditCell.i===i && _itemEditCell.field===field;
+  if(editing){
+    const KEY = {name:'name', code:'code', cat:'cat', loc:'loc', expiry:'expiry', qty:'qty'};
+    const raw = field==='expiry' ? (it.expiry?String(it.expiry).slice(0,10):'') : (it[KEY[field]]==null?'':it[KEY[field]]);
+    return `<input id="itemEditInput" type="${inputType}" value="${String(raw).replace(/"/g,'&quot;')}"
+      style="width:100%;padding:4px 6px;border:1px solid var(--pine);border-radius:6px;font:inherit"
+      onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){itemCancelEditCell()}"
+      onblur="itemSaveEditCell(${i},'${field}',this.value)">`;
+  }
+  return `<span ondblclick="itemStartEditCell(${i},'${field}')" title="Double-click to edit" style="cursor:text;border-bottom:1px dotted var(--ink-soft)">${displayHtml}</span>`;
+}
 function tableFor(items, opts={}){
   const showExp = opts.expiry!==false;
+  const superEdit = !!opts.superEdit && session && session.role==='superadmin';
   const head = `<thead><tr>
       <th>Item</th><th>Code</th><th>Category</th><th>Location</th>
       ${showExp?'<th>Expiry</th>':''}<th class="qty">Qty</th><th>Status</th><th></th></tr></thead>`;
   const rows = items.map(it=>{
     const s = statusOf(it);
+    const i = state.items.indexOf(it);
     const hasRem = !!(it.remarks && it.remarks.trim());
     const remChip = hasRem
       ? ` <span class="remflag" title="${String(it.remarks).replace(/"/g,'&quot;')}">📝 ${escapeAttr(it.remarks)}</span>` : '';
+    const nameCell = superEdit ? itemEditableCell(it,i,'name','<strong>'+it.name+'</strong>','text') : `<strong>${it.name}</strong>`;
+    const codeCell = superEdit ? itemEditableCell(it,i,'code', it.code||'—', 'text') : (it.code||'—');
+    const catCell = superEdit ? itemEditableCell(it,i,'cat', it.cat||'—', 'text') : (it.cat||'—');
+    const locCell = superEdit ? itemEditableCell(it,i,'loc', it.loc||'—', 'text') : (it.loc||'—');
+    const expDisplay = (it.expiry? new Date(it.expiry).toLocaleDateString('en-GB') : '—') + ' ' + expBadge(it);
+    const expCell = superEdit ? itemEditableCell(it,i,'expiry', expDisplay, 'date') : expDisplay;
+    const qtyDisplay = it.tracker==='instruments' ? '—' : (it.qty+' '+it.unit);
+    const qtyCell = (superEdit && it.tracker!=='instruments') ? itemEditableCell(it,i,'qty', qtyDisplay, 'number') : qtyDisplay;
     return `<tr class="${hasRem?'hasrem':''}">
-      <td data-label=""><strong>${it.name}</strong>${remChip}</td>
-      <td class="code" data-label="Code">${it.code||'—'}</td>
-      <td data-label="Category">${it.cat||'—'}</td>
-      <td data-label="Location">${it.loc||'—'}</td>
-      ${showExp?`<td data-label="Expiry">${it.expiry? new Date(it.expiry).toLocaleDateString('en-GB') : '—'} ${expBadge(it)}</td>`:''}
-      <td class="qty" data-label="Qty">${it.tracker==='instruments'?'—':it.qty+' '+it.unit}</td>
+      <td data-label="">${nameCell}${remChip}</td>
+      <td class="code" data-label="Code">${codeCell}</td>
+      <td data-label="Category">${catCell}</td>
+      <td data-label="Location">${locCell}</td>
+      ${showExp?`<td data-label="Expiry">${expCell}</td>`:''}
+      <td class="qty" data-label="Qty">${qtyCell}</td>
       <td data-label="Status"><span class="badge ${s.c}">${s.t}</span></td>
-      <td class="rowbtns" data-label=""><button onclick='openMove(state.items[${state.items.indexOf(it)}])'>Move</button>
-        ${can('edit')?`<button onclick='openEdit(${state.items.indexOf(it)})'>Edit</button>`:''}
-        ${can('obsolete')&&it.tracker!=='instruments'?`<button onclick='markObsolete(${state.items.indexOf(it)})' title="Move to obsolete stock" style="color:var(--ink-soft)">Obsolete</button>`:''}</td>
+      <td class="rowbtns" data-label=""><button onclick='openMove(state.items[${i}])'>Move</button>
+        ${can('edit')?`<button onclick='openEdit(${i})'>Edit</button>`:''}
+        ${can('obsolete')&&it.tracker!=='instruments'?`<button onclick='markObsolete(${i})' title="Move to obsolete stock" style="color:var(--ink-soft)">Obsolete</button>`:''}</td>
     </tr>`;
   }).join('');
   return `<table>${head}<tbody>${rows||'<tr><td colspan="8" style="color:var(--ink-soft)">Nothing matches.</td></tr>'}</tbody></table>`;
@@ -1035,7 +1092,8 @@ function trackerView(key){
       </select>
       ${can('add')?`<button class="btn" onclick="openAdd('')">＋ Add item</button>`:''}
     </div>
-    <div id="tblWrap">${tableFor(items,{expiry: key!=='garments'})}</div>`;
+    ${session && session.role==='superadmin' ? '<div class="sub">Double-click name, code, category, location, expiry or qty to correct it directly.</div>' : ''}
+    <div id="tblWrap">${tableFor(items,{expiry: key!=='garments', superEdit:true})}</div>`;
 }
 function refreshTrackerTable(){
   const wrap = document.getElementById('tblWrap');
@@ -1046,7 +1104,7 @@ function refreshTrackerTable(){
   const items = state.items.filter(i => i.tracker===key && !i.obsolete &&
       (!q || i.name.toLowerCase().includes(q) || (i.code||'').toLowerCase().includes(q)) &&
       (!st || i.loc===st) && (!ct || i.cat===ct));
-  wrap.innerHTML = tableFor(items,{expiry: key!=='garments'});
+  wrap.innerHTML = tableFor(items,{expiry: key!=='garments', superEdit:true});
 }
 
 function dashboardView(){
@@ -1279,6 +1337,48 @@ async function txReportPDF(){
  }catch(err){ toast('PDF failed: '+(err&&err.message?err.message:err)); console.error('txReportPDF', err); }
 }
 
+// ---- double-click data cleanup on the Requests list (same gate as respond: staff+) ----
+let _reqEditCell = null; // {ix, field}
+function reqStartEditCell(ix, field){
+  if(!can('respond')) return;
+  _reqEditCell = {ix, field}; render();
+  requestAnimationFrame(()=>{ const el=document.getElementById('reqEditInput'); if(el){ el.focus(); if(el.select) el.select(); } });
+}
+function reqCancelEditCell(){ _reqEditCell=null; render(); }
+async function reqSaveEditCell(ix, field, value){
+  if(!_reqEditCell || _reqEditCell.ix!==ix || _reqEditCell.field!==field) return;
+  _reqEditCell = null;
+  const r = state.requests[ix];
+  if(!r){ render(); return; }
+  const trimmed = String(value).trim();
+  const KEY = {item:'item', ts:'ts', qty:'qty', status:'status', remarks:'remarks'};
+  const key = KEY[field];
+  let newVal = trimmed;
+  if(field==='qty') newVal = Math.max(1, parseInt(trimmed||'1',10));
+  if(field==='ts') newVal = trimmed ? new Date(trimmed).toISOString() : r.ts;
+  if(field==='item' && !trimmed){ toast('Item cannot be blank'); render(); return; }
+  if(String(r[key]==null?'':r[key]) === String(newVal==null?'':newVal)){ render(); return; }
+  r[key] = newVal;
+  render();
+  if(!(LIVE && r._row)) return;
+  const DB_FIELD = {item:'item', ts:'requested_at', qty:'qty', status:'status', remarks:'remarks'};
+  try{
+    await api({action:'requestUpdateField', row:r._row, fields:{[DB_FIELD[field]]: newVal}});
+    toast('Updated');
+  }catch(err){ toast('Not saved — '+err.message); loadAll(); }
+}
+function reqEditableCell(r, ix, field, displayHtml, inputType){
+  const editing = _reqEditCell && _reqEditCell.ix===ix && _reqEditCell.field===field;
+  if(editing){
+    const KEY = {item:'item', ts:'ts', qty:'qty', status:'status', remarks:'remarks'};
+    const raw = field==='ts' ? (r.ts?String(r.ts).slice(0,10):'') : (r[KEY[field]]==null?'':r[KEY[field]]);
+    return `<input id="reqEditInput" type="${inputType}" value="${String(raw).replace(/"/g,'&quot;')}"
+      style="width:100%;padding:4px 6px;border:1px solid var(--pine);border-radius:6px;font:inherit"
+      onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){reqCancelEditCell()}"
+      onblur="reqSaveEditCell(${ix},'${field}',this.value)">`;
+  }
+  return `<span ondblclick="reqStartEditCell(${ix},'${field}')" title="Double-click to edit" style="cursor:text;border-bottom:1px dotted var(--ink-soft)">${displayHtml}</span>`;
+}
 function requestsView(){
   const RESP_STATUSES = ['Ordered','Awaiting Supplier Response','Back order','Out of stock','Received','In stock','Other'];
   const isDone = s => s==='Received' || s==='In stock';
@@ -1286,12 +1386,12 @@ function requestsView(){
   const done = state.requests.map((r,ix)=>({r,ix})).filter(x=>isDone(x.r.status));
 
   const openRows = open.map(({r,ix})=>`<tr>
-      <td data-label=""><strong>${r.item}</strong>${r.size?' <span class="code" style="font-size:12px">('+r.size+')</span>':''}</td>
-      <td data-label="Requested">${r.ts?new Date(r.ts).toLocaleDateString('en-GB'):''} · ${r.by}</td>
-      <td class="qty" data-label="Qty">${r.qty}</td>
-      <td data-label="Status"><span class="badge ${r.status==='Requested'?'b-low':'b-exp'}">${r.status}</span>
+      <td data-label="">${reqEditableCell(r,ix,'item','<strong>'+r.item+'</strong>','text')}${r.size?' <span class="code" style="font-size:12px">('+r.size+')</span>':''}</td>
+      <td data-label="Requested">${reqEditableCell(r,ix,'ts', r.ts?new Date(r.ts).toLocaleDateString('en-GB'):'—', 'date')} · ${r.by}</td>
+      <td class="qty" data-label="Qty">${reqEditableCell(r,ix,'qty', r.qty, 'number')}</td>
+      <td data-label="Status">${reqEditableCell(r,ix,'status', '<span class="badge '+(r.status==='Requested'?'b-low':'b-exp')+'">'+r.status+'</span>', 'text')}
         ${r.handledBy?'<div style="font-size:11px;color:var(--ink-soft)">'+r.handledBy+(r.responded?' · '+new Date(r.responded).toLocaleDateString('en-GB'):'')+'</div>':''}</td>
-      <td data-label="Remarks">${r.remarks||'—'}</td>
+      <td data-label="Remarks">${reqEditableCell(r,ix,'remarks', r.remarks||'—', 'text')}</td>
       <td class="rowbtns" data-label="">
         ${can('respond')?`<select onchange="respondRequest(${ix}, this.value)" style="padding:6px;border:1px solid var(--line);border-radius:6px;font-size:12px">
           <option value="">Respond…</option>
@@ -1664,15 +1764,20 @@ function instExpiring(){
 }
 function sterilOnHandTab(){
   const q = (window._iq||'').toLowerCase();
+  const sortBy = window._ohSort||'expiry';
   const all = state.items.filter(i=>i.tracker==='instruments')
     .filter(i=>!q || i.name.toLowerCase().includes(q) || (i.code||'').toLowerCase().includes(q));
-  // expiring soonest first, no-expiry last
-  all.sort((a,b)=>{
-    const da=instDaysLeft(a), db=instDaysLeft(b);
-    if(da==null && db==null) return a.name.localeCompare(b.name);
-    if(da==null) return 1; if(db==null) return -1;
-    return da-db;
-  });
+  if(sortBy==='name'){
+    all.sort((a,b)=>a.name.localeCompare(b.name));
+  } else {
+    // expiring soonest first, no-expiry last
+    all.sort((a,b)=>{
+      const da=instDaysLeft(a), db=instDaysLeft(b);
+      if(da==null && db==null) return a.name.localeCompare(b.name);
+      if(da==null) return 1; if(db==null) return -1;
+      return da-db;
+    });
+  }
   const expSoon = instExpiring();
   const banner = expSoon.length ? `
     <div class="note" style="background:var(--red-bg);border-color:#E5B5B0;color:var(--red)">
@@ -1702,6 +1807,10 @@ function sterilOnHandTab(){
       ${can('instr')?`<button class="btn primary" onclick="openInstrument('')" title="Register an already-sterile item straight onto the shelf — enter its expiry yourself. Items that go through Log used → Dispatch → Receive get their expiry set automatically.">＋ Add already-sterile item</button>`:''}
       <input type="search" placeholder="Search instrument or code…" value="${window._iq||''}"
              oninput="window._iq=this.value;refreshOnHand()">
+      <select onchange="window._ohSort=this.value;render()">
+        <option value="expiry" ${sortBy==='expiry'?'selected':''}>Sort: soonest to expire</option>
+        <option value="name" ${sortBy==='name'?'selected':''}>Sort: name (A–Z)</option>
+      </select>
       <span style="color:var(--ink-soft);font-size:13px;margin-left:auto">${all.length} on register</span>
     </div>
     <div class="sub">What we hold, with sterile expiry. Expiry is assigned automatically as dispatch date + 1 year when items come back from CSSD. Unknown items join the register as they are received.</div>
@@ -5284,7 +5393,7 @@ async function rotaStaffPDF(){
 
 /* ---------------- sample collection (specimen log) ---------------- */
 const SAMPLE_CATEGORIES = ['Histology','Cytology','Microbiology','Frozen section','Immunology','Biochemistry','Other'];
-let _smpDraft = null;   // { id?, date, initials, pat, surgeon, rows:[{specimenNo,details,category,formalin,collected,sent,result,notes, id?}] }
+let _smpDraft = null;   // { id?, date, initials, pat, surgeon, collected, rows:[{specimenNo,details,category,formalin,notes, id?}] }
 
 function samplesView(){
   const q = String(window._smpQ||'').toLowerCase().trim();
@@ -5299,31 +5408,42 @@ function samplesView(){
   const canEdit = isStaffPlus();
   const catBadge = c => c ? `<span class="badge" style="background:var(--mist);color:var(--ink)">${c}</span>` : '';
   const dateCell = d => d ? new Date(d+'T12:00').toLocaleDateString('en-GB') : '<span style="color:var(--ink-soft)">—</span>';
+  const statusBadge = s => {
+    const cls = s==='Result Received'?'b-ok':s==='Sent'?'b-low':'b-exp';
+    return `<span class="badge ${cls}">${s}</span>`;
+  };
   let body = keys.map(k=>{
     const g = groups[k]; const h = g[0];
     const rows = g.map(s=>`<tr>
       <td data-label="Specimen"><strong>${s.details||'—'}</strong>${s.specimenNo?` <span class="code" style="font-family:var(--mono);font-size:11px">#${s.specimenNo}</span>`:''}</td>
       <td data-label="Category">${catBadge(s.category)}</td>
       <td data-label="Formalin">${String(s.formalin).toLowerCase()==='yes'?'<span class="badge b-ok">Yes</span>':(String(s.formalin).toLowerCase()==='no'?'<span class="badge b-out">No</span>':'—')}</td>
-      <td data-label="Collected">${dateCell(s.collected)}</td>
-      <td data-label="Sent">${dateCell(s.sent)}</td>
-      <td data-label="Result">${dateCell(s.result)}</td>
       ${canEdit?`<td class="rowbtns" data-label=""><button onclick="editSampleGroup('${k.replace(/'/g,"\\'")}')">Edit</button>${isAdmin()?` <button onclick="deleteSample('${s.id}')" style="color:var(--red)">✕</button>`:''}</td>`:''}
     </tr>`).join('');
+    const next = SAMPLE_NEXT_STATUS[h.status];
+    const advanceBtn = next ? `<button class="btn primary" onclick="advanceSampleStatus('${h.collectionId}','${h.status}')">Mark as ${next}</button>` : '';
+    const stampLine = h.status==='Sent' ? (h.sentBy?`Sent by ${h.sentBy}${h.sentAt?' · '+new Date(h.sentAt).toLocaleString('en-GB'):''}`:'')
+      : h.status==='Result Received' ? (h.resultBy?`Result recorded by ${h.resultBy}${h.resultAt?' · '+new Date(h.resultAt).toLocaleString('en-GB'):''}`:'') : '';
     return `<div class="gaspanel" style="padding:0;overflow:hidden">
       <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 14px;background:var(--mist)">
         <strong style="font-size:15px">${h.initials||'—'}</strong>
         <span class="code" style="font-family:var(--mono)">${h.pat||'—'}</span>
         <span style="color:var(--ink-soft)">${dateCell(h.date)}</span>
         <span style="color:var(--ink-soft)">${h.surgeon||''}</span>
-        <span style="margin-left:auto;font-size:12.5px;color:var(--ink-soft)">${g.length} specimen${g.length>1?'s':''}</span>
+        <span style="color:var(--ink-soft)">Collected: ${dateCell(h.collected)}</span>
+        ${statusBadge(h.status||'Collected')}
+        ${stampLine?`<span style="font-size:11.5px;color:var(--ink-soft)">${stampLine}</span>`:''}
+        <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <span style="font-size:12.5px;color:var(--ink-soft)">${g.length} specimen${g.length>1?'s':''}</span>
+          ${advanceBtn}
+        </span>
       </div>
-      <table style="margin:0"><thead><tr><th>Specimen</th><th>Category</th><th>Formalin</th><th>Collected</th><th>Sent</th><th>Result</th>${canEdit?'<th></th>':''}</tr></thead>
+      <table style="margin:0"><thead><tr><th>Specimen</th><th>Category</th><th>Formalin</th>${canEdit?'<th></th>':''}</tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   }).join('');
   if(!keys.length) body = `<div class="sub" style="padding:20px 0">${q?'No specimens match your search.':'No specimens logged yet.'}</div>`;
   return `<h1>Sample collection</h1>
-    <div class="sub">Log histology, cytology and other specimens taken in theatre — track when each was collected, sent to the lab, and when results came back.</div>
+    <div class="sub">Log histology, cytology and other specimens taken in theatre. Date collected is set once per visit; any user can then mark the whole set Sent, then Result Received — no extra date entry, it's stamped automatically.</div>
     <datalist id="rotaNames">${(typeof rotaNamesList==='function'?rotaNamesList():[]).map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('')}</datalist>
     <div class="toolrow" style="margin:6px 0 14px">
       ${canEdit?`<button class="btn primary" onclick="newSample()">＋ New patient / specimens</button>`:''}
@@ -5342,9 +5462,9 @@ function samplesView(){
     ${body}`;
 }
 
-function smpBlankRow(){ return {specimenNo:'', details:'', category:'Histology', formalin:'Yes', collected:todayISO(), sent:'', result:'', notes:'', id:''}; }
+function smpBlankRow(){ return {specimenNo:'', details:'', category:'Histology', formalin:'Yes', notes:'', id:''}; }
 function newSample(){
-  _smpDraft = { id:'', date:todayISO(), initials:'', pat:'', surgeon:'', rows:[smpBlankRow()] };
+  _smpDraft = { id:'', date:todayISO(), initials:'', pat:'', surgeon:'', collected:todayISO(), rows:[smpBlankRow()] };
   smpFillDialog('New patient / specimens'); smpDlg.showModal();
 }
 function editSampleGroup(key){
@@ -5352,14 +5472,16 @@ function editSampleGroup(key){
   const g = (state.samples||[]).filter(s=>(s.pat||'')===pat && (s.date||'')===date && (s.initials||'')===init);
   if(!g.length) return;
   _smpDraft = { date:g[0].date||todayISO(), initials:g[0].initials||'', pat:g[0].pat||'', surgeon:g[0].surgeon||'',
+    collected:g[0].collected||todayISO(),
     rows: g.map(s=>({specimenNo:s.specimenNo||'', details:s.details||'', category:s.category||'Histology',
-      formalin:s.formalin||'', collected:s.collected||'', sent:s.sent||'', result:s.result||'', notes:s.notes||'', id:s.id})) };
+      formalin:s.formalin||'', notes:s.notes||'', id:s.id})) };
   smpFillDialog('Edit specimens'); smpDlg.showModal();
 }
 function smpFillDialog(title){
   $('#smpTitle').textContent = title;
   $('#smpDate').value = _smpDraft.date||''; $('#smpInit').value = _smpDraft.initials||'';
   $('#smpPat').value = _smpDraft.pat||''; $('#smpSurg').value = _smpDraft.surgeon||'';
+  $('#smpCollected').value = _smpDraft.collected||'';
   smpRenderRows();
 }
 function smpRenderRows(){
@@ -5376,15 +5498,13 @@ function smpRenderRows(){
         <div class="m-row"><label>Specimen no. (optional)</label><input value="${String(r.specimenNo).replace(/"/g,'&quot;')}" oninput="_smpDraft.rows[${i}].specimenNo=this.value"></div>
         <div class="m-row"><label>Category</label><select onchange="_smpDraft.rows[${i}].category=this.value">${opts(r.category)}</select></div>
         <div class="m-row"><label>Formalin</label><select onchange="_smpDraft.rows[${i}].formalin=this.value">${yn(r.formalin)}</select></div>
-        <div class="m-row"><label>Date collected</label><input type="date" value="${r.collected||''}" oninput="_smpDraft.rows[${i}].collected=this.value"></div>
-        <div class="m-row"><label>Date sent</label><input type="date" value="${r.sent||''}" oninput="_smpDraft.rows[${i}].sent=this.value"></div>
-        <div class="m-row"><label>Date result received</label><input type="date" value="${r.result||''}" oninput="_smpDraft.rows[${i}].result=this.value"></div>
       </div>
     </div>`).join('');
 }
 function smpSyncHeader(){
   _smpDraft.date=$('#smpDate').value; _smpDraft.initials=$('#smpInit').value.trim();
   _smpDraft.pat=$('#smpPat').value.trim(); _smpDraft.surgeon=$('#smpSurg').value.trim();
+  _smpDraft.collected=$('#smpCollected').value;
 }
 function smpAddRow(){ smpSyncHeader(); _smpDraft.rows.push(smpBlankRow()); smpRenderRows(); }
 function smpDelRow(i){ smpSyncHeader(); _smpDraft.rows.splice(i,1); if(!_smpDraft.rows.length) _smpDraft.rows.push(smpBlankRow()); smpRenderRows(); }
@@ -5392,21 +5512,18 @@ function smpDelRow(i){ smpSyncHeader(); _smpDraft.rows.splice(i,1); if(!_smpDraf
 async function saveSamples(){
   smpSyncHeader();
   if(!_smpDraft.pat && !_smpDraft.initials){ toast('Enter at least patient initials or PAT number'); return; }
-  const hdr = { date:_smpDraft.date, initials:_smpDraft.initials, pat:_smpDraft.pat, surgeon:_smpDraft.surgeon };
+  const hdr = { date:_smpDraft.date, initials:_smpDraft.initials, pat:_smpDraft.pat, surgeon:_smpDraft.surgeon, collected:_smpDraft.collected };
   const rows = _smpDraft.rows.filter(r=>String(r.details||'').trim() || String(r.specimenNo||'').trim());
   if(!rows.length){ toast('Add at least one specimen with details'); return; }
   smpDlg.close();
   for(const r of rows){
-    const fields = { Date:hdr.date, PatientInitials:hdr.initials, PATNumber:hdr.pat, Surgeon:hdr.surgeon,
-      SpecimenNo:r.specimenNo||'', SampleDetails:r.details||'', Category:r.category||'', Formalin:r.formalin||'',
-      DateCollected:r.collected||'', DateSent:r.sent||'', DateResult:r.result||'', By:myName||'', Notes:r.notes||'' };
     // optimistic local update
     if(r.id){ const ex=(state.samples||[]).find(s=>s.id===r.id);
-      if(ex) Object.assign(ex,{date:hdr.date,initials:hdr.initials,pat:hdr.pat,surgeon:hdr.surgeon,
-        specimenNo:r.specimenNo,details:r.details,category:r.category,formalin:r.formalin,collected:r.collected,sent:r.sent,result:r.result}); }
+      if(ex) Object.assign(ex,{date:hdr.date,initials:hdr.initials,pat:hdr.pat,surgeon:hdr.surgeon,collected:hdr.collected,
+        specimenNo:r.specimenNo,details:r.details,category:r.category,formalin:r.formalin}); }
     else { state.samples = state.samples||[]; state.samples.push({ id:'(saving)', date:hdr.date, initials:hdr.initials, pat:hdr.pat,
-      surgeon:hdr.surgeon, specimenNo:r.specimenNo, details:r.details, category:r.category, formalin:r.formalin,
-      collected:r.collected, sent:r.sent, result:r.result, by:myName||'' }); }
+      surgeon:hdr.surgeon, collected:hdr.collected, status:'Collected', specimenNo:r.specimenNo, details:r.details,
+      category:r.category, formalin:r.formalin, by:myName||'' }); }
   }
   render(); toast(rows.length+' specimen'+(rows.length>1?'s':'')+' saved');
   if(LIVE){
@@ -5414,11 +5531,26 @@ async function saveSamples(){
       for(const r of rows){
         const fields = { Date:hdr.date, PatientInitials:hdr.initials, PATNumber:hdr.pat, Surgeon:hdr.surgeon,
           SpecimenNo:r.specimenNo||'', SampleDetails:r.details||'', Category:r.category||'', Formalin:r.formalin||'',
-          DateCollected:r.collected||'', DateSent:r.sent||'', DateResult:r.result||'', By:myName||'', Notes:r.notes||'' };
+          DateCollected:hdr.collected||'', By:myName||'', Notes:r.notes||'' };
         await api({action:'sampleSave', sampleId:r.id||'', fields, by:myName||''});
       }
       await loadAll();
     }catch(err){ toast('Some specimens not saved — '+err.message); loadAll(); }
+  }
+}
+// ---- status workflow: Collected -> Sent -> Result Received, open to every user ----
+const SAMPLE_NEXT_STATUS = {'Collected':'Sent', 'Sent':'Result Received'};
+async function advanceSampleStatus(collectionId, currentStatus){
+  const next = SAMPLE_NEXT_STATUS[currentStatus];
+  if(!next || !collectionId) return;
+  if(!confirm('Mark this whole set as "'+next+'"?')) return;
+  (state.samples||[]).forEach(s=>{ if(s.collectionId===collectionId){ s.status=next;
+    if(next==='Sent'){ s.sentAt=new Date().toISOString(); s.sentBy=myName||''; }
+    if(next==='Result Received'){ s.resultAt=new Date().toISOString(); s.resultBy=myName||''; } } });
+  render(); toast('→ '+next);
+  if(LIVE){
+    try{ await api({action:'sampleAdvanceStatus', collectionId, newStatus:next}); await loadAll(); }
+    catch(err){ toast('Not saved — '+err.message); loadAll(); }
   }
 }
 async function deleteSample(id){
@@ -5451,7 +5583,7 @@ async function sampleExport(rows, subtitle, fname){
   doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(43,97,104);
   doc.text('Sample Collection Report', W-10, 13, {align:'right'});
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90,90,90);
-  const withResult = rows.filter(r=>r.result).length;
+  const withResult = rows.filter(r=>r.status==='Result Received').length;
   doc.text(subtitle+'  ·  '+rows.length+' specimens  ·  '+withResult+' with results', W-10, 18.5, {align:'right'});
   doc.text('Printed '+new Date().toLocaleString('en-GB')+(myName?' by '+myName:''), W-10, 23, {align:'right'});
   doc.setDrawColor(176,138,62); doc.setLineWidth(0.8); doc.line(10,25.5,W-10,25.5);
@@ -5459,15 +5591,15 @@ async function sampleExport(rows, subtitle, fname){
   if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh and try again'); return; }
   doc.autoTable({
     startY:28, margin:{left:10,right:10},
-    head:[['Date','Initials','PAT No.','Surgeon','Specimen','Category','Formalin','Collected','Sent','Result']],
+    head:[['Date','Initials','PAT No.','Surgeon','Specimen','Category','Formalin','Collected','Status']],
     body: rows.map(s=>[fmt(s.date), s.initials||'', s.pat||'', s.surgeon||'', (s.details||'')+(s.specimenNo?' (#'+s.specimenNo+')':''),
-      s.category||'', s.formalin||'', fmt(s.collected), fmt(s.sent), fmt(s.result)]),
+      s.category||'', s.formalin||'', fmt(s.collected), s.status||'Collected']),
     theme:'grid',
     styles:{font:'helvetica', fontSize:8, cellPadding:1.6, lineColor:[185,201,197], lineWidth:0.15, textColor:[23,37,31], overflow:'linebreak', valign:'middle'},
     headStyles:{fillColor:[43,97,104], textColor:255, fontSize:8, fontStyle:'bold', halign:'left'},
     alternateRowStyles:{fillColor:[242,247,246]},
-    columnStyles:{0:{cellWidth:20},1:{cellWidth:16},2:{cellWidth:22},3:{cellWidth:34},4:{cellWidth:56},5:{cellWidth:22},6:{cellWidth:16,halign:'center'},7:{cellWidth:20},8:{cellWidth:20},9:{cellWidth:20}},
-    didParseCell: d=>{ if(d.section==='body' && d.column.index===9 && !d.cell.raw){ d.cell.text=['pending']; d.cell.styles.textColor=[166,27,27]; d.cell.styles.fontStyle='italic'; } },
+    columnStyles:{0:{cellWidth:20},1:{cellWidth:16},2:{cellWidth:22},3:{cellWidth:34},4:{cellWidth:56},5:{cellWidth:22},6:{cellWidth:16,halign:'center'},7:{cellWidth:20},8:{cellWidth:26}},
+    didParseCell: d=>{ if(d.section==='body' && d.column.index===8 && d.cell.raw!=='Result Received'){ d.cell.styles.textColor=[166,27,27]; d.cell.styles.fontStyle='italic'; } },
     didDrawPage: d=>{ doc.setFontSize(7.5); doc.setTextColor(140,140,140);
       doc.text('Bollin Clinic Stock Manager — Sample collection', 10, doc.internal.pageSize.getHeight()-6);
       doc.text('Page '+d.pageNumber, W-10, doc.internal.pageSize.getHeight()-6, {align:'right'}); }
@@ -5783,10 +5915,12 @@ async function api(payload){
     }
     const samples = (sampRes.data||[]).map(s=>{
       const c = s.sample_collections||{};
-      return {_row:s.id, SampleID:s.id, Date:c.date, PatientInitials:c.patient_initials, PATNumber:c.pat_number,
+      return {_row:s.id, SampleID:s.id, CollectionID:c.id, Date:c.date, PatientInitials:c.patient_initials, PATNumber:c.pat_number,
         Surgeon:c.surgeon, SpecimenNo:s.specimen_no, SampleDetails:s.details, Category:s.category,
-        Formalin: s.formalin===true?'Yes':s.formalin===false?'No':'', DateCollected:s.date_collected,
-        DateSent:s.date_sent, DateResult:s.date_result, By:c.logged_by, Notes:s.notes};
+        Formalin: s.formalin===true?'Yes':s.formalin===false?'No':'',
+        Status:c.status||'Collected', DateCollected:c.date_collected,
+        SentAt:c.sent_at, SentBy:c.sent_by, ResultAt:c.result_at, ResultBy:c.result_by,
+        By:c.logged_by, Notes:s.notes};
     });
     let assets = [], users = [];
     if(rank>=2){
@@ -5831,40 +5965,42 @@ async function api(payload){
     if(error) throw new Error(error.message);
     return {ok:true};
   }
+  // items has no SELECT policy (masks unit_cost) — PostgREST cannot reliably perform a
+  // client-issued INSERT/UPDATE/DELETE against a table shaped like that (confirmed: UPDATE
+  // silently affects zero rows with no error, INSERT is rejected outright), so every items
+  // mutation goes through a SECURITY DEFINER RPC instead of a direct table call.
   if(a==='addItem'){
     const row = fieldsToItemRow(payload.fields);
-    row.tracker = low(payload.tracker);
-    const {data, error} = await sb.from('items').insert(row).select().single();
+    const {data, error} = await sb.rpc('item_add', {p_tracker: low(payload.tracker), p_fields: row});
     if(error) throw new Error(error.message);
-    return {ok:true, row: data.id};
+    return {ok:true, row: data};
   }
   if(a==='updateItem'){
     const row = fieldsToItemRow(payload.fields);
-    const {error} = await sb.from('items').update(row).eq('id', payload.row);
+    const {error} = await sb.rpc('item_update', {p_item_id: payload.row, p_fields: row});
     if(error) throw new Error(error.message);
     return {ok:true};
   }
   if(a==='setBarcodes'){
     let done=0; const errors=[];
     for(const en of (payload.entries||[])){
-      const {error} = await sb.from('items').update({barcode: en.barcode})
-        .eq('tracker', low(en.tracker)).eq('code', en.code);
+      const {error} = await sb.rpc('item_set_barcode', {p_tracker: low(en.tracker), p_code: en.code, p_barcode: en.barcode});
       if(error) errors.push(en.code+': '+error.message); else done++;
     }
     return {ok:true, done, errors};
   }
   if(a==='clearBarcode'){
-    const {error} = await sb.from('items').update({barcode: null}).eq('id', payload.row);
+    const {error} = await sb.rpc('item_clear_barcode', {p_item_id: payload.row});
     if(error) throw new Error(error.message);
     return {ok:true};
   }
   if(a==='moveStore'){
-    const {error} = await sb.from('items').update({location: payload.toStore}).in('id', payload.rows||[]);
+    const {error} = await sb.rpc('item_move_store', {p_item_ids: payload.rows||[], p_location: payload.toStore});
     if(error) throw new Error(error.message);
     return {ok:true};
   }
   if(a==='instrumentDelete'){
-    const {error} = await sb.from('items').delete().eq('id', payload.row).eq('tracker','instruments');
+    const {error} = await sb.rpc('item_delete_instrument', {p_item_id: payload.row});
     if(error) throw new Error(error.message);
     return {ok:true};
   }
@@ -5878,6 +6014,13 @@ async function api(payload){
   if(a==='respond'){
     const {error} = await sb.from('stock_requests').update({status: payload.status, handled_by: payload.by,
       responded_at: new Date().toISOString(), remarks: strOrNull(payload.remarks)}).eq('id', payload.row);
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
+  if(a==='requestUpdateField'){
+    // stock_requests has a real SELECT policy, so (unlike items/procedures) a direct
+    // client update works correctly here — no RPC needed.
+    const {error} = await sb.from('stock_requests').update(payload.fields).eq('id', payload.row);
     if(error) throw new Error(error.message);
     return {ok:true};
   }
@@ -6073,17 +6216,21 @@ async function api(payload){
     const {data: existing} = await sb.from('sample_collections').select('id')
       .eq('date', f.Date).eq('patient_initials', f.PatientInitials||'').eq('pat_number', f.PATNumber||'')
       .eq('surgeon', f.Surgeon||'').limit(1);
-    if(existing && existing.length) collectionId = existing[0].id;
-    else {
+    if(existing && existing.length){
+      collectionId = existing[0].id;
+      // date collected is shared and editable — keep it in sync on every save of this group
+      const {error: uErr} = await sb.from('sample_collections').update({date_collected: strOrNull(f.DateCollected)}).eq('id', collectionId);
+      if(uErr) throw new Error(uErr.message);
+    } else {
       const {data: created, error: cErr} = await sb.from('sample_collections').insert({date: f.Date,
         patient_initials: strOrNull(f.PatientInitials), pat_number: strOrNull(f.PATNumber),
-        surgeon: strOrNull(f.Surgeon), logged_by: strOrNull(f.By)}).select().single();
+        surgeon: strOrNull(f.Surgeon), logged_by: strOrNull(f.By), date_collected: strOrNull(f.DateCollected),
+        status: 'Collected'}).select().single();
       if(cErr) throw new Error(cErr.message);
       collectionId = created.id;
     }
     const specimen = {collection_id: collectionId, specimen_no: strOrNull(f.SpecimenNo), details: f.SampleDetails,
       category: strOrNull(f.Category), formalin: f.Formalin==='Yes'?true:f.Formalin==='No'?false:null,
-      date_collected: strOrNull(f.DateCollected), date_sent: strOrNull(f.DateSent), date_result: strOrNull(f.DateResult),
       notes: strOrNull(f.Notes)};
     if(payload.sampleId){
       const {error} = await sb.from('specimens').update(specimen).eq('id', payload.sampleId);
@@ -6093,6 +6240,11 @@ async function api(payload){
     const {data: created, error} = await sb.from('specimens').insert(specimen).select().single();
     if(error) throw new Error(error.message);
     return {ok:true, sampleId: created.id};
+  }
+  if(a==='sampleAdvanceStatus'){
+    const {data, error} = await sb.rpc('sample_advance_status', {p_collection_id: payload.collectionId, p_new_status: payload.newStatus});
+    if(error) throw new Error(error.message);
+    return {ok:true, status: data.status, by: data.by};
   }
   if(a==='sampleDelete'){
     const {error} = await sb.from('specimens').delete().eq('id', payload.sampleId);
@@ -6238,11 +6390,13 @@ async function loadAll(){
       func:a.Function||'', supplier:a.Supplier||'', phone:a.SupplierContact?String(a.SupplierContact):'',
       loc:a.Location||'', last:a.LastMaintenance||null, next:a.NextMaintenanceDue||null,
       status:a.Status||'Working', notes:a.Notes||''}));
-    state.samples = (data.samples||[]).map(s=>({ id:String(s.SampleID||''), date:s.Date?String(s.Date).slice(0,10):'',
+    state.samples = (data.samples||[]).map(s=>({ id:String(s.SampleID||''), collectionId:String(s.CollectionID||''),
+      date:s.Date?String(s.Date).slice(0,10):'',
       initials:String(s.PatientInitials||''), pat:String(s.PATNumber||''), surgeon:String(s.Surgeon||''),
       specimenNo:String(s.SpecimenNo||''), details:String(s.SampleDetails||''), category:String(s.Category||''),
       formalin:String(s.Formalin||''), collected:s.DateCollected?String(s.DateCollected).slice(0,10):'',
-      sent:s.DateSent?String(s.DateSent).slice(0,10):'', result:s.DateResult?String(s.DateResult).slice(0,10):'',
+      status:String(s.Status||'Collected'),
+      sentAt:s.SentAt||'', sentBy:String(s.SentBy||''), resultAt:s.ResultAt||'', resultBy:String(s.ResultBy||''),
       by:String(s.By||''), notes:String(s.Notes||'') }));
     state.stores = (data.stores||[]).filter(s=>s.Store)
       .map(s=>({_row:s._row, tracker:String(s.Tracker||'').toLowerCase(), store:String(s.Store)}));
@@ -6348,7 +6502,7 @@ function viewAllowed(v){
   if(v==='assets') return can('assets');
   if(v==='stickers') return can('sticker');
   if(v==='procedures') return true;   // all roles can run procedures (financials hidden inside)
-  if(v==='samples') return isStaffPlus();   // staff and up
+  if(v==='samples') return true;   // all roles — everyone can view and advance status; creating/editing/deleting stays gated inside the view
   if(v==='users') return isAdmin();
   if(v==='rota') return !!(session && session.role==='superadmin');
   return true;
