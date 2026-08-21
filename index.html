@@ -706,6 +706,56 @@
   </div>
 </dialog>
 
+<dialog id="gasEditDlg">
+  <div class="m-head">Edit gas room check</div>
+  <div class="m-body" style="max-height:70vh;overflow-y:auto">
+    <div class="m-row"><label for="geDate">Date</label><input id="geDate" type="date"></div>
+    <div class="m-row"><label for="geBy">By</label><input id="geBy" type="text"></div>
+
+    <div style="font-weight:600;font-size:13px;margin:14px 0 8px;color:var(--ink-soft)">Oxygen manifold</div>
+    <div class="m-row"><label>Bank L / R</label><input id="geO2L" type="number" step="any" placeholder="Left"><input id="geO2R" type="number" step="any" placeholder="Right"></div>
+    <div class="m-row"><label for="geO2P">Pipeline (bar)</label><input id="geO2P" type="number" step="any"></div>
+    <div class="m-row"><label for="geO2Use">In-use bank</label>
+      <select id="geO2Use"><option value="">—</option><option value="Left">Left</option><option value="Right">Right</option></select></div>
+    <div class="m-row"><label for="geO2Deliv">Delivery booked</label><input id="geO2Deliv" type="checkbox" style="flex:0 0 auto;width:18px;height:18px"></div>
+
+    <div style="font-weight:600;font-size:13px;margin:14px 0 8px;color:var(--ink-soft)">Medical air manifold</div>
+    <div class="m-row"><label>Bank L / R</label><input id="geAirL" type="number" step="any" placeholder="Left"><input id="geAirR" type="number" step="any" placeholder="Right"></div>
+    <div class="m-row"><label for="geAirP">Pipeline (bar)</label><input id="geAirP" type="number" step="any"></div>
+    <div class="m-row"><label for="geAirUse">In-use bank</label>
+      <select id="geAirUse"><option value="">—</option><option value="Left">Left</option><option value="Right">Right</option></select></div>
+    <div class="m-row"><label for="geAirDeliv">Delivery booked</label><input id="geAirDeliv" type="checkbox" style="flex:0 0 auto;width:18px;height:18px"></div>
+
+    <div style="font-weight:600;font-size:13px;margin:14px 0 8px;color:var(--ink-soft)">Helium — Total / Full / Empty</div>
+    <div class="m-row"><label>He T/F/E</label><input id="geHeT" type="number" step="any" placeholder="Total"><input id="geHeF" type="number" step="any" placeholder="Full"><input id="geHeE" type="number" step="any" placeholder="Empty"></div>
+
+    <div style="font-weight:600;font-size:13px;margin:14px 0 8px;color:var(--ink-soft)">Trolley O₂ — Total / Full / Empty</div>
+    <div class="m-row"><label>Trolley T/F/E</label><input id="geTrT" type="number" step="any" placeholder="Total"><input id="geTrF" type="number" step="any" placeholder="Full"><input id="geTrE" type="number" step="any" placeholder="Empty"></div>
+    <div class="m-row"><label for="geTrDate">Next delivery</label><input id="geTrDate" type="date"></div>
+
+    <div style="font-weight:600;font-size:13px;margin:14px 0 8px;color:var(--ink-soft)">Vacuum plant</div>
+    <div class="m-row"><label for="gePump">Duty pump</label>
+      <select id="gePump"><option value="1">Pump 1</option><option value="2">Pump 2</option></select></div>
+    <div class="m-row"><label for="gePumpStatus">Status</label>
+      <select id="gePumpStatus">
+        <option>Normal</option>
+        <option>Pump 1 fault — Pump 2 running</option>
+        <option>Pump 2 fault — Pump 1 running</option>
+        <option>Both fault</option>
+      </select></div>
+
+    <div style="font-weight:600;font-size:13px;margin:14px 0 8px;color:var(--ink-soft)">Theatre airflow switched off</div>
+    <div class="m-row"><label for="geAf1">Theatre 1</label><input id="geAf1" type="checkbox" style="flex:0 0 auto;width:18px;height:18px"></div>
+    <div class="m-row"><label for="geAf2">Theatre 2</label><input id="geAf2" type="checkbox" style="flex:0 0 auto;width:18px;height:18px"></div>
+
+    <div class="m-row"><label for="geNotes">Notes</label><input id="geNotes" type="text"></div>
+  </div>
+  <div class="m-actions">
+    <button class="btn" onclick="gasEditDlg.close()">Cancel</button>
+    <button class="btn primary" onclick="saveGasEdit()">Save changes</button>
+  </div>
+</dialog>
+
 <div id="loginWrap" style="display:none">
   <div class="logincard">
     <img src="logo.png" alt="Bollin Clinic Stock Manager">
@@ -3298,7 +3348,9 @@ function gasConsumptionHTML(){
     <tbody>${rows}</tbody></table>`;
 }
 function gasHistoryHTML(){
-  const rows = [...state.gasChecks].reverse().slice(0,14).map(g=>`<tr>
+  const editable = isAdmin();
+  const indexed = state.gasChecks.map((g,ix)=>({g,ix})).reverse().slice(0,14);
+  const rows = indexed.map(({g,ix})=>`<tr ${editable?`style="cursor:pointer" onclick="openGasEdit(${ix})" title="Click to fix date/readings"`:''}>
     <td data-label="">${new Date(g.date).toLocaleDateString('en-GB')} · ${g.by||''}</td>
     <td class="qty" data-label="O₂ L/R">${g.o2L||'—'} / ${g.o2R||'—'}</td>
     <td class="qty" data-label="Air L/R">${g.airL!==''&&g.airL!=null?g.airL+' / '+g.airR:'—'}</td>
@@ -3308,9 +3360,69 @@ function gasHistoryHTML(){
     <td data-label="Airflow off">${g.af1&&g.af2?'✓ Both':g.af1?'TH1 only':g.af2?'TH2 only':'—'}</td></tr>`).join('');
   if(!rows) return '';
   return `<h1 style="font-size:16px;margin-top:24px">Recent checks</h1>
+    <div class="sub">${editable?'Click a row to fix its date or readings — e.g. when backdating entries transferred from the old system.':''}</div>
     <table><thead><tr><th>Date</th><th class="qty">O₂ L/R</th><th class="qty">Air L/R</th>
       <th class="qty">He full/empty</th><th class="qty">Trolley full/empty</th><th>Vacuum</th><th>Airflow off</th></tr></thead>
     <tbody>${rows}</tbody></table>`;
+}
+
+let editGas = null;
+function openGasEdit(ix){
+  if(!isAdmin()) return;
+  const g = state.gasChecks[ix];
+  if(!g || !g._row){ toast('This check hasn\'t finished saving yet — try again shortly'); return; }
+  editGas = g;
+  $('#geDate').value = g.date||'';
+  $('#geBy').value = g.by||'';
+  $('#geO2L').value = g.o2L??''; $('#geO2R').value = g.o2R??''; $('#geO2P').value = g.o2P??'';
+  $('#geO2Use').value = g.o2Use||''; $('#geO2Deliv').checked = !!g.o2Deliv;
+  $('#geAirL').value = g.airL??''; $('#geAirR').value = g.airR??''; $('#geAirP').value = g.airP??'';
+  $('#geAirUse').value = g.airUse||''; $('#geAirDeliv').checked = !!g.airDeliv;
+  $('#geHeT').value = g.heT??''; $('#geHeF').value = g.heF??''; $('#geHeE').value = g.heE??'';
+  $('#geTrT').value = g.trT??''; $('#geTrF').value = g.trF??''; $('#geTrE').value = g.trE??'';
+  $('#geTrDate').value = g.trDate?String(g.trDate).slice(0,10):'';
+  $('#gePump').value = g.pump||'1'; $('#gePumpStatus').value = g.pumpStatus||'Normal';
+  $('#geAf1').checked = !!g.af1; $('#geAf2').checked = !!g.af2;
+  $('#geNotes').value = g.notes||'';
+  gasEditDlg.showModal();
+}
+async function saveGasEdit(){
+  if(!editGas) return;
+  const date = $('#geDate').value;
+  if(!date){ toast('Date is required'); return; }
+  const vals = {date, by:$('#geBy').value.trim(),
+    o2L:$('#geO2L').value, o2R:$('#geO2R').value, o2P:$('#geO2P').value,
+    o2Use:$('#geO2Use').value, o2Deliv:$('#geO2Deliv').checked,
+    airL:$('#geAirL').value, airR:$('#geAirR').value, airP:$('#geAirP').value,
+    airUse:$('#geAirUse').value, airDeliv:$('#geAirDeliv').checked,
+    heT:$('#geHeT').value===''?null:Number($('#geHeT').value),
+    heF:$('#geHeF').value===''?null:Number($('#geHeF').value),
+    heE:$('#geHeE').value===''?null:Number($('#geHeE').value),
+    trT:$('#geTrT').value===''?null:Number($('#geTrT').value),
+    trF:$('#geTrF').value===''?null:Number($('#geTrF').value),
+    trE:$('#geTrE').value===''?null:Number($('#geTrE').value),
+    trDate:$('#geTrDate').value||'',
+    pump:$('#gePump').value, pumpStatus:$('#gePumpStatus').value,
+    af1:$('#geAf1').checked, af2:$('#geAf2').checked,
+    notes:$('#geNotes').value.trim()};
+  const fields = {Date:vals.date, By:vals.by,
+    O2_LeftBank:vals.o2L, O2_RightBank:vals.o2R, O2_Pipeline:vals.o2P, O2_InUseBank:vals.o2Use,
+    O2_DeliveryBooked: vals.o2Deliv?'Yes':'',
+    Air_LeftBank:vals.airL, Air_RightBank:vals.airR, Air_Pipeline:vals.airP, Air_InUseBank:vals.airUse,
+    Air_DeliveryBooked: vals.airDeliv?'Yes':'',
+    Helium_Total:vals.heT??'', Helium_Full:vals.heF??'', Helium_Empty:vals.heE??'',
+    TrolleyO2_Total:vals.trT??'', TrolleyO2_Full:vals.trF??'', TrolleyO2_Empty:vals.trE??'',
+    TrolleyO2_NextDelivery:vals.trDate,
+    Vacuum_DutyPump:vals.pump, Vacuum_Status:vals.pumpStatus,
+    Airflow_TH1_Off: vals.af1?'Yes':'No', Airflow_TH2_Off: vals.af2?'Yes':'No', Notes:vals.notes};
+  Object.assign(editGas, vals);
+  const row = editGas._row;
+  gasEditDlg.close(); render(); toast('Gas check updated');
+  if(LIVE && row){
+    try{ await api({action:'gasCheckUpdate', row, fields}); }
+    catch(err){ toast('Not saved — '+err.message); loadAll(); }
+  }
+  editGas = null;
 }
 
 /* ---------------- assets (admin only) ---------------- */
@@ -5779,7 +5891,7 @@ function fieldsToAssetRow(f){
   return out;
 }
 function gasToSheetRow(g){
-  return {Timestamp: g.ts, Date: g.date, By: g.by,
+  return {_row: g.id, Timestamp: g.ts, Date: g.date, By: g.by,
     O2_LeftBank: g.o2_left_bank, O2_RightBank: g.o2_right_bank, O2_Pipeline: g.o2_pipeline, O2_InUseBank: g.o2_in_use_bank,
     O2_DeliveryBooked: g.o2_delivery_booked ? 'Yes' : '',
     Air_LeftBank: g.air_left_bank, Air_RightBank: g.air_right_bank, Air_Pipeline: g.air_pipeline, Air_InUseBank: g.air_in_use_bank,
@@ -6114,6 +6226,14 @@ async function api(payload){
     if(error) throw new Error(error.message);
     return {ok:true};
   }
+  if(a==='gasCheckUpdate'){
+    // gas_checks has no UPDATE policy (read + insert only) — same silent-zero-rows failure
+    // mode as items/procedures, so this goes through a SECURITY DEFINER RPC too.
+    const row = fieldsToGasRow(payload.fields);
+    const {error} = await sb.rpc('gas_check_update', {p_id: payload.row, p_fields: row});
+    if(error) throw new Error(error.message);
+    return {ok:true};
+  }
 
   if(a==='setSetting'){
     const {error} = await sb.from('settings').upsert({key: payload.key, value: String(payload.value),
@@ -6372,7 +6492,7 @@ async function loadAll(){
       }
     });
     procSyncActive();   // keep the plain activeProc pointer in step with the rebuilt room map
-    state.gasChecks = (data.gasChecks||[]).map(g=>({date:g.Date?String(g.Date).slice(0,10):'', by:g.By||'',
+    state.gasChecks = (data.gasChecks||[]).map(g=>({_row:g._row, date:g.Date?String(g.Date).slice(0,10):'', by:g.By||'',
       o2L:g.O2_LeftBank??'', o2R:g.O2_RightBank??'', o2P:g.O2_Pipeline??'', o2Use:g.O2_InUseBank||'',
       o2Deliv:g.O2_DeliveryBooked==='Yes',
       airL:g.Air_LeftBank??'', airR:g.Air_RightBank??'', airP:g.Air_Pipeline??'', airUse:g.Air_InUseBank||'',
@@ -6385,7 +6505,7 @@ async function loadAll(){
       trE:g.TrolleyO2_Empty===''||g.TrolleyO2_Empty==null?null:Number(g.TrolleyO2_Empty),
       trDate:g.TrolleyO2_NextDelivery||'',
       pump:g.Vacuum_DutyPump?String(g.Vacuum_DutyPump):'', pumpStatus:g.Vacuum_Status||'',
-      af1:g.Airflow_TH1_Off==='Yes', af2:g.Airflow_TH2_Off==='Yes'}));
+      af1:g.Airflow_TH1_Off==='Yes', af2:g.Airflow_TH2_Off==='Yes', notes:g.Notes||''}));
     state.assets = (data.assets||[]).map(a=>({_row:a._row, name:a.Name||'', serial:a.SerialNumber?String(a.SerialNumber):'',
       func:a.Function||'', supplier:a.Supplier||'', phone:a.SupplierContact?String(a.SupplierContact):'',
       loc:a.Location||'', last:a.LastMaintenance||null, next:a.NextMaintenanceDue||null,
