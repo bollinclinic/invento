@@ -1125,7 +1125,8 @@ function trackerView(key){
   const st = window._store||'', ct = window._cat||'';
   const items = all.filter(i =>
       (!q || i.name.toLowerCase().includes(q) || (i.code||'').toLowerCase().includes(q)) &&
-      (!st || i.loc===st) && (!ct || i.cat===ct));
+      (!st || i.loc===st) && (!ct || i.cat===ct))
+    .sort((a,b)=>a.name.localeCompare(b.name));
   return `
     <h1>${TRACKER_LABEL[key]}</h1>
     <div class="sub">${all.length} items · scan any barcode, or use Move</div>
@@ -1153,7 +1154,8 @@ function refreshTrackerTable(){
   const st = window._store||'', ct = window._cat||'';
   const items = state.items.filter(i => i.tracker===key && !i.obsolete &&
       (!q || i.name.toLowerCase().includes(q) || (i.code||'').toLowerCase().includes(q)) &&
-      (!st || i.loc===st) && (!ct || i.cat===ct));
+      (!st || i.loc===st) && (!ct || i.cat===ct))
+    .sort((a,b)=>a.name.localeCompare(b.name));
   wrap.innerHTML = tableFor(items,{expiry: key!=='garments', superEdit:true});
 }
 
@@ -3104,7 +3106,7 @@ function todayISO(){ return new Date().toISOString().slice(0,10); }
 function gasDoneToday(){
   return state.gasChecks.some(g=>String(g.date).slice(0,10)===todayISO());
 }
-function lastGas(){ return state.gasChecks.length ? state.gasChecks[state.gasChecks.length-1] : null; }
+function lastGas(){ return state.gasChecks.length ? state.gasChecks[0] : null; }   // state.gasChecks is newest-first (fetched order('ts',{ascending:false}))
 function gasPrefill(){
   const l = lastGas();
   if(!l) return;
@@ -3292,11 +3294,11 @@ async function saveGasCheck(){
     TrolleyO2_NextDelivery:gas.trDate||'',
     Vacuum_DutyPump:gas.pump, Vacuum_Status:gas.pumpStatus,
     Airflow_TH1_Off: gas.af1?'Yes':'No', Airflow_TH2_Off: gas.af2?'Yes':'No', Notes:gas.notes||''};
-  state.gasChecks.push({date:todayISO(), by:fields.By,
+  state.gasChecks.unshift({_row:null, date:todayISO(), by:fields.By,
     o2L:gas.o2L, o2R:gas.o2R, o2P:gas.o2P, o2Use:gas.o2Use, o2Deliv:gas.o2Deliv,
     airL:gas.airL, airR:gas.airR, airP:gas.airP, airUse:gas.airUse, airDeliv:gas.airDeliv,
     heT:gas.heT, heF:gas.heF, heE:gas.heE, trT:gas.trT, trF:gas.trF, trE:gas.trE, trDate:gas.trDate,
-    pump:gas.pump, pumpStatus:gas.pumpStatus, af1:gas.af1, af2:gas.af2});
+    pump:gas.pump, pumpStatus:gas.pumpStatus, af1:gas.af1, af2:gas.af2, notes:gas.notes||''});
   toast('Gas room checks saved ✓');
   ['o2L','o2R','o2P','airL','airR','airP','notes'].forEach(k=>gas[k]='');
   gas.o2Deliv=false; gas.airDeliv=false; gas.airRecord=false; gas.af1=false; gas.af2=false;
@@ -3349,7 +3351,7 @@ function gasConsumptionHTML(){
 }
 function gasHistoryHTML(){
   const editable = isAdmin();
-  const indexed = state.gasChecks.map((g,ix)=>({g,ix})).reverse().slice(0,14);
+  const indexed = state.gasChecks.map((g,ix)=>({g,ix})).slice(0,14);   // state.gasChecks is already newest-first
   const rows = indexed.map(({g,ix})=>`<tr ${editable?`style="cursor:pointer" onclick="openGasEdit(${ix})" title="Click to fix date/readings"`:''}>
     <td data-label="">${new Date(g.date).toLocaleDateString('en-GB')} · ${g.by||''}</td>
     <td class="qty" data-label="O₂ L/R">${g.o2L||'—'} / ${g.o2R||'—'}</td>
