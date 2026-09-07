@@ -145,6 +145,14 @@
   .b-low{background:var(--amber-bg);color:var(--amber)}
   .b-out{background:var(--red-bg);color:var(--red)}
   .b-exp{background:var(--exp-bg);color:var(--exp)}
+  /* Request response statuses -- Ordered/Awaiting/Back order/Other used to all share .b-exp
+     (and .b-exp's brown is already close to .b-low's amber), making the whole workflow look
+     like one colour. Each gets its own distinct hue now; Out of stock reuses .b-out (red) and
+     Received/In stock keep .b-ok (green), both already correct per explicit request. */
+  .b-ordered{background:#E3EEFA;color:#1D5FA3}
+  .b-waiting{background:#F1EAFA;color:#6B3FA0}
+  .b-backorder{background:#EBEDF0;color:#4A5568}
+  .b-other{background:#FBEAF0;color:#9B3C6B}
   .rowbtns button{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;color:var(--pine)}
   .rowbtns button:hover{background:var(--ok-bg)}
 
@@ -1334,11 +1342,13 @@ function dashboardView(){
   const pend = state.requests.filter(r=>r.status==='Requested').length;
   const impOrdered = state.implants.filter(i=>i.status==='Ordered'||i.status==='Pending').length;
   const impAwaitRet = state.implants.filter(i=>i.status==='Delivered' && !i.returnDetails).length;
+  if(twDischargeCountDate !== todayISO()) twRefreshDischargeCount();   // fire-and-forget; patches its own tile when it resolves
   return `
     <h1>Dashboard</h1>
     <div class="sub">Live position across all five trackers</div>
     ${LIVE ? '' : '<div class="note">Demo mode — sample data only. Set CONFIG.SUPABASE_URL to connect the live Supabase project.</div>'}
     <div class="tiles">
+      <div id="twDischargeTileWrap">${twDischargeTileHtml()}</div>
       <div class="tile warn ${low.length?'attn':''}" onclick="nav('dash-low')"><span class="ic">📉</span><div class="n">${low.length}</div><div class="l">Low stock items</div></div>
       <div class="tile bad ${out.length?'attn':''}"  onclick="nav('dash-out')"><span class="ic">🚫</span><div class="n">${out.length}</div><div class="l">Out of stock</div></div>
       <div class="tile exp ${exp.length?'attn':''}"  onclick="nav('dash-exp')"><span class="ic">⏳</span><div class="n">${exp.length}</div><div class="l">Expiring ≤ 90 days</div></div>
@@ -1595,6 +1605,15 @@ function reqEditableCell(r, ix, field, displayHtml, inputType){
   }
   return `<span ondblclick="reqStartEditCell(${ix},'${field}')" title="Double-click to edit" style="cursor:text;border-bottom:1px dotted var(--ink-soft)">${displayHtml}</span>`;
 }
+function reqStatusBadgeClass(status){
+  return status==='Requested' ? 'b-low'
+    : status==='Ordered' ? 'b-ordered'
+    : status==='Awaiting Supplier Response' ? 'b-waiting'
+    : status==='Back order' ? 'b-backorder'
+    : status==='Out of stock' ? 'b-out'
+    : status==='Other' ? 'b-other'
+    : 'b-exp';
+}
 function requestsView(){
   const RESP_STATUSES = ['Ordered','Awaiting Supplier Response','Back order','Out of stock','Received','In stock','Other'];
   const isDone = s => s==='Received' || s==='In stock';
@@ -1605,7 +1624,7 @@ function requestsView(){
       <td data-label="">${reqEditableCell(r,ix,'item','<strong>'+r.item+'</strong>','text')}${r.size?' <span class="code" style="font-size:12px">('+r.size+')</span>':''}</td>
       <td data-label="Requested">${reqEditableCell(r,ix,'ts', r.ts?new Date(r.ts).toLocaleDateString('en-GB'):'—', 'date')} · ${r.by}</td>
       <td class="qty" data-label="Qty">${reqEditableCell(r,ix,'qty', r.qty, 'number')}</td>
-      <td data-label="Status">${reqEditableCell(r,ix,'status', '<span class="badge '+(r.status==='Requested'?'b-low':'b-exp')+'">'+r.status+'</span>', 'text')}
+      <td data-label="Status">${reqEditableCell(r,ix,'status', '<span class="badge '+reqStatusBadgeClass(r.status)+'">'+r.status+'</span>', 'text')}
         ${r.handledBy?'<div style="font-size:11px;color:var(--ink-soft)">'+r.handledBy+(r.responded?' · '+new Date(r.responded).toLocaleDateString('en-GB'):'')+'</div>':''}</td>
       <td data-label="Remarks">${reqEditableCell(r,ix,'remarks', r.remarks||'—', 'text')}</td>
       <td class="rowbtns" data-label="">
@@ -2535,11 +2554,16 @@ const stk = { counts:{}, type:'Month-end', tracker:'consumables', store:'', appl
 function stkKey(it){ return it.tracker + '|' + (it.code || it.name); }
 
 function stkItems(){
+  // Same default ordering as the printable physical stock take sheet -- tracker, then store,
+  // then A-Z -- so the on-screen count follows the same walk-the-shelf order once a tracker/
+  // store is picked from the filters above, rather than whatever order the data happened to
+  // load in.
   return state.items.filter(i =>
     i.tracker === stk.tracker &&
     i.tracker !== 'instruments' &&
     i.loc !== OFFSITE_STORE &&
-    (!stk.store || i.loc === stk.store));
+    (!stk.store || i.loc === stk.store))
+    .sort((a,b) => a.tracker.localeCompare(b.tracker) || (a.loc||'').localeCompare(b.loc||'') || a.name.localeCompare(b.name));
 }
 
 function setCount(key, v){
@@ -6975,6 +6999,7 @@ async function twSubmitTheatre(){
     twClearDraft();
     twStatus = {level:'green', text:'Theatre record '+(isNew?'created':'updated')+' for '+(twVal('tw_patientName')||pid)};
     toast(isNew ? '✓ New theatre record saved' : '✓ Theatre record updated');
+    twRefreshDischargeCount();
   }catch(err){
     twStatus = {level:'red', text:err.message};
     toast('❌ '+err.message);
@@ -7001,11 +7026,44 @@ async function twSubmitWard(){
     twClearDraft();
     twStatus = {level:'green', text:'Ward record saved — record complete'};
     toast('✓ Ward record saved');
+    twRefreshDischargeCount();
   }catch(err){
     twStatus = {level:'red', text:err.message};
     toast('❌ '+err.message);
   }
   render();
+}
+
+/* ---------------- dashboard "awaiting discharge" shortcut ---------------- */
+// A live count, not a running tally -- recomputed from the real sheet each time it's needed,
+// scoped to TODAY's date. That's what makes both requested reset rules fall out for free: it
+// naturally hits 0 once every today's-date row has a discharge date (no explicit "all done"
+// check needed), and it naturally excludes yesterday's leftovers the moment the date rolls
+// over, without any explicit day-change handling either.
+let twDischargeCount = null;       // null = not yet fetched this page load
+let twDischargeCountDate = null;   // the date this count was last computed FOR
+async function twRefreshDischargeCount(){
+  const today = todayISO();
+  twDischargeCountDate = today;
+  try{
+    const rows = await twGetRows();
+    twDischargeCount = rows.filter(r=>{
+      const v = r.values[0];
+      if(!v[TW_COL.pid]) return false;
+      if(twCellDisplay(TW_COL.date, v[TW_COL.date]) !== today) return false;
+      return !twCellDisplay(TW_COL.dateDischarge, v[TW_COL.dateDischarge]);
+    }).length;
+  }catch(e){
+    twDischargeCount = null;
+    twDischargeCountDate = null;   // allow a retry next time the dashboard is shown
+  }
+  const el = document.getElementById('twDischargeTileWrap');
+  if(el) el.innerHTML = twDischargeTileHtml();
+}
+function twDischargeTileHtml(){
+  const n = twDischargeCount;
+  return `<div class="tile ${n>0?'bad attn':''}" onclick="nav('theatreward')" title="Theatre records saved today with no discharge time yet">
+    <span class="ic">🛏</span><div class="n">${n==null?'…':n}</div><div class="l">Awaiting discharge</div></div>`;
 }
 
 function twTheatreFormHtml(){
