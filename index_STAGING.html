@@ -1342,13 +1342,12 @@ function dashboardView(){
   const pend = state.requests.filter(r=>r.status==='Requested').length;
   const impOrdered = state.implants.filter(i=>i.status==='Ordered'||i.status==='Pending').length;
   const impAwaitRet = state.implants.filter(i=>i.status==='Delivered' && !i.returnDetails).length;
-  if(twDischargeCountDate !== todayISO()) twRefreshDischargeCount();   // fire-and-forget; patches its own tile when it resolves
+  if(twDashCountsDate !== todayISO()) twRefreshDashCounts();   // fire-and-forget; patches its own tile when it resolves
   return `
     <h1>Dashboard</h1>
     <div class="sub">Live position across all five trackers</div>
     ${LIVE ? '' : '<div class="note">Demo mode — sample data only. Set CONFIG.SUPABASE_URL to connect the live Supabase project.</div>'}
     <div class="tiles">
-      <div id="twDischargeTileWrap">${twDischargeTileHtml()}</div>
       <div class="tile warn ${low.length?'attn':''}" onclick="nav('dash-low')"><span class="ic">📉</span><div class="n">${low.length}</div><div class="l">Low stock items</div></div>
       <div class="tile bad ${out.length?'attn':''}"  onclick="nav('dash-out')"><span class="ic">🚫</span><div class="n">${out.length}</div><div class="l">Out of stock</div></div>
       <div class="tile exp ${exp.length?'attn':''}"  onclick="nav('dash-exp')"><span class="ic">⏳</span><div class="n">${exp.length}</div><div class="l">Expiring ≤ 90 days</div></div>
@@ -1357,6 +1356,7 @@ function dashboardView(){
       ${can('values')?`<div class="tile" onclick="nav('values')"><span class="ic">💷</span><div class="n">£${val.toFixed(0)}</div><div class="l">Stock value (${costed} of ${stock.length} items costed)</div></div>`:''}
       <div class="tile ${pend?'attn':''}" onclick="nav('requests')"><span class="ic">📨</span><div class="n">${pend}</div><div class="l">Requests awaiting response</div></div>
       ${can('implants')?`<div class="tile ${(impOrdered+impAwaitRet)?'attn':''}" onclick="nav('implants')"><span class="ic">⚕️</span><div class="n">${impOrdered}</div><div class="l">Implants ordered · ${impAwaitRet} awaiting return</div></div>`:''}
+      <div id="twDischargeTileWrap">${twDischargeTileHtml()}</div>
     </div>
     <h1 style="font-size:16px">Needs attention</h1>
     <div class="sub">Low, out of stock and short-dated items across every tracker</div>
@@ -6999,7 +6999,7 @@ async function twSubmitTheatre(){
     twClearDraft();
     twStatus = {level:'green', text:'Theatre record '+(isNew?'created':'updated')+' for '+(twVal('tw_patientName')||pid)};
     toast(isNew ? '✓ New theatre record saved' : '✓ Theatre record updated');
-    twRefreshDischargeCount();
+    twRefreshDashCounts();
   }catch(err){
     twStatus = {level:'red', text:err.message};
     toast('❌ '+err.message);
@@ -7026,7 +7026,7 @@ async function twSubmitWard(){
     twClearDraft();
     twStatus = {level:'green', text:'Ward record saved — record complete'};
     toast('✓ Ward record saved');
-    twRefreshDischargeCount();
+    twRefreshDashCounts();
   }catch(err){
     twStatus = {level:'red', text:err.message};
     toast('❌ '+err.message);
@@ -7034,36 +7034,38 @@ async function twSubmitWard(){
   render();
 }
 
-/* ---------------- dashboard "awaiting discharge" shortcut ---------------- */
-// A live count, not a running tally -- recomputed from the real sheet each time it's needed,
-// scoped to TODAY's date. That's what makes both requested reset rules fall out for free: it
-// naturally hits 0 once every today's-date row has a discharge date (no explicit "all done"
-// check needed), and it naturally excludes yesterday's leftovers the moment the date rolls
-// over, without any explicit day-change handling either.
-let twDischargeCount = null;       // null = not yet fetched this page load
-let twDischargeCountDate = null;   // the date this count was last computed FOR
-async function twRefreshDischargeCount(){
+/* ---------------- dashboard "Theatre & Ward today" shortcut ---------------- */
+// Both numbers are live counts, not running tallies -- recomputed from the real sheet each
+// time they're needed, scoped to TODAY's date. That's what makes both requested reset rules
+// fall out for free for the discharge figure: it naturally hits 0 once every today's-date row
+// has a discharge date (no explicit "all done" check needed), and it naturally excludes
+// yesterday's leftovers the moment the date rolls over, without any explicit day-change
+// handling either.
+let twSurgeriesToday = null;   // null = not yet fetched this page load
+let twDischargeCount = null;
+let twDashCountsDate = null;   // the date these two counts were last computed FOR
+async function twRefreshDashCounts(){
   const today = todayISO();
-  twDischargeCountDate = today;
+  twDashCountsDate = today;
   try{
     const rows = await twGetRows();
-    twDischargeCount = rows.filter(r=>{
+    const todays = rows.filter(r=>{
       const v = r.values[0];
-      if(!v[TW_COL.pid]) return false;
-      if(twCellDisplay(TW_COL.date, v[TW_COL.date]) !== today) return false;
-      return !twCellDisplay(TW_COL.dateDischarge, v[TW_COL.dateDischarge]);
-    }).length;
+      return v[TW_COL.pid] && twCellDisplay(TW_COL.date, v[TW_COL.date]) === today;
+    });
+    twSurgeriesToday = todays.length;
+    twDischargeCount = todays.filter(r=>!twCellDisplay(TW_COL.dateDischarge, r.values[0][TW_COL.dateDischarge])).length;
   }catch(e){
-    twDischargeCount = null;
-    twDischargeCountDate = null;   // allow a retry next time the dashboard is shown
+    twSurgeriesToday = null; twDischargeCount = null;
+    twDashCountsDate = null;   // allow a retry next time the dashboard is shown
   }
   const el = document.getElementById('twDischargeTileWrap');
   if(el) el.innerHTML = twDischargeTileHtml();
 }
 function twDischargeTileHtml(){
-  const n = twDischargeCount;
-  return `<div class="tile ${n>0?'bad attn':''}" onclick="nav('theatreward')" title="Theatre records saved today with no discharge time yet">
-    <span class="ic">🛏</span><div class="n">${n==null?'…':n}</div><div class="l">Awaiting discharge</div></div>`;
+  const s = twSurgeriesToday, n = twDischargeCount;
+  return `<div class="tile ${n>0?'bad attn':''}" onclick="nav('theatreward')" title="Theatre & Ward — today's activity">
+    <span class="ic">🛏</span><div class="n">${s==null?'…':s}</div><div class="l">Surgeries today · ${n==null?'…':n} awaiting discharge</div></div>`;
 }
 
 function twTheatreFormHtml(){
