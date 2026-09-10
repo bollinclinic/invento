@@ -6950,8 +6950,21 @@ function twStatusBadgeClass(level){ return level==='green'?'b-ok':level==='red'?
 // a quickly-corrected Patient ID typo can leave an orphan row behind, and the Worker has no
 // delete action, so any such row has to be removed by hand in Excel.
 let _twAutosaveTimer = null;
-let _twAutosaving = false;
 let twAutosaveState = null;   // null | 'pending' | 'saving' | 'saved' | 'error'
+// Autosave, the explicit Theatre save, and the explicit Ward save each independently look up
+// the current row for a Patient ID and then add-or-update it -- two separate network round
+// trips. Running two of these at once is a real race: both look up the same Patient ID before
+// either write is visible yet, both conclude "doesn't exist", and both call addRow -- creating
+// two rows for one patient. This is not hypothetical -- it happened live: a slow in-flight
+// autosave and a "Save Theatre Record" click landed close enough together to both add a row.
+// Routing every write through this one queue guarantees the second call's lookup always runs
+// strictly after the first call's write has finished, so it always finds what was just written.
+let _twWriteChain = Promise.resolve();
+function twSerializeWrite(fn){
+  const run = _twWriteChain.then(fn, fn);
+  _twWriteChain = run.then(()=>{}, ()=>{});
+  return run;
+}
 function twScheduleAutosave(){
   if(!(twDraft.tw_pid||'').trim()) return;
   twAutosaveState = 'pending';
@@ -7000,23 +7013,24 @@ function twBuildAutosaveRow(){
 async function twAutosaveNow(){
   const pid = (twDraft.tw_pid||'').trim();
   if(!pid){ twAutosaveState = null; return; }
-  if(_twAutosaving){ _twAutosaveTimer = setTimeout(twAutosaveNow, 800); return; }
-  _twAutosaving = true;
   twAutosaveState = 'saving';
   const el0 = document.getElementById('twAutosaveStatus'); if(el0) el0.outerHTML = twAutosaveStatusHtml();
   try{
-    const rowData = twBuildAutosaveRow();
-    const { rows, idx } = await twFindRowByPid(pid);
-    if(idx >= 0) await twUpdateRow(rows[idx].index, rowData);
-    else await twAddRow(rowData);
-    // Only adopt the freshly-saved row as "current" if the draft is still for the same patient
-    // -- the user may have already looked up someone else while this save was in flight.
-    if((twDraft.tw_pid||'').trim() === pid){ twCurrentPid = pid; twLoadedRow = rowData; }
+    await twSerializeWrite(async () => {
+      // Built inside the queued job, not before it -- so if this had to wait its turn behind
+      // another write, it still reflects the latest draft rather than a stale snapshot.
+      const rowData = twBuildAutosaveRow();
+      const { rows, idx } = await twFindRowByPid(pid);
+      if(idx >= 0) await twUpdateRow(rows[idx].index, rowData);
+      else await twAddRow(rowData);
+      // Only adopt the freshly-saved row as "current" if the draft is still for the same
+      // patient -- the user may have already looked up someone else while this was in flight.
+      if((twDraft.tw_pid||'').trim() === pid){ twCurrentPid = pid; twLoadedRow = rowData; }
+    });
     twAutosaveState = 'saved';
   }catch(e){
     twAutosaveState = 'error';
   }
-  _twAutosaving = false;
   const el = document.getElementById('twAutosaveStatus'); if(el) el.outerHTML = twAutosaveStatusHtml();
 }
 function twAutosaveStatusHtml(){
@@ -7157,48 +7171,56 @@ async function twSubmitTheatre(){
   if(!surgeon2Res.ok){ toast('Select the second surgeon from the list, or clear the field'); return; }
   const btn = document.getElementById('twTheatreSaveBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
+  // Captured now, at click time -- not inside the queued job below, which may have to wait its
+  // turn behind an in-flight autosave. That wait must never pick up whatever the user has typed
+  // in the meantime; it should save exactly what was on screen when Save was clicked.
+  const rowData = new Array(TW_TOTAL_COLS).fill('');
+  rowData[TW_COL.date]             = twVal('tw_date');
+  rowData[TW_COL.theatreNumber]    = twVal('tw_theatreNumber');
+  rowData[TW_COL.pid]              = pid;
+  rowData[TW_COL.patientName]      = twVal('tw_patientName');
+  rowData[TW_COL.dob]              = twVal('tw_dob');
+  rowData[TW_COL.procedure]        = twVal('tw_procedure');
+  rowData[TW_COL.surgeonName]      = surgeonRes.name;
+  rowData[TW_COL.surgeon2]         = surgeon2Res.name;
+  rowData[TW_COL.sfaAssistant]     = twVal('tw_sfaAssistant');
+  rowData[TW_COL.anaesthetistName] = twVal('tw_anaesthetistName');
+  rowData[TW_COL.anaestheticType]  = twVal('tw_anaestheticType');
+  rowData[TW_COL.dayCase]          = twVal('tw_dayCase');
+  rowData[TW_COL.timeSent]         = twVal('tw_timeSent');
+  rowData[TW_COL.intoTheatre]      = twVal('tw_intoTheatre');
+  rowData[TW_COL.anaStarted]       = twVal('tw_anaStarted');
+  rowData[TW_COL.anaReady]         = twVal('tw_anaReady');
+  rowData[TW_COL.knifeToSkin]      = twVal('tw_knifeToSkin');
+  rowData[TW_COL.finishedSuturing] = twVal('tw_finishedSuturing');
+  rowData[TW_COL.intoRecovery]     = twVal('tw_intoRecovery');
+  const patientNameForStatus = twVal('tw_patientName');
+  let isNew = true;
   try{
-    const { rows, idx } = await twFindRowByPid(pid);
-    const rowData = new Array(TW_TOTAL_COLS).fill('');
-    rowData[TW_COL.date]             = twVal('tw_date');
-    rowData[TW_COL.theatreNumber]    = twVal('tw_theatreNumber');
-    rowData[TW_COL.pid]              = pid;
-    rowData[TW_COL.patientName]      = twVal('tw_patientName');
-    rowData[TW_COL.dob]              = twVal('tw_dob');
-    rowData[TW_COL.procedure]        = twVal('tw_procedure');
-    rowData[TW_COL.surgeonName]      = surgeonRes.name;
-    rowData[TW_COL.surgeon2]         = surgeon2Res.name;
-    rowData[TW_COL.sfaAssistant]     = twVal('tw_sfaAssistant');
-    rowData[TW_COL.anaesthetistName] = twVal('tw_anaesthetistName');
-    rowData[TW_COL.anaestheticType]  = twVal('tw_anaestheticType');
-    rowData[TW_COL.dayCase]          = twVal('tw_dayCase');
-    rowData[TW_COL.timeSent]         = twVal('tw_timeSent');
-    rowData[TW_COL.intoTheatre]      = twVal('tw_intoTheatre');
-    rowData[TW_COL.anaStarted]       = twVal('tw_anaStarted');
-    rowData[TW_COL.anaReady]         = twVal('tw_anaReady');
-    rowData[TW_COL.knifeToSkin]      = twVal('tw_knifeToSkin');
-    rowData[TW_COL.finishedSuturing] = twVal('tw_finishedSuturing');
-    rowData[TW_COL.intoRecovery]     = twVal('tw_intoRecovery');
-
-    let isNew = true;
-    if(idx >= 0){
-      // Preserve any ward columns already on this row -- the original page always sent a
-      // blank ward section on a theatre-side save, which would silently wipe recovery/
-      // discharge times if a theatre record was ever corrected after ward staff had already
-      // filled them in. Carrying the existing values through avoids that data loss.
-      const existing = rows[idx].values[0];
-      rowData[TW_COL.outRecovery]   = existing[TW_COL.outRecovery]   || '';
-      rowData[TW_COL.intoWard]      = existing[TW_COL.intoWard]      || '';
-      rowData[TW_COL.timeDischarge] = existing[TW_COL.timeDischarge] || '';
-      rowData[TW_COL.dateDischarge] = existing[TW_COL.dateDischarge] || '';
-      await twUpdateRow(rows[idx].index, rowData);
-      isNew = false;
-    } else {
-      await twAddRow(rowData);
-    }
+    // Look-up-then-write goes through the shared queue (see twSerializeWrite) so this can never
+    // race with an in-flight autosave or a ward save and create a duplicate row.
+    await twSerializeWrite(async () => {
+      const { rows, idx } = await twFindRowByPid(pid);
+      if(idx >= 0){
+        // Preserve any ward columns already on this row -- the original page always sent a
+        // blank ward section on a theatre-side save, which would silently wipe recovery/
+        // discharge times if a theatre record was ever corrected after ward staff had already
+        // filled them in. Carrying the existing values through avoids that data loss.
+        const existing = rows[idx].values[0];
+        rowData[TW_COL.outRecovery]   = existing[TW_COL.outRecovery]   || '';
+        rowData[TW_COL.intoWard]      = existing[TW_COL.intoWard]      || '';
+        rowData[TW_COL.timeDischarge] = existing[TW_COL.timeDischarge] || '';
+        rowData[TW_COL.dateDischarge] = existing[TW_COL.dateDischarge] || '';
+        await twUpdateRow(rows[idx].index, rowData);
+        isNew = false;
+      } else {
+        await twAddRow(rowData);
+        isNew = true;
+      }
+    });
     twCurrentPid = pid; twLoadedRow = rowData; twPrefillPid = '';
     twClearDraft();
-    twStatus = {level:'green', text:'Theatre record '+(isNew?'created':'updated')+' for '+(twVal('tw_patientName')||pid)};
+    twStatus = {level:'green', text:'Theatre record '+(isNew?'created':'updated')+' for '+(patientNameForStatus||pid)};
     toast(isNew ? '✓ New theatre record saved' : '✓ Theatre record updated');
     twRefreshDashCounts();
     twRefreshRecoveryList();
@@ -7214,21 +7236,32 @@ async function twSubmitWard(){
   const pid = twCurrentPid;
   const btn = document.getElementById('twWardSaveBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
+  // Captured at click time, same reasoning as the theatre save above -- a wait behind another
+  // queued write must not pick up further edits made while this one is waiting its turn.
+  const outRecovery   = twVal('tw_outRecovery');
+  const intoWard      = twVal('tw_intoWard');
+  const timeDischarge = twVal('tw_timeDischarge');
+  const dateDischarge = twVal('tw_dateDischarge');
+  let savedName = pid;
   try{
-    const { rows, idx } = await twFindRowByPid(pid);
-    if(idx < 0){ toast('❌ Patient record not found — save theatre record first'); render(); return; }
-    const existing = rows[idx].values[0];
-    const rowData = [...existing];
-    // Defensive: a row saved before Day Case (or Second Surgeon/SFA-Assistant) existed may
-    // still be shorter than TW_TOTAL_COLS -- pad it out so this full-row write can't send too
-    // few values and misalign every column after the gap.
-    while(rowData.length < TW_TOTAL_COLS) rowData.push('');
-    rowData[TW_COL.outRecovery]   = twVal('tw_outRecovery');
-    rowData[TW_COL.intoWard]      = twVal('tw_intoWard');
-    rowData[TW_COL.timeDischarge] = twVal('tw_timeDischarge');
-    rowData[TW_COL.dateDischarge] = twVal('tw_dateDischarge');
-    await twUpdateRow(rows[idx].index, rowData);
-    const savedName = rowData[TW_COL.patientName] || pid;
+    // Look-up-then-write goes through the shared queue (see twSerializeWrite) so this can never
+    // race with an in-flight autosave or the theatre save and create a duplicate row.
+    await twSerializeWrite(async () => {
+      const { rows, idx } = await twFindRowByPid(pid);
+      if(idx < 0) throw new Error('Patient record not found — save theatre record first');
+      const existing = rows[idx].values[0];
+      const rowData = [...existing];
+      // Defensive: a row saved before Day Case (or Second Surgeon/SFA-Assistant) existed may
+      // still be shorter than TW_TOTAL_COLS -- pad it out so this full-row write can't send too
+      // few values and misalign every column after the gap.
+      while(rowData.length < TW_TOTAL_COLS) rowData.push('');
+      rowData[TW_COL.outRecovery]   = outRecovery;
+      rowData[TW_COL.intoWard]      = intoWard;
+      rowData[TW_COL.timeDischarge] = timeDischarge;
+      rowData[TW_COL.dateDischarge] = dateDischarge;
+      await twUpdateRow(rows[idx].index, rowData);
+      savedName = rowData[TW_COL.patientName] || pid;
+    });
     // A completed ward record is done, not something to keep editing -- leaving the same
     // (now-finished) patient sitting on screen after Save made it look like nothing happened,
     // and staff had to hard-refresh just to move on to the next patient. Reset back to the
