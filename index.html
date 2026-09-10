@@ -7228,9 +7228,16 @@ async function twSubmitWard(){
     rowData[TW_COL.timeDischarge] = twVal('tw_timeDischarge');
     rowData[TW_COL.dateDischarge] = twVal('tw_dateDischarge');
     await twUpdateRow(rows[idx].index, rowData);
-    twLoadedRow = rowData;
+    const savedName = rowData[TW_COL.patientName] || pid;
+    // A completed ward record is done, not something to keep editing -- leaving the same
+    // (now-finished) patient sitting on screen after Save made it look like nothing happened,
+    // and staff had to hard-refresh just to move on to the next patient. Reset back to the
+    // lookup/recovery-list state so the screen visibly changes and is immediately ready for
+    // whoever's next.
     twClearDraft();
-    twStatus = {level:'green', text:'Ward record saved — record complete'};
+    twCurrentPid = null; twLoadedRow = null; twPrefillPid = '';
+    const lookupEl = document.getElementById('twPidLookup'); if(lookupEl) lookupEl.value = '';
+    twStatus = {level:'green', text:'Ward record saved for '+savedName+' — look up the next patient, or pick one below'};
     toast('✓ Ward record saved');
     twRefreshDashCounts();
     twRefreshRecoveryList();
