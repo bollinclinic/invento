@@ -6774,17 +6774,27 @@ function samplePDFSurgeon(){
 // in this app, instead of free text, so a name typed here can never fragment into a
 // duplicate/near-duplicate the way plain text always eventually does.
 const THEATRE_WORKER_URL = 'https://bollin-theatre-proxy.bollinclinic.workers.dev';
+// The old Proposed/Actual list order columns (C/D) were removed from the form and then
+// deleted outright from the live Excel table (confirmed against the real sheet), so every
+// column from Patient ID onward sits two places to the left of where it originally was.
+// Second Surgeon / SFA-Assistant were added as genuinely new columns immediately after
+// Surgeon Name, and Day Case/Overnight -- added earlier, in its own separate step -- ended up
+// back at its original letter (W) once C/D were removed. This mapping is confirmed against
+// Table1's real header row, not assumed.
 const TW_COL = {
-  date:0, theatreNumber:1, proposedOrder:2, actualList:3,
-  pid:4, patientName:5, dob:6, procedure:7,
-  surgeonName:8, anaesthetistName:9, anaestheticType:10,
+  date:0, theatreNumber:1,
+  pid:2, patientName:3, dob:4, procedure:5,
+  surgeonName:6, surgeon2:7, sfaAssistant:8,
+  anaesthetistName:9, anaestheticType:10,
   timeSent:11, intoTheatre:12, anaStarted:13, anaReady:14,
   knifeToSkin:15, finishedSuturing:16, intoRecovery:17,
-  outRecovery:18, intoWard:19, timeDischarge:20, dateDischarge:21
+  outRecovery:18, intoWard:19, timeDischarge:20, dateDischarge:21,
+  dayCase:22
 };
-const TW_TOTAL_COLS = 22;
+const TW_TOTAL_COLS = 23;
 const TW_ROOMS = ['Theatre 1','Theatre 2','Treatment Room 1','Treatment Room 2','Minor Op Room'];
 const TW_ANAESTHETIC_TYPES = ['General','Local','Sedation','Regional','Spinal'];
+const TW_DAY_CASE_OPTIONS = ['Day Case','Overnight'];
 
 let twRole = 'theatre';          // 'theatre' | 'ward'
 let twCurrentPid = null;         // PID of the record currently loaded, once saved/found
@@ -6802,21 +6812,28 @@ let twStatus = {level:'amber', text:'No patient selected — search by ID, or fi
 // clear it, so it can never bleed from one patient into a different one.
 let twDraft = {};
 try{ twDraft = JSON.parse(localStorage.getItem('bollin_tw_draft')||'{}') || {}; }catch(e){ twDraft = {}; }
-const TW_DRAFT_FIELDS = ['tw_date','tw_theatreNumber','tw_proposedOrder','tw_actualList','tw_pid','tw_patientName','tw_dob',
-  'tw_procedure','tw_anaesthetistName','tw_anaestheticType','tw_timeSent','tw_intoTheatre','tw_anaStarted','tw_anaReady',
+const TW_DRAFT_FIELDS = ['tw_date','tw_theatreNumber','tw_sfaAssistant','tw_pid','tw_patientName','tw_dob',
+  'tw_procedure','tw_anaesthetistName','tw_anaestheticType','tw_dayCase','tw_timeSent','tw_intoTheatre','tw_anaStarted','tw_anaReady',
   'tw_knifeToSkin','tw_finishedSuturing','tw_intoRecovery','tw_outRecovery','tw_intoWard','tw_timeDischarge','tw_dateDischarge'];
-const TW_COL_TO_ID = {}; Object.keys(TW_COL).forEach(k => { TW_COL_TO_ID[TW_COL[k]] = (k==='surgeonName' ? 'twSurgeon' : 'tw_'+k); });
+const TW_COL_TO_ID = {}; Object.keys(TW_COL).forEach(k => {
+  TW_COL_TO_ID[TW_COL[k]] = (k==='surgeonName' ? 'twSurgeon' : k==='surgeon2' ? 'twSurgeon2' : 'tw_'+k);
+});
 function twSaveDraft(){
   const d = {};
   TW_DRAFT_FIELDS.forEach(id=>{ const el=document.getElementById(id); if(el) d[id]=el.value; });
-  const surgeonEl = document.getElementById('twSurgeon');
-  if(surgeonEl){ d.twSurgeon = surgeonEl.value; const p = window._surgeonPick['twSurgeon']; d.twSurgeonPick = p ? {id:p.id, name:p.name} : null; }
+  ['twSurgeon','twSurgeon2'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ d[id] = el.value; const p = window._surgeonPick[id]; d[id+'Pick'] = p ? {id:p.id, name:p.name} : null; }
+  });
   twDraft = d;
   try{ localStorage.setItem('bollin_tw_draft', JSON.stringify(d)); }catch(e){}
+  twScheduleAutosave();
 }
 function twClearDraft(){
   twDraft = {};
   try{ localStorage.removeItem('bollin_tw_draft'); }catch(e){}
+  clearTimeout(_twAutosaveTimer);
+  twAutosaveState = null;
 }
 // One-click "it's happening right now" entry for the timing fields -- still just a normal time
 // input underneath, so typing a time by hand works exactly as before.
@@ -6832,6 +6849,21 @@ function twTimeFieldHtml(id, label, value, chg){
     <div style="display:flex;gap:6px">
       <input id="${id}" type="time" value="${value}"${chg} style="padding:10px 12px;border:1px solid var(--line);border-radius:9px">
       <button type="button" class="btn" onclick="twSetNow('${id}')" title="Fill in the current time" style="padding:8px 10px;font-size:12px;white-space:nowrap">Now</button>
+    </div></div>`;
+}
+// Same one-click convenience for the date field, so quick-filling "today" doesn't require
+// opening the native date picker.
+function twSetToday(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.value = todayISO();
+  twSaveDraft();
+}
+function twDateFieldHtml(id, label, value, chg){
+  return `<div class="fld"><label>${label}</label>
+    <div style="display:flex;gap:6px">
+      <input id="${id}" type="date" value="${value}"${chg} style="padding:10px 12px;border:1px solid var(--line);border-radius:9px">
+      <button type="button" class="btn" onclick="twSetToday('${id}')" title="Fill in today's date" style="padding:8px 10px;font-size:12px;white-space:nowrap">Today</button>
     </div></div>`;
 }
 // A field change (draft) always wins over the last-loaded record, so an in-progress edit to an
@@ -6908,13 +6940,174 @@ function twResolveSurgeonName(id, originalName){
 }
 function twStatusBadgeClass(level){ return level==='green'?'b-ok':level==='red'?'b-out':'b-low'; }
 
+/* ---------------- cross-device autosave straight to the real SharePoint row ---------------- */
+// Every draft-tracked field's onchange already captures a synchronous snapshot into twDraft
+// (see twSaveDraft above) -- that snapshot, not a live DOM read, is what gets pushed to the
+// Worker here, because a debounced timer can fire well after the user has switched tabs or
+// role, by which point the fields it would otherwise read may no longer exist in the DOM.
+// Writing only starts once a Patient ID is present (autosave must never create an
+// unidentifiable row) -- this carries the same accepted risk as the explicit Save already has:
+// a quickly-corrected Patient ID typo can leave an orphan row behind, and the Worker has no
+// delete action, so any such row has to be removed by hand in Excel.
+let _twAutosaveTimer = null;
+let _twAutosaving = false;
+let twAutosaveState = null;   // null | 'pending' | 'saving' | 'saved' | 'error'
+function twScheduleAutosave(){
+  if(!(twDraft.tw_pid||'').trim()) return;
+  twAutosaveState = 'pending';
+  const el = document.getElementById('twAutosaveStatus'); if(el) el.outerHTML = twAutosaveStatusHtml();
+  clearTimeout(_twAutosaveTimer);
+  _twAutosaveTimer = setTimeout(twAutosaveNow, 2200);
+}
+// Lenient by design -- unlike the explicit Save buttons, autosave must never block on an
+// unresolved surgeon pick; it falls back to whatever is already saved (or blank) so a
+// half-typed name in progress never stops the rest of the record from being protected.
+function twAutosaveSurgeonName(pickId, colIndex){
+  const pick = twDraft[pickId+'Pick'];
+  if(pick && pick.name) return pick.name;
+  if(twDraft[pickId]!=null) return twDraft[pickId];
+  if(twLoadedRow) return twCellDisplay(colIndex, twLoadedRow[colIndex]);
+  return '';
+}
+function twBuildAutosaveRow(){
+  const g = twFieldValue;
+  const rowData = new Array(TW_TOTAL_COLS).fill('');
+  rowData[TW_COL.date]             = g(TW_COL.date);
+  rowData[TW_COL.theatreNumber]    = g(TW_COL.theatreNumber);
+  rowData[TW_COL.pid]              = g(TW_COL.pid);
+  rowData[TW_COL.patientName]      = g(TW_COL.patientName);
+  rowData[TW_COL.dob]              = g(TW_COL.dob);
+  rowData[TW_COL.procedure]        = g(TW_COL.procedure);
+  rowData[TW_COL.surgeonName]      = twAutosaveSurgeonName('twSurgeon', TW_COL.surgeonName);
+  rowData[TW_COL.surgeon2]         = twAutosaveSurgeonName('twSurgeon2', TW_COL.surgeon2);
+  rowData[TW_COL.sfaAssistant]     = g(TW_COL.sfaAssistant);
+  rowData[TW_COL.anaesthetistName] = g(TW_COL.anaesthetistName);
+  rowData[TW_COL.anaestheticType]  = g(TW_COL.anaestheticType);
+  rowData[TW_COL.dayCase]          = g(TW_COL.dayCase);
+  rowData[TW_COL.timeSent]         = g(TW_COL.timeSent);
+  rowData[TW_COL.intoTheatre]      = g(TW_COL.intoTheatre);
+  rowData[TW_COL.anaStarted]       = g(TW_COL.anaStarted);
+  rowData[TW_COL.anaReady]         = g(TW_COL.anaReady);
+  rowData[TW_COL.knifeToSkin]      = g(TW_COL.knifeToSkin);
+  rowData[TW_COL.finishedSuturing] = g(TW_COL.finishedSuturing);
+  rowData[TW_COL.intoRecovery]     = g(TW_COL.intoRecovery);
+  rowData[TW_COL.outRecovery]      = g(TW_COL.outRecovery);
+  rowData[TW_COL.intoWard]         = g(TW_COL.intoWard);
+  rowData[TW_COL.timeDischarge]    = g(TW_COL.timeDischarge);
+  rowData[TW_COL.dateDischarge]    = g(TW_COL.dateDischarge);
+  return rowData;
+}
+async function twAutosaveNow(){
+  const pid = (twDraft.tw_pid||'').trim();
+  if(!pid){ twAutosaveState = null; return; }
+  if(_twAutosaving){ _twAutosaveTimer = setTimeout(twAutosaveNow, 800); return; }
+  _twAutosaving = true;
+  twAutosaveState = 'saving';
+  const el0 = document.getElementById('twAutosaveStatus'); if(el0) el0.outerHTML = twAutosaveStatusHtml();
+  try{
+    const rowData = twBuildAutosaveRow();
+    const { rows, idx } = await twFindRowByPid(pid);
+    if(idx >= 0) await twUpdateRow(rows[idx].index, rowData);
+    else await twAddRow(rowData);
+    // Only adopt the freshly-saved row as "current" if the draft is still for the same patient
+    // -- the user may have already looked up someone else while this save was in flight.
+    if((twDraft.tw_pid||'').trim() === pid){ twCurrentPid = pid; twLoadedRow = rowData; }
+    twAutosaveState = 'saved';
+  }catch(e){
+    twAutosaveState = 'error';
+  }
+  _twAutosaving = false;
+  const el = document.getElementById('twAutosaveStatus'); if(el) el.outerHTML = twAutosaveStatusHtml();
+}
+function twAutosaveStatusHtml(){
+  const map = {
+    pending: ['● Unsaved changes — saving shortly…', 'var(--amber)'],
+    saving:  ['● Saving to SharePoint…', 'var(--amber)'],
+    saved:   ['✓ All changes saved to SharePoint', 'var(--pine)'],
+    error:   ['⚠ Autosave failed — check your connection (your entry is still kept on this device)', 'var(--red)']
+  };
+  const m = map[twAutosaveState];
+  return `<span id="twAutosaveStatus" style="font-size:12.5px;color:${m?m[1]:'var(--ink-soft)'};margin-left:10px">${m?m[0]:''}</span>`;
+}
+
+/* ---------------- ward "currently in recovery" list ---------------- */
+// Live-filtered from the same sheet, same pattern as the dashboard tile below: recomputed on
+// demand rather than accumulated, so a patient falls off the list the moment either condition
+// applies -- discharged (dateDischarge filled) or the calendar date rolls over (todayISO()
+// changes so the row's own surgery date no longer matches "today") -- with no explicit reset
+// logic needed for either case.
+let twRecoveryPatients = null;   // null = not yet fetched
+let _twRecoveryFetching = false;
+function twInitials(name){
+  return String(name||'').trim().split(/\s+/).filter(Boolean).map(w=>w[0].toUpperCase()).join('');
+}
+async function twRefreshRecoveryList(){
+  if(_twRecoveryFetching) return;
+  _twRecoveryFetching = true;
+  try{
+    const rows = await twGetRows();
+    const today = todayISO();
+    twRecoveryPatients = rows.filter(r=>{
+      const v = r.values[0];
+      if(!v[TW_COL.pid]) return false;
+      if(twCellDisplay(TW_COL.date, v[TW_COL.date]) !== today) return false;
+      if(!twCellDisplay(TW_COL.intoRecovery, v[TW_COL.intoRecovery])) return false;
+      if(twCellDisplay(TW_COL.dateDischarge, v[TW_COL.dateDischarge])) return false;
+      return true;
+    }).map(r=>{
+      const v = r.values[0];
+      return { pid: String(v[TW_COL.pid]), initials: twInitials(v[TW_COL.patientName]),
+        date: twCellDisplay(TW_COL.date, v[TW_COL.date]), surgeon: v[TW_COL.surgeonName]||'' };
+    });
+  }catch(e){
+    twRecoveryPatients = null;
+  }
+  _twRecoveryFetching = false;
+  const el = document.getElementById('twRecoveryListWrap');
+  if(el) el.innerHTML = twRecoveryListHtml();
+}
+function twRecoveryListHtml(){
+  if(twRecoveryPatients==null) return `<div class="sub" style="margin:8px 0 0">Loading current recovery list…</div>`;
+  if(!twRecoveryPatients.length) return `<div class="sub" style="margin:8px 0 0">No patients currently in recovery.</div>`;
+  return `<table style="margin-top:10px"><thead><tr>
+      <th>Patient number</th><th>Initials</th><th>Surgery date</th><th>Surgeon</th><th></th>
+    </tr></thead><tbody>${twRecoveryPatients.map(p=>`
+      <tr>
+        <td>${p.pid}</td><td>${p.initials}</td>
+        <td>${p.date ? new Date(p.date).toLocaleDateString('en-GB') : ''}</td>
+        <td>${p.surgeon}</td>
+        <td><button class="btn" style="padding:5px 10px;font-size:12px" onclick="twOpenFromRecoveryList('${p.pid.replace(/'/g,"\\'")}')">Open</button></td>
+      </tr>`).join('')}</tbody></table>`;
+}
+function twOpenFromRecoveryList(pid){
+  const el = document.getElementById('twPidLookup'); if(el) el.value = pid;
+  twLookupPatient();
+}
+
 function twSwitchRole(role){
-  twRole = role; twCurrentPid = null; twLoadedRow = null; twPrefillPid = '';
-  twClearDraft();
+  twRole = role;
+  // A role switch -- even an accidental click on the wrong tab -- must never wipe in-progress
+  // data. If there's a live draft for a patient, re-run the lookup so the newly-selected tab
+  // shows the freshest saved state (autosave has usually already pushed the draft to the real
+  // sheet by this point) with the draft still layered on top via twFieldValue's draft-first
+  // priority -- so nothing typed is lost either way.
+  const draftPid = (twDraft.tw_pid || '').trim();
+  if(draftPid){
+    const el = document.getElementById('twPidLookup'); if(el) el.value = draftPid;
+    twLookupPatient();
+    return;
+  }
+  twCurrentPid = null; twLoadedRow = null; twPrefillPid = '';
   twStatus = {level:'amber', text:'No patient selected — search by ID'+(role==='theatre'?', or fill in a new record':'')};
   render();
 }
-function twResetForm(){ twSwitchRole(twRole); }
+function twResetForm(){
+  twClearDraft();
+  twCurrentPid = null; twLoadedRow = null; twPrefillPid = '';
+  window._surgeonPick['twSurgeon'] = null; window._surgeonPick['twSurgeon2'] = null;
+  twStatus = {level:'amber', text:'No patient selected — search by ID'+(twRole==='theatre'?', or fill in a new record':'')};
+  render();
+}
 
 async function twLookupPatient(){
   const pid = twVal('twPidLookup').trim();
@@ -6929,7 +7122,7 @@ async function twLookupPatient(){
     const { rows, idx } = await twFindRowByPid(pid);
     if(idx < 0){
       twCurrentPid = null; twLoadedRow = null; twPrefillPid = pid;
-      window._surgeonPick['twSurgeon'] = null;
+      window._surgeonPick['twSurgeon'] = null; window._surgeonPick['twSurgeon2'] = null;
       twStatus = twRole==='ward'
         ? {level:'red', text:'No theatre record found for '+pid+' — ask theatre staff to save one first'}
         : {level:'amber', text:'No existing record for '+pid+' — fill in a new theatre record below'};
@@ -6937,7 +7130,9 @@ async function twLookupPatient(){
       const v = rows[idx].values[0];
       twCurrentPid = pid; twLoadedRow = v; twPrefillPid = '';
       const surgeonName = v[TW_COL.surgeonName]||'';
+      const surgeon2Name = v[TW_COL.surgeon2]||'';
       window._surgeonPick['twSurgeon'] = (state.surgeons||[]).find(s=>s.name===surgeonName) || null;
+      window._surgeonPick['twSurgeon2'] = (state.surgeons||[]).find(s=>s.name===surgeon2Name) || null;
       twStatus = {level:'green', text:'Loaded record for '+(v[TW_COL.patientName]||pid)};
     }
   }catch(err){
@@ -6945,8 +7140,11 @@ async function twLookupPatient(){
     toast('Lookup failed — '+err.message);
   }
   // A surviving draft for this same PID (see above) still wins over whatever the row itself
-  // says for the surgeon pick, matching twFieldValue's draft-first priority for every other field.
-  if(twDraft.tw_pid===pid && 'twSurgeonPick' in twDraft) window._surgeonPick['twSurgeon'] = twDraft.twSurgeonPick;
+  // says for the surgeon picks, matching twFieldValue's draft-first priority for every other field.
+  if(twDraft.tw_pid===pid){
+    if('twSurgeonPick' in twDraft) window._surgeonPick['twSurgeon'] = twDraft.twSurgeonPick;
+    if('twSurgeon2Pick' in twDraft) window._surgeonPick['twSurgeon2'] = twDraft.twSurgeon2Pick;
+  }
   render();
 }
 
@@ -6955,29 +7153,32 @@ async function twSubmitTheatre(){
   if(!pid){ toast('Patient ID is required'); return; }
   const surgeonRes = twResolveSurgeonName('twSurgeon', twLoadedRow ? twLoadedRow[TW_COL.surgeonName] : '');
   if(!surgeonRes.ok){ toast('Select a surgeon from the list, or clear the field'); return; }
+  const surgeon2Res = twResolveSurgeonName('twSurgeon2', twLoadedRow ? twLoadedRow[TW_COL.surgeon2] : '');
+  if(!surgeon2Res.ok){ toast('Select the second surgeon from the list, or clear the field'); return; }
   const btn = document.getElementById('twTheatreSaveBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
   try{
     const { rows, idx } = await twFindRowByPid(pid);
     const rowData = new Array(TW_TOTAL_COLS).fill('');
-    rowData[TW_COL.date]            = twVal('tw_date');
-    rowData[TW_COL.theatreNumber]   = twVal('tw_theatreNumber');
-    rowData[TW_COL.proposedOrder]   = twVal('tw_proposedOrder');
-    rowData[TW_COL.actualList]      = twVal('tw_actualList');
-    rowData[TW_COL.pid]             = pid;
-    rowData[TW_COL.patientName]     = twVal('tw_patientName');
-    rowData[TW_COL.dob]             = twVal('tw_dob');
-    rowData[TW_COL.procedure]       = twVal('tw_procedure');
-    rowData[TW_COL.surgeonName]     = surgeonRes.name;
-    rowData[TW_COL.anaesthetistName]= twVal('tw_anaesthetistName');
-    rowData[TW_COL.anaestheticType] = twVal('tw_anaestheticType');
-    rowData[TW_COL.timeSent]        = twVal('tw_timeSent');
-    rowData[TW_COL.intoTheatre]     = twVal('tw_intoTheatre');
-    rowData[TW_COL.anaStarted]      = twVal('tw_anaStarted');
-    rowData[TW_COL.anaReady]        = twVal('tw_anaReady');
-    rowData[TW_COL.knifeToSkin]     = twVal('tw_knifeToSkin');
-    rowData[TW_COL.finishedSuturing]= twVal('tw_finishedSuturing');
-    rowData[TW_COL.intoRecovery]    = twVal('tw_intoRecovery');
+    rowData[TW_COL.date]             = twVal('tw_date');
+    rowData[TW_COL.theatreNumber]    = twVal('tw_theatreNumber');
+    rowData[TW_COL.pid]              = pid;
+    rowData[TW_COL.patientName]      = twVal('tw_patientName');
+    rowData[TW_COL.dob]              = twVal('tw_dob');
+    rowData[TW_COL.procedure]        = twVal('tw_procedure');
+    rowData[TW_COL.surgeonName]      = surgeonRes.name;
+    rowData[TW_COL.surgeon2]         = surgeon2Res.name;
+    rowData[TW_COL.sfaAssistant]     = twVal('tw_sfaAssistant');
+    rowData[TW_COL.anaesthetistName] = twVal('tw_anaesthetistName');
+    rowData[TW_COL.anaestheticType]  = twVal('tw_anaestheticType');
+    rowData[TW_COL.dayCase]          = twVal('tw_dayCase');
+    rowData[TW_COL.timeSent]         = twVal('tw_timeSent');
+    rowData[TW_COL.intoTheatre]      = twVal('tw_intoTheatre');
+    rowData[TW_COL.anaStarted]       = twVal('tw_anaStarted');
+    rowData[TW_COL.anaReady]         = twVal('tw_anaReady');
+    rowData[TW_COL.knifeToSkin]      = twVal('tw_knifeToSkin');
+    rowData[TW_COL.finishedSuturing] = twVal('tw_finishedSuturing');
+    rowData[TW_COL.intoRecovery]     = twVal('tw_intoRecovery');
 
     let isNew = true;
     if(idx >= 0){
@@ -7000,6 +7201,7 @@ async function twSubmitTheatre(){
     twStatus = {level:'green', text:'Theatre record '+(isNew?'created':'updated')+' for '+(twVal('tw_patientName')||pid)};
     toast(isNew ? '✓ New theatre record saved' : '✓ Theatre record updated');
     twRefreshDashCounts();
+    twRefreshRecoveryList();
   }catch(err){
     twStatus = {level:'red', text:err.message};
     toast('❌ '+err.message);
@@ -7017,6 +7219,10 @@ async function twSubmitWard(){
     if(idx < 0){ toast('❌ Patient record not found — save theatre record first'); render(); return; }
     const existing = rows[idx].values[0];
     const rowData = [...existing];
+    // Defensive: a row saved before Day Case (or Second Surgeon/SFA-Assistant) existed may
+    // still be shorter than TW_TOTAL_COLS -- pad it out so this full-row write can't send too
+    // few values and misalign every column after the gap.
+    while(rowData.length < TW_TOTAL_COLS) rowData.push('');
     rowData[TW_COL.outRecovery]   = twVal('tw_outRecovery');
     rowData[TW_COL.intoWard]      = twVal('tw_intoWard');
     rowData[TW_COL.timeDischarge] = twVal('tw_timeDischarge');
@@ -7027,6 +7233,7 @@ async function twSubmitWard(){
     twStatus = {level:'green', text:'Ward record saved — record complete'};
     toast('✓ Ward record saved');
     twRefreshDashCounts();
+    twRefreshRecoveryList();
   }catch(err){
     twStatus = {level:'red', text:err.message};
     toast('❌ '+err.message);
@@ -7073,23 +7280,17 @@ function twTheatreFormHtml(){
   const g = twFieldValue;
   const pidVal = g(TW_COL.pid) || (r ? '' : twPrefillPid);
   const surgeonVal = g(TW_COL.surgeonName);
+  const surgeon2Val = g(TW_COL.surgeon2);
   const chg = ' onchange="twSaveDraft()"';
   return `
     ${(twDraft.tw_pid)?`<div class="sub" style="color:var(--amber)">Showing an unsaved draft you were working on — nothing has been lost.</div>`:''}
     <div class="gaspanel">
       <h2>Theatre record</h2>
       <div class="steprow">
-        <div class="fld"><label>Date</label><input id="tw_date" type="date" value="${g(TW_COL.date)}"${chg}
-          style="padding:10px 12px;border:1px solid var(--line);border-radius:9px"></div>
+        ${twDateFieldHtml('tw_date', 'Date', g(TW_COL.date), chg)}
         <div class="fld"><label>Theatre / Room</label><select id="tw_theatreNumber"${chg}
           style="padding:10px 12px;border:1px solid var(--line);border-radius:9px">
           <option value=""></option>${TW_ROOMS.map(room=>`<option ${g(TW_COL.theatreNumber)===room?'selected':''}>${room}</option>`).join('')}</select></div>
-        <div class="fld"><label>Proposed list order</label><select id="tw_proposedOrder"${chg}
-          style="padding:10px 12px;border:1px solid var(--line);border-radius:9px">
-          <option value=""></option>${Array.from({length:10},(_,i)=>i+1).map(n=>`<option ${String(g(TW_COL.proposedOrder))===String(n)?'selected':''}>${n}</option>`).join('')}</select></div>
-        <div class="fld"><label>Actual list order</label><select id="tw_actualList"${chg}
-          style="padding:10px 12px;border:1px solid var(--line);border-radius:9px">
-          <option value=""></option>${Array.from({length:10},(_,i)=>i+1).map(n=>`<option ${String(g(TW_COL.actualList))===String(n)?'selected':''}>${n}</option>`).join('')}</select></div>
       </div>
       <div class="steprow">
         <div class="fld"><label>Patient ID number *</label><input id="tw_pid" type="text" value="${String(pidVal).replace(/"/g,'&quot;')}"${chg}
@@ -7105,11 +7306,19 @@ function twTheatreFormHtml(){
       </div>
       <div class="steprow">
         <div class="fld" style="min-width:220px"><label>Surgeon</label>${surgeonInputHTML('twSurgeon', surgeonVal, 'e.g. Aftab Siddiqui', 'twSaveDraft()')}</div>
+        <div class="fld" style="min-width:220px"><label>Second surgeon</label>${surgeonInputHTML('twSurgeon2', surgeon2Val, 'Optional', 'twSaveDraft()')}</div>
+        <div class="fld"><label>SFA / Assistant</label><input id="tw_sfaAssistant" type="text" value="${String(g(TW_COL.sfaAssistant)).replace(/"/g,'&quot;')}"${chg}
+          style="padding:10px 12px;border:1px solid var(--line);border-radius:9px"></div>
+      </div>
+      <div class="steprow">
         <div class="fld"><label>Anaesthetist name</label><input id="tw_anaesthetistName" type="text" value="${String(g(TW_COL.anaesthetistName)).replace(/"/g,'&quot;')}"${chg}
           style="padding:10px 12px;border:1px solid var(--line);border-radius:9px"></div>
         <div class="fld"><label>Anaesthetic type</label><select id="tw_anaestheticType"${chg}
           style="padding:10px 12px;border:1px solid var(--line);border-radius:9px">
           <option value=""></option>${TW_ANAESTHETIC_TYPES.map(t=>`<option ${g(TW_COL.anaestheticType)===t?'selected':''}>${t}</option>`).join('')}</select></div>
+        <div class="fld"><label>Day case / Overnight</label><select id="tw_dayCase"${chg}
+          style="padding:10px 12px;border:1px solid var(--line);border-radius:9px">
+          <option value=""></option>${TW_DAY_CASE_OPTIONS.map(t=>`<option ${g(TW_COL.dayCase)===t?'selected':''}>${t}</option>`).join('')}</select></div>
       </div>
     </div>
     <div class="gaspanel">
@@ -7119,14 +7328,22 @@ function twTheatreFormHtml(){
            ['anaReady','Anaesthetic ready'],['knifeToSkin','Knife to skin'],['finishedSuturing','Finished suturing'],
            ['intoRecovery','Into recovery']].map(([key,label])=>twTimeFieldHtml('tw_'+key, label, g(TW_COL[key]), chg)).join('')}
       </div>
-      <button class="btn primary" id="twTheatreSaveBtn" onclick="twSubmitTheatre()" style="margin-top:6px">Save Theatre Record</button>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px">
+        <button class="btn primary" id="twTheatreSaveBtn" onclick="twSubmitTheatre()">Save Theatre Record</button>
+        ${twAutosaveStatusHtml()}
+      </div>
     </div>`;
 }
 
 function twWardFormHtml(){
   const r = twLoadedRow;
   if(!r){
-    return `<div class="gaspanel"><div class="sub" style="margin:0">Look up a patient by ID above — the theatre record must already exist before ward times can be added.</div></div>`;
+    if(twRecoveryPatients==null && !_twRecoveryFetching) twRefreshRecoveryList();
+    return `<div class="gaspanel">
+      <div class="sub" style="margin:0 0 6px">Look up a patient by ID above — the theatre record must already exist before ward times can be added.</div>
+      <h2 style="margin-top:10px">Patients currently in recovery</h2>
+      <div id="twRecoveryListWrap">${twRecoveryListHtml()}</div>
+    </div>`;
   }
   const rg = (col) => twCellDisplay(col, r[col]);   // read-only summary -- always the actual saved record, never a draft
   const g = twFieldValue;                            // editable ward fields -- draft-first, same as the theatre form
@@ -7142,7 +7359,10 @@ function twWardFormHtml(){
         ${field('Date of birth', rg(TW_COL.dob) ? new Date(rg(TW_COL.dob)).toLocaleDateString('en-GB') : '')}
         ${field('Procedure', rg(TW_COL.procedure))}
         ${field('Surgeon', rg(TW_COL.surgeonName))}
+        ${field('Second surgeon', rg(TW_COL.surgeon2))}
+        ${field('SFA / Assistant', rg(TW_COL.sfaAssistant))}
         ${field('Anaesthetist', rg(TW_COL.anaesthetistName))}
+        ${field('Day case / Overnight', rg(TW_COL.dayCase))}
       </div>
     </div>
     <div class="gaspanel">
@@ -7154,7 +7374,10 @@ function twWardFormHtml(){
         <div class="fld"><label>Date of discharge</label><input id="tw_dateDischarge" type="date" value="${g(TW_COL.dateDischarge)}"${chg}
           style="padding:10px 12px;border:1px solid var(--line);border-radius:9px"></div>
       </div>
-      <button class="btn primary" id="twWardSaveBtn" onclick="twSubmitWard()" style="margin-top:6px">Save Ward Record</button>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px">
+        <button class="btn primary" id="twWardSaveBtn" onclick="twSubmitWard()">Save Ward Record</button>
+        ${twAutosaveStatusHtml()}
+      </div>
     </div>`;
 }
 
