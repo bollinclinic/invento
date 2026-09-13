@@ -622,7 +622,7 @@
 </dialog>
 
 <dialog id="impDlg">
-  <div class="m-head">New implant order</div>
+  <div class="m-head" id="impDlgTitle">New implant order</div>
   <div class="m-body">
     <div class="m-row"><label for="imInit">Patient initials *</label><input id="imInit" type="text" placeholder="e.g. JS" maxlength="5"></div>
     <div class="m-row"><label for="imPat">PAT number *</label><input id="imPat" type="text" placeholder="e.g. PAT-1234"></div>
@@ -638,7 +638,7 @@
   </div>
   <div class="m-actions">
     <button class="btn" onclick="impDlg.close()">Cancel</button>
-    <button class="btn primary" onclick="saveImplant()">Save order</button>
+    <button class="btn primary" id="impDlgSave" onclick="saveImplant()">Save order</button>
   </div>
 </dialog>
 
@@ -1025,8 +1025,9 @@ function handleScan(code){
     const it = state.items[idx];
     // during a stocktake, a scan counts the item instead of moving stock (offsite stock isn't
     // physically on a shelf to count, so it never counts here even if somehow scanned)
-    if(currentView==='stocktake' && it.tracker===stk.tracker && it.loc!==OFFSITE_STORE &&
-       (!stk.store || it.loc===stk.store)){ bumpCount(it); return; }
+    if(currentView==='stocktake' &&
+       (stk.tracker ? it.tracker===stk.tracker : STOCKTAKE_SHEET_TRACKERS.includes(it.tracker)) &&
+       it.loc!==OFFSITE_STORE && (!stk.store || it.loc===stk.store)){ bumpCount(it); return; }
     if(it.tracker==='instruments'){ sterilScan(code); return; }
     openMove(it); return;
   }
@@ -1168,10 +1169,11 @@ function itemEditableCell(it, i, field, displayHtml, inputType){
 }
 function tableFor(items, opts={}){
   const showExp = opts.expiry!==false;
+  const showSupplier = !!opts.supplier;
   const superEdit = !!opts.superEdit && isSuperadmin();
   const bulkSelect = !!opts.bulkSelect && isSuperadmin();
   const head = `<thead><tr>
-      ${bulkSelect?'<th></th>':''}<th>Item</th><th>Code</th><th>Category</th><th>Location</th>
+      ${bulkSelect?'<th></th>':''}<th>Item</th><th>Code</th><th>Category</th>${showSupplier?'<th>Supplier</th>':''}<th>Location</th>
       ${showExp?'<th>Expiry</th>':''}<th class="qty">Qty</th><th>Status</th><th></th></tr></thead>`;
   const rows = items.map(it=>{
     const s = statusOf(it);
@@ -1192,6 +1194,7 @@ function tableFor(items, opts={}){
       <td data-label="">${nameCell}${remChip}</td>
       <td class="code" data-label="Code">${codeCell}</td>
       <td data-label="Category">${catCell}</td>
+      ${showSupplier?`<td data-label="Supplier">${it.supplier||'—'}</td>`:''}
       <td data-label="Location">${locCell}</td>
       ${showExp?`<td data-label="Expiry">${expCell}</td>`:''}
       <td class="qty" data-label="Qty">${qtyCell}</td>
@@ -1201,20 +1204,24 @@ function tableFor(items, opts={}){
         ${can('obsolete')&&it.tracker!=='instruments'?`<button onclick='markObsolete(${i})' title="Move to obsolete stock" style="color:var(--ink-soft)">Obsolete</button>`:''}</td>
     </tr>`;
   }).join('');
-  return `<table>${head}<tbody>${rows||`<tr><td colspan="${bulkSelect?9:8}" style="color:var(--ink-soft)">Nothing matches.</td></tr>`}</tbody></table>`;
+  const colCount = 7 + (bulkSelect?1:0) + (showExp?1:0) + (showSupplier?1:0);
+  return `<table>${head}<tbody>${rows||`<tr><td colspan="${colCount}" style="color:var(--ink-soft)">Nothing matches.</td></tr>`}</tbody></table>`;
 }
 
 let _selTrackKey = null;
 function trackerView(key){
   if(_selTrackKey!==key){ selTrack.clear(); _selTrackKey = key; }
+  const showSupplierFilter = key==='consumables' && isDeveloper();
   const all = state.items.filter(i=>i.tracker===key && !i.obsolete && i.loc!==OFFSITE_STORE);
   const stores = [...new Set(all.map(i=>i.loc).filter(Boolean))].sort();
   const cats   = [...new Set(all.map(i=>i.cat).filter(Boolean))].sort();
+  const suppliers = showSupplierFilter ? [...new Set(all.map(i=>i.supplier).filter(Boolean))].sort() : [];
   const q  = (window._q ||'').toLowerCase();
   const st = window._store||'', ct = window._cat||'';
+  const sup = showSupplierFilter ? (window._supplier||'') : '';
   const items = all.filter(i =>
       (!q || i.name.toLowerCase().includes(q) || (i.code||'').toLowerCase().includes(q)) &&
-      (!st || i.loc===st) && (!ct || i.cat===ct))
+      (!st || i.loc===st) && (!ct || i.cat===ct) && (!sup || i.supplier===sup))
     .sort((a,b)=>a.name.localeCompare(b.name));
   const bulk = isSuperadmin();
   const shownIxs = items.map(i=>state.items.indexOf(i));
@@ -1233,6 +1240,10 @@ function trackerView(key){
         <option value="">All categories</option>
         ${cats.map(c=>`<option ${c===ct?'selected':''}>${c}</option>`).join('')}
       </select>
+      ${showSupplierFilter?`<select onchange="window._supplier=this.value;render()">
+        <option value="">All suppliers</option>
+        ${suppliers.map(s=>`<option ${s===sup?'selected':''}>${s}</option>`).join('')}
+      </select>`:''}
       ${can('add')?`<button class="btn" onclick="openAdd('')">＋ Add item</button>`:''}
     </div>
     ${isSuperadmin() ? '<div class="sub">Double-click name, code, category, location, expiry or qty to correct it directly.</div>' : ''}
@@ -1247,29 +1258,33 @@ function trackerView(key){
       <button class="btn" ${selTrack.size?'':'disabled'} onclick="bulkGenerateBarcodes('${key}')">Generate new barcodes</button>
       <button class="btn" ${selTrack.size?'':'disabled'} style="color:var(--red)" onclick="bulkObsolete('${key}')">Make obsolete</button>
     </div>` : ''}
-    <div id="tblWrap">${tableFor(items,{expiry: key!=='garments', superEdit:true, bulkSelect:true})}</div>`;
+    <div id="tblWrap">${tableFor(items,{expiry: key!=='garments', superEdit:true, bulkSelect:true, supplier: key==='consumables'})}</div>`;
 }
 function refreshTrackerTable(){
   const wrap = document.getElementById('tblWrap');
   if(!wrap || !(currentView in TRACKER_TAB)) return;
   const key = currentView;
+  const showSupplierFilter = key==='consumables' && isDeveloper();
   const q  = (window._q ||'').toLowerCase();
   const st = window._store||'', ct = window._cat||'';
+  const sup = showSupplierFilter ? (window._supplier||'') : '';
   const items = state.items.filter(i => i.tracker===key && !i.obsolete && i.loc!==OFFSITE_STORE &&
       (!q || i.name.toLowerCase().includes(q) || (i.code||'').toLowerCase().includes(q)) &&
-      (!st || i.loc===st) && (!ct || i.cat===ct))
+      (!st || i.loc===st) && (!ct || i.cat===ct) && (!sup || i.supplier===sup))
     .sort((a,b)=>a.name.localeCompare(b.name));
-  wrap.innerHTML = tableFor(items,{expiry: key!=='garments', superEdit:true, bulkSelect:true});
+  wrap.innerHTML = tableFor(items,{expiry: key!=='garments', superEdit:true, bulkSelect:true, supplier: key==='consumables'});
 }
 function selAllTrack(key, on){
   selTrack.clear();
   if(on){
+    const showSupplierFilter = key==='consumables' && isDeveloper();
     const q  = (window._q ||'').toLowerCase();
     const st = window._store||'', ct = window._cat||'';
+    const sup = showSupplierFilter ? (window._supplier||'') : '';
     state.items.forEach((it,ix)=>{
       if(it.tracker===key && !it.obsolete && it.loc!==OFFSITE_STORE &&
         (!q || it.name.toLowerCase().includes(q) || (it.code||'').toLowerCase().includes(q)) &&
-        (!st || it.loc===st) && (!ct || it.cat===ct)) selTrack.add(ix);
+        (!st || it.loc===st) && (!ct || it.cat===ct) && (!sup || it.supplier===sup)) selTrack.add(ix);
     });
   }
   render();
@@ -2252,6 +2267,7 @@ function implantsView(){
         ${im.status==='Pending'?`<button onclick="setImplantStatus(${ix},'Ordered')">Mark ordered</button>`:''}
         ${im.status!=='Delivered'?`<button onclick="openReceive(${ix},'')">Mark delivered</button>`:''}
         ${im.status==='Delivered'&&!im.returnDetails?`<button onclick="openReturn(${ix})">Return extras</button>`:''}
+        ${isStaffPlus()?`<button onclick="openEditImplant(${ix})">Edit</button>`:''}
       </td></tr>`;
   const rows = state.implants.map(row).join('');
   return `
@@ -2286,32 +2302,68 @@ function implantsView(){
     <tbody>${rows||'<tr><td colspan="8" style="color:var(--ink-soft)">No implant orders yet.</td></tr>'}</tbody></table>`;
 }
 
+let editImplant = null;
 function openImplant(){
+  editImplant = null;
   ['imInit','imPat','imSurg','imDate','imDet','imRem'].forEach(id=>$('#'+id).value='');
   $('#imQty').value = 2;
   $('#imOrd').value = new Date().toISOString().slice(0,10);
   $('#imBy').value = myName||'';
   $('#imStat').value = 'Pending';
+  $('#impDlgTitle').textContent = 'New implant order'; $('#impDlgSave').textContent = 'Save order';
+  impDlg.showModal(); $('#imInit').focus();
+}
+// Edit is a superset of the add form -- same dialog, same fields, pre-filled from the existing
+// order. Restricted to staff+ (the same threshold as the implantUpdate RLS policy already
+// enforces server-side, so the button never promises something the backend would then refuse).
+function openEditImplant(ix){
+  if(!isStaffPlus()) return;
+  const im = state.implants[ix];
+  editImplant = im;
+  $('#imInit').value = im.initials||''; $('#imPat').value = im.pat||'';
+  $('#imSurg').value = im.surgeon||''; $('#imDate').value = im.surgeryDate?String(im.surgeryDate).slice(0,10):'';
+  $('#imDet').value = im.details||''; $('#imQty').value = im.qty||1;
+  $('#imRem').value = im.remarks||''; $('#imOrd').value = im.dateOrdered?String(im.dateOrdered).slice(0,10):'';
+  $('#imBy').value = im.orderedBy||''; $('#imStat').value = im.status||'Pending';
+  $('#impDlgTitle').textContent = 'Edit implant order'; $('#impDlgSave').textContent = 'Save changes';
   impDlg.showModal(); $('#imInit').focus();
 }
 async function saveImplant(){
-  const im = {_row:null, initials:$('#imInit').value.trim().toUpperCase(),
-    pat:$('#imPat').value.trim(), surgeon:$('#imSurg').value.trim(),
-    surgeryDate:$('#imDate').value||null, details:$('#imDet').value.trim(),
-    qty:Math.max(1,parseInt($('#imQty').value||'1',10)), remarks:$('#imRem').value.trim(),
-    dateOrdered:$('#imOrd').value||null, orderedBy:$('#imBy').value.trim()||myName||'Unknown',
-    status:$('#imStat').value, receivedBy:'', receivedQty:null, storage:'',
+  const initials = $('#imInit').value.trim().toUpperCase();
+  const pat = $('#imPat').value.trim();
+  const surgeon = $('#imSurg').value.trim();
+  const surgeryDate = $('#imDate').value||null;
+  const details = $('#imDet').value.trim();
+  const qty = Math.max(1,parseInt($('#imQty').value||'1',10));
+  const remarks = $('#imRem').value.trim();
+  const dateOrdered = $('#imOrd').value||null;
+  const orderedBy = $('#imBy').value.trim()||myName||'Unknown';
+  const status = $('#imStat').value;
+  if(!initials || !pat || !details){ toast('Initials, PAT number and implant details are required'); return; }
+  const fields = {PatientInitials:initials, PATNumber:pat, Surgeon:surgeon, SurgeryDate:surgeryDate,
+    ImplantDetails:details, Qty:qty, Remarks:remarks, DateOrdered:dateOrdered, OrderedBy:orderedBy, Status:status};
+
+  if(editImplant){                                  // ----- edit existing -----
+    if(!isStaffPlus()){ toast('Not permitted'); return; }
+    if(LIVE && !editImplant._row){ toast('Still syncing this order — please wait a moment and save again'); loadAll(); return; }
+    Object.assign(editImplant, {initials, pat, surgeon, surgeryDate, details, qty, remarks, dateOrdered, orderedBy, status});
+    impDlg.close(); render(); toast('Updated: '+initials);
+    if(LIVE){
+      try{ await api({action:'implantUpdate', row:editImplant._row, fields}); await loadAll(); }
+      catch(err){ toast('Not saved — '+err.message); loadAll(); }
+    }
+    editImplant = null;
+    return;
+  }
+                                                     // ----- add new -----
+  const im = {_row:null, initials, pat, surgeon, surgeryDate, details, qty, remarks,
+    dateOrdered, orderedBy, status, receivedBy:'', receivedQty:null, storage:'',
     scannedRef:'', returnDetails:'', returnedQty:null, returnedBy:''};
-  if(!im.initials || !im.pat || !im.details){ toast('Initials, PAT number and implant details are required'); return; }
   state.implants.unshift(im);
   impDlg.close(); render(); toast('Implant order added for '+im.initials);
   if(LIVE){
-    try{ await api({action:'implantAdd', fields:{PatientInitials:im.initials, PATNumber:im.pat,
-      Surgeon:im.surgeon, SurgeryDate:im.surgeryDate, ImplantDetails:im.details,
-      Qty:im.qty, Remarks:im.remarks,
-      DateOrdered:im.dateOrdered, OrderedBy:im.orderedBy, Status:im.status}});
-      loadAll();
-    }catch(err){ toast('Not saved — '+err.message); }
+    try{ await api({action:'implantAdd', fields}); loadAll(); }
+    catch(err){ toast('Not saved — '+err.message); }
   }
 }
 async function setImplantStatus(ix, status){
@@ -2549,7 +2601,7 @@ function printImplantReport(){
 }
 
 /* ---------------- stocktake (month-end & annual checks) ---------------- */
-const stk = { counts:{}, type:'Month-end', tracker:'consumables', store:'', apply:true };
+const stk = { counts:{}, type:'Month-end', tracker:'', store:'', apply:true };
 
 function stkKey(it){ return it.tracker + '|' + (it.code || it.name); }
 
@@ -2557,10 +2609,11 @@ function stkItems(){
   // Same default ordering as the printable physical stock take sheet -- tracker, then store,
   // then A-Z -- so the on-screen count follows the same walk-the-shelf order once a tracker/
   // store is picked from the filters above, rather than whatever order the data happened to
-  // load in.
+  // load in. A blank stk.tracker means "All trackers" -- every countable tracker at once,
+  // never instruments (its own sterilisation on-hand/history tracking) or services (no physical
+  // qty to count).
   return state.items.filter(i =>
-    i.tracker === stk.tracker &&
-    i.tracker !== 'instruments' &&
+    (stk.tracker ? i.tracker === stk.tracker : STOCKTAKE_SHEET_TRACKERS.includes(i.tracker)) &&
     i.loc !== OFFSITE_STORE &&
     (!stk.store || i.loc === stk.store))
     .sort((a,b) => a.tracker.localeCompare(b.tracker) || (a.loc||'').localeCompare(b.loc||'') || a.name.localeCompare(b.name));
@@ -2589,7 +2642,8 @@ function paintStkSummary(){
 
 function stocktakeView(){
   const trackers = ['consumables','meds','garments','linen'];
-  const all = state.items.filter(i=>i.tracker===stk.tracker && i.loc!==OFFSITE_STORE);
+  const all = state.items.filter(i=>
+    (stk.tracker ? i.tracker===stk.tracker : STOCKTAKE_SHEET_TRACKERS.includes(i.tracker)) && i.loc!==OFFSITE_STORE);
   const stores = [...new Set(all.map(i=>i.loc).filter(Boolean))].sort();
   const items = stkItems();
   const showCost = can('values');
@@ -2625,6 +2679,7 @@ function stocktakeView(){
         <option ${stk.type==='Annual'?'selected':''}>Annual</option>
       </select>
       <select onchange="stk.tracker=this.value;stk.store='';stk.counts={};render()">
+        <option value="" ${!stk.tracker?'selected':''}>All trackers</option>
         ${trackers.map(t=>`<option value="${t}" ${t===stk.tracker?'selected':''}>${TRACKER_LABEL[t]}</option>`).join('')}
       </select>
       <select onchange="stk.store=this.value;render()">
@@ -2634,7 +2689,7 @@ function stocktakeView(){
     </div>
     ${isSuperadmin() ? `
     <div class="toolrow" style="border-top:1px solid var(--line);padding-top:12px;margin-top:2px;flex-wrap:wrap">
-      <strong style="font-size:13px;color:var(--ink-soft)">Physical stock take sheet — every consumable, medicine, garment and linen item, to walk the clinic with pen and paper:</strong>
+      <strong style="font-size:13px;color:var(--ink-soft)">Physical stock take sheet — ${stkFilterLabel()}, to walk the clinic with pen and paper:</strong>
     </div>
     <div class="toolrow">
       <label style="font-size:13px;display:flex;align-items:center;gap:6px">
@@ -2714,7 +2769,7 @@ async function stkReportPDF(){
   doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(43,97,104);
   doc.text(stk.type + ' Stocktake Report', W-10, 13, {align:'right'});
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90,90,90);
-  doc.text(TRACKER_LABEL[stk.tracker] + (stk.store?' · '+stk.store:' · all stores') +
+  doc.text((stk.tracker?TRACKER_LABEL[stk.tracker]:'All trackers') + (stk.store?' · '+stk.store:' · all stores') +
     '  ·  ' + items.length + ' item(s) counted, ' + variances + ' variance(s)' +
     '  ·  ' + new Date().toLocaleString('en-GB') + (myName?' by '+myName:''), W-10, 18.5, {align:'right'});
   doc.setDrawColor(176,138,62); doc.setLineWidth(0.8); doc.line(10, 22, W-10, 22);
@@ -2753,15 +2808,24 @@ async function stkReportPDF(){
 }
 
 /* ---------------- physical stock take sheet (superadmin/developer only) ---------------- */
-// A blank paper sheet to walk the clinic with pen and paper -- every physical-stock item
-// across all four countable trackers at once (not instruments, which live in the
-// sterilisation workflow with their own on-hand/history tracking, and not services, which
-// have no physical qty to count). Independent of the on-screen counting workflow above, which
-// needs a device in hand rather than a clipboard.
+// A blank paper sheet to walk the clinic with pen and paper. Respects the same Tracker/Store
+// filters as the on-screen counting workflow above -- "All trackers" + "All stores" (the
+// defaults) downloads the complete inventory across all four countable trackers (not
+// instruments, which live in the sterilisation workflow with their own on-hand/history
+// tracking, and not services, which have no physical qty to count); picking a specific tracker
+// and/or store narrows the sheet to just that subset, for walking one shelf at a time.
 let stkSheetGroupByStore = true;
 const STOCKTAKE_SHEET_TRACKERS = ['consumables','meds','garments','linen'];
+function stkFilterLabel(){
+  return (stk.tracker?TRACKER_LABEL[stk.tracker]:'All trackers') + (stk.store?' · '+stk.store:' · all stores');
+}
+function stkFilterFileTag(){
+  return ((stk.tracker?TRACKER_LABEL[stk.tracker]:'All-trackers') + (stk.store?'_'+stk.store:'')).replace(/[^A-Za-z0-9]+/g,'-');
+}
 function stockTakeSheetGroups(){
-  const items = state.items.filter(i => STOCKTAKE_SHEET_TRACKERS.includes(i.tracker) && i.loc!==OFFSITE_STORE);
+  const items = state.items.filter(i =>
+    (stk.tracker ? i.tracker===stk.tracker : STOCKTAKE_SHEET_TRACKERS.includes(i.tracker)) &&
+    i.loc!==OFFSITE_STORE && (!stk.store || i.loc===stk.store));
   if(!stkSheetGroupByStore){
     return [{store:null, items: items.slice().sort((a,b)=>a.name.localeCompare(b.name))}];
   }
@@ -2792,7 +2856,7 @@ async function stockTakeSheetPDF(){
   doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(43,97,104);
   doc.text('Physical Stock Take Sheet', W-10, 13, {align:'right'});
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90,90,90);
-  doc.text(total + ' item(s)' + (stkSheetGroupByStore?', grouped by store, A–Z':', A–Z') +
+  doc.text(stkFilterLabel() + '  ·  ' + total + ' item(s)' + (stkSheetGroupByStore?', grouped by store, A–Z':', A–Z') +
     '  ·  Printed ' + new Date().toLocaleString('en-GB') + (myName?' by '+myName:''), W-10, 18.5, {align:'right'});
   doc.setDrawColor(176,138,62); doc.setLineWidth(0.8); doc.line(10, 22, W-10, 22);
 
@@ -2827,7 +2891,7 @@ async function stockTakeSheetPDF(){
       doc.text('Page ' + d.pageNumber, W-10, doc.internal.pageSize.getHeight()-6, {align:'right'});
     }
   });
-  doc.save('Stock_Take_Sheet_'+new Date().toISOString().slice(0,10)+'.pdf');
+  doc.save('Stock_Take_Sheet_'+stkFilterFileTag()+'_'+new Date().toISOString().slice(0,10)+'.pdf');
   toast('PDF downloaded');
 }
 function stockTakeSheetCSV(){
@@ -2841,7 +2905,7 @@ function stockTakeSheetCSV(){
     });
   });
   if(!rows.length){ toast('No items to export'); return; }
-  downloadCSV('Stock_Take_Sheet_'+new Date().toISOString().slice(0,10)+'.csv',
+  downloadCSV('Stock_Take_Sheet_'+stkFilterFileTag()+'_'+new Date().toISOString().slice(0,10)+'.csv',
     ['Item','Tracker','Supplier','Store','Expiry','Qty on hand','Tally','Total'], rows);
 }
 
@@ -3814,12 +3878,13 @@ let _itemUsageRows = null;   // null = not yet searched; [] once run with no mat
 let _itemUsageAdvanced = false;
 function toggleItemUsageAdvanced(){
   _itemUsageAdvanced = !_itemUsageAdvanced;
-  if(!_itemUsageAdvanced){ window._surgeonPick['iuSurgeon'] = null; window._iuCategory = ''; }
+  if(!_itemUsageAdvanced){ window._iuCategory = ''; }
   render();
 }
 function itemUsageView(){
-  window._surgeonPick = window._surgeonPick||{};
   const cats = [...new Set((state.items||[]).map(i=>i.cat).filter(Boolean))].sort();
+  const surgeons = state.surgeons||[];
+  const surgeonSel = window._iuSurgeonId||'';
   return `<h1>Item usage search</h1>
     <div class="sub">Search by item name or code (e.g. "Lighted Retractor" or "C100110") to see every procedure it was used in — every tracker except sterilisation.</div>
     <div class="toolrow">
@@ -3836,20 +3901,22 @@ function itemUsageView(){
         <span>to</span>
         <input id="iuTo" type="date" style="padding:8px;border:1px solid var(--line);border-radius:8px">
       </span>
+      <select id="iuSurgeonSelect" onchange="window._iuSurgeonId=this.value" style="padding:8px;border:1px solid var(--line);border-radius:8px">
+        <option value="">All Surgeons</option>
+        ${surgeons.map(s=>`<option value="${s.id}" ${s.id===surgeonSel?'selected':''}>${s.name}</option>`).join('')}
+      </select>
       <button class="btn primary" onclick="runItemUsageSearch()">Search</button>
       ${_itemUsageRows && _itemUsageRows.length?`<button class="btn" onclick="itemUsageCSV()">Download CSV</button>`:''}
       <button class="btn" onclick="toggleItemUsageAdvanced()">${_itemUsageAdvanced?'✕ Close special query':'⚙ Special query'}</button>
     </div>
     ${_itemUsageAdvanced?`
     <div class="toolrow" style="background:var(--mist);border-radius:10px;padding:10px 12px">
-      <div style="min-width:220px;flex:1"><label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px">Surgeon</label>
-        ${surgeonInputHTML('iuSurgeon', window._surgeonPick['iuSurgeon']?window._surgeonPick['iuSurgeon'].name:'', 'Type 3+ letters…')}</div>
       <div style="min-width:180px"><label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px">Category</label>
         <select id="iuCategory" onchange="window._iuCategory=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px">
           <option value="">Any category</option>
           ${cats.map(c=>`<option value="${escapeAttr(c)}" ${window._iuCategory===c?'selected':''}>${c}</option>`).join('')}
         </select></div>
-      <div class="sub" style="flex-basis:100%;margin:0">Combine with the item search box above — leave it blank to see every item in a category for this surgeon, or fill it in to check one specific item.</div>
+      <div class="sub" style="flex-basis:100%;margin:0">Combine with the item search box and Surgeon dropdown above — leave the item search blank to see every item in a category, or fill it in to check one specific item.</div>
     </div>` : ''}
     <div id="itemUsageWrap">${itemUsageBody()}</div>`;
 }
@@ -3874,14 +3941,8 @@ async function runItemUsageSearch(){
   const range = resolveRange('iu');
   if(!range) return;
   const query = $('#iuQuery').value.trim();
-  let surgeonId = null, category = '';
-  if(_itemUsageAdvanced){
-    const surgeonText = ($('#iuSurgeon').value||'').trim();
-    const pick = window._surgeonPick['iuSurgeon'];
-    if(surgeonText && (!pick || pick.name!==surgeonText)){ toast('Select a surgeon from the list, or clear the field'); return; }
-    surgeonId = pick ? pick.id : null;
-    category = window._iuCategory || '';
-  }
+  const surgeonId = $('#iuSurgeonSelect').value || null;
+  const category = _itemUsageAdvanced ? (window._iuCategory || '') : '';
   const el = document.getElementById('itemUsageWrap');
   if(el) el.innerHTML = '<div class="sub">Searching…</div>';
   try{
@@ -4561,9 +4622,9 @@ function procStartPanel(open){
       <h2><span class="led amber"></span>Start a new procedure</h2>
       <div class="steprow" style="align-items:end">
         <div class="fld" style="min-width:220px"><label>Surgeon</label>
-          ${surgeonInputHTML('pcSurgeon','','e.g. Aftab Siddiqui')}</div>
+          ${surgeonInputHTML('pcSurgeon','','e.g. Aftab Siddiqui','checkProcPrefill()')}</div>
         <div class="fld"><label>Procedure</label>
-          <input id="pcProc" type="text" placeholder="e.g. Breast augmentation"
+          <input id="pcProc" type="text" placeholder="e.g. Breast augmentation" onchange="checkProcPrefill()"
             style="padding:10px 12px;border:1px solid var(--line);border-radius:9px;min-width:200px"></div>
         <div class="fld"><label>Date</label>
           <input id="pcDate" type="date" value="${todayISO()}"
@@ -4573,8 +4634,66 @@ function procStartPanel(open){
             style="padding:10px 12px;border:1px solid var(--line);border-radius:9px"></div>
         <button class="btn primary" style="padding:12px 22px" onclick="startProc()">▶ Start &amp; begin scanning</button>
       </div>
+      ${procPrefillAreaHtml()}
     </div>
     ${open.length?`<div class="sub" style="color:var(--amber)">You have ${open.length} procedure(s) still open — end them from the list below or resume by starting scanning.</div>`:''}`;
+}
+// ---- developer-only: pre-fill a new case from the surgeon's most recent matching closed case ----
+let _procPrefillMatch = null;   // {procedure_id, date, lines} | null -- lines: [{tracker,code,name,qty}]
+async function checkProcPrefill(){
+  if(!isDeveloper()){ _procPrefillMatch = null; return; }
+  const surgeonId = window._surgeonPick['pcSurgeon'] ? window._surgeonPick['pcSurgeon'].id : null;
+  const procedure = ($('#pcProc').value||'').trim();
+  if(!LIVE || !surgeonId || !procedure){ _procPrefillMatch = null; refreshProcPrefillArea(); return; }
+  try{
+    const res = await api({action:'procFindPrefillCase', surgeonId, procedure});
+    _procPrefillMatch = res && res.found ? res : null;
+  }catch(e){ _procPrefillMatch = null; }
+  refreshProcPrefillArea();
+}
+function refreshProcPrefillArea(){
+  const el = document.getElementById('procPrefillArea');
+  if(el) el.outerHTML = procPrefillAreaHtml();
+}
+function procPrefillAreaHtml(){
+  if(!isDeveloper() || !_procPrefillMatch) return `<div id="procPrefillArea"></div>`;
+  const n = (_procPrefillMatch.lines||[]).length;
+  return `<div id="procPrefillArea" class="sub" style="color:var(--pine);display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
+    <span>Found a previous closed case for this surgeon &amp; procedure (${_procPrefillMatch.date?new Date(_procPrefillMatch.date).toLocaleDateString('en-GB'):'—'}) — ${n} item line(s).</span>
+    <button class="btn" onclick="copyItemsFromPreviousCase()">📋 Copy items from previous case</button>
+  </div>`;
+}
+async function copyItemsFromPreviousCase(){
+  if(!isDeveloper() || !_procPrefillMatch) return;
+  if(_procByRoom[_procRoom]){ toast(_procRoom+' already has a case running — end it or switch rooms first'); return; }
+  const match = _procPrefillMatch;
+  await startProc();
+  if(!activeProc){ toast('Could not start the case — copy cancelled'); return; }
+  const cart = procCart();
+  let copied = 0, missing = 0;
+  (match.lines||[]).forEach(l=>{
+    const existing = cart.find(c=>c.tracker===l.tracker && ((l.code && c.code===l.code) || (!l.code && c.name===l.name)));
+    if(existing){ existing.qty += (Number(l.qty)||1); copied++; return; }
+    // Re-resolve against the CURRENT item list rather than trusting the old snapshot, so the
+    // copied line gets today's cost and stock reference -- prices and item records can change
+    // between the past case and now.
+    const it = state.items.find(i=>i.tracker===l.tracker &&
+      ((l.code && (i.code===l.code || i.barcode===l.code)) || (!l.code && i.name===l.name)));
+    if(it){
+      cart.push({tracker:it.tracker, code:it.code||'', barcode:it.barcode||'', name:it.name,
+        qty:Number(l.qty)||1, unitCost:(it.cost==null?'':it.cost), _row:it._row||null});
+      copied++;
+    } else {
+      // Item no longer exists (renamed/deleted since) -- still copy it by name so nothing is
+      // silently dropped; ending the case will flag it as "item not found" just like a
+      // manually mistyped line would, rather than pretending it copied cleanly.
+      cart.push({tracker:l.tracker, code:l.code||'', barcode:'', name:l.name, qty:Number(l.qty)||1, unitCost:'', _row:null});
+      missing++;
+    }
+  });
+  _procPrefillMatch = null;
+  render(); procAutosave();
+  toast('Copied '+copied+' item line(s) from the previous case'+(missing?' ('+missing+' no longer found in stock — check them)':''));
 }
 
 function procConsolePanel(){
@@ -4862,6 +4981,7 @@ async function startProc(){
   state.procedures.push(_procByRoom[room]);
   procSyncActive();
   window._surgeonPick['pcSurgeon'] = null;
+  _procPrefillMatch = null;
   render(); toast(room+': procedure started — scan items to consume');
   if(LIVE){
     try{
@@ -4916,7 +5036,10 @@ function openProcPicker(){
 function renderProcPicker(){
  try{
   const q = ($('#procPickSearch').value||'').toLowerCase().trim();
-  const pool = state.items.filter(i=>!i.obsolete);
+  // Offsite stock is relocated for space, not for use -- it must be moved back to an active
+  // store before it can be consumed in a case (scanning it already refuses with a toast; this
+  // manual search picker needs the same exclusion so it can't be added that way instead).
+  const pool = state.items.filter(i=>!i.obsolete && i.loc!==OFFSITE_STORE);
   // live per-tracker counts — if a whole tracker failed to load from the sheet,
   // this makes it visible immediately instead of silently "not finding" items
   const cnt = {};
@@ -7457,7 +7580,7 @@ function goHome(e){
 }
 function nav(view){
   if(!viewAllowed(view)) view='dashboard';
-  currentView=view; window._q=''; window._store=''; window._cat='';
+  currentView=view; window._q=''; window._store=''; window._cat=''; window._supplier='';
   window._llTracker=''; window._llStore=''; window._llCat='';
   render(); }
 document.querySelectorAll('nav a').forEach(a=>a.addEventListener('click',e=>{
@@ -7843,6 +7966,11 @@ async function api(payload){
     const {data, error} = await sb.rpc('proc_add_billing_line', {p_procedure_id: payload.procedureId, p_item_id: payload.itemId, p_qty: payload.qty||1});
     if(error) throw new Error(error.message);
     return {ok:true, lineId: data.line_id};
+  }
+  if(a==='procFindPrefillCase'){
+    const {data, error} = await sb.rpc('proc_find_prefill_case', {p_surgeon_id: payload.surgeonId, p_procedure_name: payload.procedure});
+    if(error) throw new Error(error.message);
+    return {ok:true, ...data};
   }
   if(a==='itemUsageReport'){
     const {data, error} = await sb.rpc('item_usage_report', {p_query: payload.query||null, p_from: payload.from||null, p_to: payload.to||null,
