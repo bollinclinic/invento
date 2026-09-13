@@ -616,6 +616,7 @@
       <textarea id="adNotes" rows="2" placeholder="Leave empty for none" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:15px;resize:vertical"></textarea></div>
   </div>
   <div class="m-actions">
+    <span id="addDlgDeleteWrap"></span>
     <button class="btn" onclick="addDlg.close()">Cancel</button>
     <button class="btn primary" id="addDlgSave" onclick="saveNewItem()">Add item</button>
   </div>
@@ -2948,6 +2949,7 @@ function openAdd(scannedCode){
     $('#adCat').value==='__new'?'':$('#adCat').value,
     $('#adLoc').value==='__new'?'':$('#adLoc').value);
   $('#addDlgTitle').textContent='Add new item'; $('#addDlgSave').textContent='Add item';
+  $('#addDlgDeleteWrap').innerHTML = '';
   addDlg.showModal();
   $('#adName').focus();
 }
@@ -2967,7 +2969,30 @@ function openEdit(i){
   $('#adExp').value=it.expiry||'';
   $('#adNotes').value=it.remarks||'';
   $('#addDlgTitle').textContent='Edit item'; $('#addDlgSave').textContent='Save changes';
+  // Delete is developer-only, and only for Consumables/Medicines here -- Instruments already
+  // has its own dedicated (identity-guarded) on-hand delete flow, and this wasn't asked to
+  // extend to Garments/Linen/Services.
+  const showDelete = isDeveloper() && (it.tracker==='consumables' || it.tracker==='meds');
+  $('#addDlgDeleteWrap').innerHTML = showDelete
+    ? '<button class="btn" style="color:var(--red)" onclick="deleteItemFromEdit()">Delete</button>' : '';
   addDlg.showModal();
+}
+async function deleteItemFromEdit(){
+  if(!editItem || !isDeveloper()) return;
+  const it = editItem;
+  if(!(it.tracker==='consumables' || it.tracker==='meds')) return;
+  if(!confirm('Permanently delete "'+it.name+'" and its recorded stocktake counts? This cannot be undone.')) return;
+  if(LIVE && !it._row){ toast('Still syncing this item — please wait a moment and try again'); loadAll(); return; }
+  // Deliberately NOT optimistic (unlike most edits here) -- this is irreversible, so the item
+  // only disappears from the list once the backend has actually confirmed the delete.
+  try{
+    if(LIVE) await api({action:'itemDelete', row: it._row});
+    state.items = state.items.filter(i=>i!==it);
+    addDlg.close();
+    editItem = null;
+    toast('Deleted: '+it.name);
+    render();
+  }catch(err){ toast('Not deleted — '+err.message); }
 }
 async function saveNewItem(){
   const name = $('#adName').value.trim();
@@ -3352,6 +3377,7 @@ async function restoreItem(ix){
 }
 function obsoleteView(){
   const items = state.items.map((it,ix)=>({it,ix})).filter(x=>x.it.obsolete);
+  const showDelete = isDeveloper();
   const rows = items.map(({it,ix})=>`<tr>
       <td data-label=""><strong>${it.name}</strong> <span class="code" style="font-family:var(--mono);font-size:11.5px">${it.code||''}</span></td>
       <td data-label="Tracker">${TRACKER_LABEL[it.tracker]}</td>
@@ -3359,11 +3385,25 @@ function obsoleteView(){
       <td class="qty" data-label="Qty">${it.qty}</td>
       <td data-label="Made obsolete by">${it.obsBy||'—'}</td>
       <td data-label="When">${it.obsAt?new Date(it.obsAt).toLocaleString('en-GB'):'—'}</td>
-      <td class="rowbtns" data-label=""><button onclick="restoreItem(${ix})">Restore</button></td></tr>`).join('');
+      <td class="rowbtns" data-label=""><button onclick="restoreItem(${ix})">Restore</button>
+        ${showDelete?`<button onclick="deleteObsoleteItem(${ix})" style="color:var(--red)">Delete</button>`:''}</td></tr>`).join('');
   return `<h1>Obsolete stock</h1>
     <div class="sub">Dead stock kept out of the way — no alerts, no low-stock lists, hidden from trackers. Restore anytime if needed again. Mark items obsolete from the "Obsolete" button on any tracker row.</div>
     <table><thead><tr><th>Item</th><th>Tracker</th><th>Category</th><th class="qty">Qty</th><th>Made obsolete by</th><th>When</th><th></th></tr></thead>
     <tbody>${rows||'<tr><td colspan="7" style="color:var(--ink-soft)">Nothing marked obsolete.</td></tr>'}</tbody></table>`;
+}
+async function deleteObsoleteItem(ix){
+  if(!isDeveloper()) return;
+  const it = state.items[ix];
+  if(!it) return;
+  if(!confirm('Permanently delete "'+it.name+'" and its recorded stocktake counts? This cannot be undone.')) return;
+  if(LIVE && !it._row){ toast('Still syncing this item — please wait a moment and try again'); loadAll(); return; }
+  try{
+    if(LIVE) await api({action:'itemDelete', row: it._row});
+    state.items = state.items.filter(i=>i!==it);
+    toast('Deleted: '+it.name);
+    render();
+  }catch(err){ toast('Not deleted — '+err.message); }
 }
 
 /* ---------------- stores & transfers — admin only ---------------- */
@@ -7992,6 +8032,11 @@ async function api(payload){
     const {data, error} = await sb.rpc('proc_add_billing_line', {p_procedure_id: payload.procedureId, p_item_id: payload.itemId, p_qty: payload.qty||1});
     if(error) throw new Error(error.message);
     return {ok:true, lineId: data.line_id};
+  }
+  if(a==='itemDelete'){
+    const {data, error} = await sb.rpc('item_delete', {p_item_id: payload.row});
+    if(error) throw new Error(error.message);
+    return {ok:true, ...data};
   }
   if(a==='procFindPrefillCase'){
     const {data, error} = await sb.rpc('proc_find_prefill_case', {p_surgeon_id: payload.surgeonId, p_procedure_name: payload.procedure});
