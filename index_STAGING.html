@@ -4774,7 +4774,17 @@ async function procSaveEditCell(id, field, value){
     p.date = trimmed;
   } else if(field==='surgeon'){
     if(trimmed===(p.surgeon||'')){ render(); return; }
+    // Must resolve to a canonical surgeon (or be cleared) -- typing free text used to silently
+    // wipe surgeon_id to null even when the text still named a real surgeon, breaking that
+    // case's inclusion in the Surgeon billing report, Item Usage Search's surgeon filter, and
+    // Procedure Costing's pre-fill-from-past-case, while looking completely normal everywhere
+    // else. Leaving the field untouched (the branch above) never re-validates old data.
+    const pick = window._surgeonPick['procEditSurgeonInput'];
+    if(trimmed && !(pick && pick.name===trimmed)){
+      toast('Select a surgeon from the list, or clear the field'); render(); return;
+    }
     p.surgeon = trimmed;
+    p.surgeonId = trimmed ? pick.id : null;
   } else if(field==='patient'){
     if(trimmed===(p.patientRef||'')){ render(); return; }
     p.patientRef = trimmed;
@@ -4785,7 +4795,7 @@ async function procSaveEditCell(id, field, value){
   render();
   if(!(LIVE && !String(id).startsWith('PROC-LOCAL'))) return;
   try{
-    await api({action:'procUpdateMeta', procedureId:id, surgeon:p.surgeon, procedure:p.procedure, date:p.date, patientRef:p.patientRef, room:p.room||null, by:myName||''});
+    await api({action:'procUpdateMeta', procedureId:id, surgeon:p.surgeon, surgeonId:p.surgeonId||null, procedure:p.procedure, date:p.date, patientRef:p.patientRef, room:p.room||null, by:myName||''});
     toast('Updated');
   }catch(err){ toast('Not saved — '+err.message); }
 }
@@ -4800,7 +4810,15 @@ function procEditableCell(p, field, displayHtml, inputType){
         ${PROC_ROOMS.map(r=>`<option value="${r}" ${p.room===r?'selected':''}>${r}</option>`).join('')}
       </select>`;
     }
-    const raw = field==='date' ? (p.date?String(p.date).slice(0,10):'') : field==='patient' ? (p.patientRef||'') : (p.surgeon||'');
+    if(field==='surgeon'){
+      // Pre-seed the pick from an exact name match on the existing value, so leaving the field
+      // untouched (blur without changing it) never gets blocked by the strict resolution check
+      // in procSaveEditCell -- that check only fires when the text actually changes.
+      window._surgeonPick['procEditSurgeonInput'] = (state.surgeons||[]).find(s=>s.name===(p.surgeon||'')) || null;
+      return `<div style="min-width:180px">${surgeonInputHTML('procEditSurgeonInput', p.surgeon||'', 'Type 3+ letters…',
+        "procSaveEditCell('"+p.procedureId+"','surgeon',$('#procEditSurgeonInput').value)")}</div>`;
+    }
+    const raw = field==='date' ? (p.date?String(p.date).slice(0,10):'') : (p.patientRef||'');
     return `<input id="procEditInput" type="${inputType}" value="${String(raw).replace(/"/g,'&quot;')}"
       style="width:100%;padding:4px 6px;border:1px solid var(--pine);border-radius:6px;font:inherit"
       onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){procCancelEditCell()}"
@@ -5197,12 +5215,20 @@ async function procEditMeta(){
   const procedure = prompt('Procedure:', activeProc.procedure||''); if(procedure===null) return;
   const date = prompt('Date (YYYY-MM-DD):', activeProc.date? String(activeProc.date).slice(0,10):todayISO()); if(date===null) return;
   const patientRef = prompt('Patient ref (optional):', activeProc.patientRef||''); if(patientRef===null) return;
-  activeProc.surgeon=surgeon.trim(); activeProc.procedure=procedure.trim();
+  const surgeonTrimmed = surgeon.trim();
+  // A plain prompt() can't offer a live type-ahead, but it must not silently wipe surgeon_id
+  // (used by the Surgeon billing report, Item Usage Search's surgeon filter, and Procedure
+  // Costing's pre-fill-from-past-case) just because this went through free text instead of the
+  // picker -- re-resolve by exact name match, and warn rather than fail silently if it doesn't.
+  const match = (state.surgeons||[]).find(s=>s.name.toLowerCase()===surgeonTrimmed.toLowerCase());
+  if(surgeonTrimmed && !match) toast('⚠ "'+surgeonTrimmed+'" isn\'t a recognised surgeon — saved as text only, won\'t appear in per-surgeon reports');
+  activeProc.surgeon=surgeonTrimmed; activeProc.surgeonId = match ? match.id : null;
+  activeProc.procedure=procedure.trim();
   activeProc.date=date.trim(); activeProc.patientRef=patientRef.trim();
   render(); toast('Details updated');
   if(LIVE && !String(activeProc.procedureId).startsWith('PROC-LOCAL')){
     try{ await api({action:'procUpdateMeta', procedureId:activeProc.procedureId,
-      surgeon:activeProc.surgeon, procedure:activeProc.procedure,
+      surgeon:activeProc.surgeon, surgeonId:activeProc.surgeonId, procedure:activeProc.procedure,
       date:activeProc.date, patientRef:activeProc.patientRef, by:myName||''}); }
     catch(err){ toast('Not saved — '+err.message); }
   }
