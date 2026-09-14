@@ -4587,12 +4587,18 @@ function procSwitchRoom(r){ if(PROC_ROOMS.indexOf(r)>=0){ _procRoom=r; procSyncA
    "add new" step on no match, instead of a plain free-text box. Attach to any input by id;
    the resolved {id,name} (or null if unresolved) is tracked in window._surgeonPick[id]. ---- */
 window._surgeonPick = {};
-function surgeonInputHTML(id, value, placeholder, onCommit){
+function surgeonInputHTML(id, value, placeholder, onCommit, extraClass){
+  // extraClass is optional -- callers that need CSS-driven state styling (e.g. the rota's
+  // gap/acknowledged/provisional look, which is a plain CSS class keyed off the input) pass it
+  // and the border/background here step aside so that class's own colours actually show,
+  // instead of losing to this element's own inline style (which otherwise always wins).
+  const cls = extraClass ? ` class="${extraClass}"` : '';
+  const borderBg = extraClass ? '' : 'border:1px solid var(--line);';
   return `<div style="position:relative">
-    <input id="${id}" type="text" value="${String(value||'').replace(/"/g,'&quot;')}" placeholder="${placeholder||'Type 3+ letters…'}"
+    <input id="${id}"${cls} type="text" value="${String(value||'').replace(/"/g,'&quot;')}" placeholder="${placeholder||'Type 3+ letters…'}"
       autocomplete="off" oninput="surgeonPickerInput('${id}')" onfocus="surgeonPickerInput('${id}')"
       onblur="setTimeout(()=>surgeonPickerBlur('${id}'),150)${onCommit?';'+onCommit:''}"
-      style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px">
+      style="width:100%;padding:10px 12px;${borderBg}border-radius:9px">
     <div id="${id}_dd" style="display:none;position:absolute;z-index:50;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:8px;margin-top:4px;max-height:220px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,.15)"></div>
   </div>`;
 }
@@ -6193,11 +6199,14 @@ let _rotaOpenDay = null;            // date expanded inline in month view
 const _rotaDrafts = {};             // unsaved edits, keyed by date
 
 // per-theatre staff roles (key, label, required). Surgeons handled separately (up to 3).
+// hca/recovery moved here from day-level Day Cover (were hcaTheatre/recovery day-wide) so each
+// active theatre gets its own Theatre HCA / Dual Role and Recovery Nurse / ODP.
 const ROTA_T_ROLES = [['anaes','Anaesthetist',1],['sfa','SFA / practitioner',1],
-  ['scrub1','Scrub 1',1],['scrub2','Scrub 2',1],['scrub3','Scrub 3',0],['odp','ODP',1]];
+  ['scrub1','Scrub 1',1],['scrub2','Scrub 2',1],['scrub3','Scrub 3',0],['odp','ODP',1],
+  ['hca','Theatre HCA / Dual Role',1],['recovery','Recovery Nurse / ODP',1]];
 // day-level cover (key, label, required-when-running)
-const ROTA_D_ROLES = [['hcaWard','HCA — ward',1],['hcaTheatre','HCA — theatre',1],
-  ['ward','Ward nurse',1],['nightNurse','Night nurse',0],['recovery','Recovery nurse / ODP',1],
+const ROTA_D_ROLES = [['hcaWard','HCA — ward',1],
+  ['ward','Ward nurse',1],['nightNurse','Night nurse',0],['hcaNight','HCA night',0],
   ['rmoDay','RMO — day',1],['rmoNight','RMO on site — night',0],
   ['housekeepAM','Housekeeping AM',0],['housekeepPM','Housekeeping PM',0],
   ['receptionAM','Reception AM',0],['receptionPM','Reception PM',0]];
@@ -6221,7 +6230,7 @@ function rotaMonday(off){
 function rotaISO(d){ return d.toISOString().slice(0,10); }
 function rotaNice(date, opt){ return new Date(date+'T12:00').toLocaleDateString('en-GB', opt||{weekday:'long',day:'numeric',month:'short'}); }
 function blankTheatre(){ return {type:'GA',detail:'',colour:'',cases:[],
-  surgeon:'',surgeon2:'',surgeon3:'',anaes:'',sfa:'',scrub1:'',scrub2:'',scrub3:'',odp:''}; }
+  surgeon:'',surgeon2:'',surgeon3:'',anaes:'',sfa:'',scrub1:'',scrub2:'',scrub3:'',odp:'',hca:'',recovery:''}; }
 function blankRotaDay(date){
   const d = {date, theatres:0, notes:'', acks:{}, stars:{}, t1:blankTheatre(), t2:blankTheatre()};
   ROTA_D_ROLES.forEach(([k])=>d[k]='');
@@ -6286,10 +6295,10 @@ function rotaUnack(date, key){ const d=rotaDraft(date); delete d.acks[key]; rend
 async function rotaSaveDay(date){
   if(!isSuperadmin()) return;
   const d = rotaDraft(date);
-  const f = { Date:date, Theatres:Number(d.theatres)||0, Notes:d.notes||'',
+  const f = { Theatres:Number(d.theatres)||0, Notes:d.notes||'',
     AcksJSON:JSON.stringify(d.acks||{}), StarsJSON:JSON.stringify(d.stars||{}) };
-  const D = {hcaWard:'HCAWard',hcaTheatre:'HCATheatre',ward:'WardNurse',nightNurse:'NightNurse',
-    recovery:'RecoveryNurse',rmoDay:'RMODay',rmoNight:'RMONight',housekeepAM:'HousekeepingAM',
+  const D = {hcaWard:'HCAWard',ward:'WardNurse',nightNurse:'NightNurse',hcaNight:'HCANight',
+    rmoDay:'RMODay',rmoNight:'RMONight',housekeepAM:'HousekeepingAM',
     housekeepPM:'HousekeepingPM',receptionAM:'ReceptionAM',receptionPM:'ReceptionPM'};
   Object.keys(D).forEach(k=>f[D[k]] = d[k]||'');
   [1,2].forEach(t=>{ const th=d['t'+t]||{};
@@ -6298,17 +6307,43 @@ async function rotaSaveDay(date){
     f['T'+t+'_Surgeon']=th.surgeon||''; f['T'+t+'_Surgeon2']=th.surgeon2||''; f['T'+t+'_Surgeon3']=th.surgeon3||'';
     f['T'+t+'_Anaesthetist']=th.anaes||''; f['T'+t+'_SFA']=th.sfa||'';
     f['T'+t+'_Scrub1']=th.scrub1||''; f['T'+t+'_Scrub2']=th.scrub2||'';
-    f['T'+t+'_Scrub3']=th.scrub3||''; f['T'+t+'_ODP']=th.odp||''; });
-  const obj = JSON.parse(JSON.stringify(d));
-  const ix = (state.rota||[]).findIndex(r=>r.date===date);
-  if(ix>=0) state.rota[ix]=obj; else state.rota.push(obj);
-  delete _rotaDrafts[date];
-  render(); updateRotaBadge();
-  toast('Rota saved — '+rotaNice(date,{day:'numeric',month:'short'}));
-  if(LIVE){
-    try{ await api({action:'rotaSave', date:date, fields:f, by:myName||''}); }
-    catch(err){ toast('Not saved — '+err.message); }
+    f['T'+t+'_Scrub3']=th.scrub3||''; f['T'+t+'_ODP']=th.odp||'';
+    f['T'+t+'_HCA']=th.hca||''; f['T'+t+'_Recovery']=th.recovery||''; });
+
+  if(!LIVE){
+    const obj = JSON.parse(JSON.stringify(d));
+    const ix = (state.rota||[]).findIndex(r=>r.date===date);
+    if(ix>=0) state.rota[ix]=obj; else state.rota.push(obj);
+    delete _rotaDrafts[date];
+    render(); updateRotaBadge();
+    toast('Rota saved — '+rotaNice(date,{day:'numeric',month:'short'}));
+    return;
   }
+  // Not optimistic (unlike the demo-mode branch above) -- the save can now be refused
+  // (ROTA_CONFLICT) if someone else changed this day since it was loaded, so the local draft
+  // is only cleared once the backend has actually confirmed the write went through.
+  const btn = document.getElementById('rotaSaveBtn_'+date);
+  if(btn) btn.disabled = true;
+  const existing = rotaSaved(date);
+  try{
+    const res = await api({action:'rotaSaveDay', date, expectedUpdatedAt: existing?existing.updatedAt:null, fields:f, by:myName||''});
+    const obj = JSON.parse(JSON.stringify(d));
+    obj.updatedAt = res.updatedAt;
+    const ix = (state.rota||[]).findIndex(r=>r.date===date);
+    if(ix>=0) state.rota[ix]=obj; else state.rota.push(obj);
+    delete _rotaDrafts[date];
+    updateRotaBadge();
+    toast('Rota saved — '+rotaNice(date,{day:'numeric',month:'short'}));
+  }catch(err){
+    if(err.message==='ROTA_CONFLICT'){
+      delete _rotaDrafts[date];
+      toast('⚠ This day was changed elsewhere since you started editing — reloaded the latest version. Please re-check and re-apply your changes.');
+      await loadAll();
+    } else {
+      toast('Not saved — '+err.message);
+    }
+  }
+  render();
 }
 function rotaCopyPrev(date){
   const prevIso = rotaISO(new Date(new Date(date+'T12:00').getTime()-7*864e5));
@@ -6341,7 +6376,7 @@ function rotaStaffShifts(name, fromIso, toIso){
       check('Surgeon', th.surgeon, t); check('2nd surgeon', th.surgeon2, t); check('3rd surgeon', th.surgeon3, t);
       check('Anaesthetist', th.anaes, t); check('SFA', th.sfa, t);
       check('Scrub 1', th.scrub1, t); check('Scrub 2', th.scrub2, t); check('Scrub 3', th.scrub3, t);
-      check('ODP', th.odp, t);
+      check('ODP', th.odp, t); check('Theatre HCA', th.hca, t); check('Recovery Nurse', th.recovery, t);
       (th.cases||[]).forEach((c,ci)=>check('Case '+(ci+1)+' surgeon', c.surgeon, t)); });
   });
   hits.sort((a,b)=>a.date.localeCompare(b.date));
@@ -6351,8 +6386,7 @@ function rotaStaffShifts(name, fromIso, toIso){
 function rotaNamesList(){
   return [...new Set((state.rota||[]).flatMap(r=>{
     const v=ROTA_D_ROLES.map(([k])=>r[k]);
-    [r.t1,r.t2].forEach(t=>{ if(t){ v.push(t.surgeon,t.surgeon2,t.surgeon3,t.anaes,t.sfa,t.scrub1,t.scrub2,t.scrub3,t.odp);
-      (t.cases||[]).forEach(c=>v.push(c.surgeon)); } });
+    [r.t1,r.t2].forEach(t=>{ if(t){ v.push(t.anaes,t.sfa,t.scrub1,t.scrub2,t.scrub3,t.odp,t.hca,t.recovery); } });
     return v; }).filter(x=>x&&String(x).trim()).map(x=>String(x).trim()))].sort();
 }
 
@@ -6375,18 +6409,62 @@ function rotaSlot(date, day, key, label, req){
   </div>`;
 }
 
+// ---- surgeon slot: same star/gap/ack wrapper as rotaSlot, but the canonical type-ahead
+// picker (matching Procedure Costing) instead of a free-text field with a browser datalist --
+// avoids the exact "23 raw strings for 19 real surgeons" fragmentation problem that
+// state.surgeons/surgeonInputHTML already exists to solve elsewhere. Every OTHER rota role
+// (anaesthetist, SFA, scrubs, ODP, HCA, day cover...) has no canonical roster of its own, so
+// those deliberately keep the plain datalist suggestion (rotaSlot), unchanged. ----
+function rotaSurgeonSlot(date, day, key, label, req){
+  const p = key.split('.');
+  const val = p.length===2 ? String((day[p[0]]||{})[p[1]]||'') : String(day[key]||'');
+  const ack = day.acks && day.acks[key];
+  const starred = day.stars && day.stars[key];
+  const empty = !val.trim();
+  const cls = empty ? (ack ? 'rack' : (req ? 'rgap' : '')) : (starred?'rprov':'');
+  const inputId = 'rsg_'+date.replace(/-/g,'')+'_'+key.replace(/\./g,'_');
+  window._surgeonPick = window._surgeonPick||{};
+  window._surgeonPick[inputId] = (state.surgeons||[]).find(s=>s.name===val) || null;
+  return `<div class="rslot">
+    <label>${label}${req?'':' <span style="font-weight:400">(optional)</span>'}</label>
+    ${surgeonInputHTML(inputId, val, 'Type 3+ letters…', "rotaSurgeonCommit('"+date+"','"+key+"','"+inputId+"')", cls)}
+    <button class="rstar ${starred?'on':''}" title="${starred?'Provisional — click to confirm':'Mark provisional (booked, not confirmed)'}"
+      onclick="rotaStar('${date}','${key}')">${starred?'★':'☆'}</button>
+    ${empty&&req&&!ack?`<button class="rsil" title="Silence this gap with a cover note" onclick="rotaAck('${date}','${key}')">🔕</button>`:''}
+    ${empty&&ack?`<div class="racknote">🔕 ${String(ack).replace(/</g,'&lt;')} <span onclick="rotaUnack('${date}','${key}')" style="cursor:pointer;color:var(--red);font-weight:700">✕</span></div>`:''}
+  </div>`;
+}
+// Lenient, not strict -- the rota has no separate "confirm" step per field the way Theatre &
+// Ward's Save button does, so blocking on an unresolved pick would make a field impossible to
+// correct or clear mid-typo. A resolved pick is saved by its canonical name; anything else
+// (an unrecognised name, or a legacy value nobody's touched) is saved exactly as typed rather
+// than silently discarded, matching how every other rota field already behaves.
+function rotaSurgeonCommit(date, key, inputId){
+  const el = document.getElementById(inputId);
+  const text = (el?el.value:'').trim();
+  const pick = window._surgeonPick[inputId];
+  const name = (pick && pick.name===text) ? pick.name : text;
+  rotaSet(date, key, name);
+}
+
 function rotaCaseBlock(date, t, th){
-  const rows = (th.cases||[]).map((c,ci)=>`
+  const rows = (th.cases||[]).map((c,ci)=>{
+    const caseKey = 't'+t+'.cases.'+ci+'.surgeon';
+    const caseInputId = 'rsg_'+date.replace(/-/g,'')+'_t'+t+'_case'+ci;
+    window._surgeonPick = window._surgeonPick||{};
+    window._surgeonPick[caseInputId] = (state.surgeons||[]).find(s=>s.name===(c.surgeon||'')) || null;
+    return `
     <div style="border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:6px;background:var(--mist)">
       <div style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:5px">Case ${ci+1}</div>
       <div class="rgrid">
-        <div class="rslot"><label>Surgeon</label><input list="rotaNames" value="${String(c.surgeon||'').replace(/"/g,'&quot;')}" onchange="rotaSet('${date}','t${t}.cases.${ci}.surgeon',this.value)"></div>
+        <div class="rslot"><label>Surgeon</label>${surgeonInputHTML(caseInputId, c.surgeon||'', 'Type 3+ letters…', "rotaSurgeonCommit('"+date+"','"+caseKey+"','"+caseInputId+"')")}</div>
         <div class="rslot"><label>Procedure</label><input value="${String(c.procedure||'').replace(/"/g,'&quot;')}" onchange="rotaSet('${date}','t${t}.cases.${ci}.procedure',this.value)"></div>
         <div class="rslot"><label>PAT number</label><input value="${String(c.pat||'').replace(/"/g,'&quot;')}" onchange="rotaSet('${date}','t${t}.cases.${ci}.pat',this.value)"></div>
         <div class="rslot"><label>Stay</label><select onchange="rotaSet('${date}','t${t}.cases.${ci}.stay',this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
           <option ${c.stay!=='Overnight'?'selected':''}>Day case</option><option ${c.stay==='Overnight'?'selected':''}>Overnight</option></select></div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   return `<div style="margin-top:8px">
     <label style="font-size:11px;color:var(--ink-soft);font-weight:600">Number of cases
       <select onchange="rotaSetCaseCount('${date}',${t},+this.value)" style="margin-left:6px;padding:6px 8px;border:1px solid var(--line);border-radius:7px">
@@ -6413,9 +6491,9 @@ function rotaTheatreBlock(date, day, t){
       </div>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;font-weight:600">Surgeons (up to 3 sharing this theatre)</div>
       <div class="rgrid" style="margin-top:4px">
-        ${rotaSlot(date,day,'t'+t+'.surgeon','Surgeon',1)}
-        ${rotaSlot(date,day,'t'+t+'.surgeon2','2nd surgeon',0)}
-        ${rotaSlot(date,day,'t'+t+'.surgeon3','3rd surgeon',0)}
+        ${rotaSurgeonSlot(date,day,'t'+t+'.surgeon','Surgeon',1)}
+        ${rotaSurgeonSlot(date,day,'t'+t+'.surgeon2','2nd surgeon',0)}
+        ${rotaSurgeonSlot(date,day,'t'+t+'.surgeon3','3rd surgeon',0)}
       </div>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;font-weight:600">Shared theatre team</div>
       <div class="rgrid" style="margin-top:4px">
@@ -6446,7 +6524,8 @@ function rotaDayCard(date, opts){
       <span style="margin-left:auto;display:flex;gap:6px">
         <button class="btn" onclick="rotaCopyPrev('${date}')" title="Copy the same weekday last week">⧉ Last week</button>
         ${opts.inMonth?`<button class="btn" onclick="_rotaOpenDay=null;render()">Close</button>`:''}
-        <button class="btn primary" onclick="rotaSaveDay('${date}')">${unsaved?'● Save day':'Save day'}</button></span></div>`;
+        <button class="btn" onclick="rotaDayPDF('${date}')" title="Wall-display PDF for the Recovery room TV">⬇ Day PDF</button>
+        <button class="btn primary" id="rotaSaveBtn_${date}" onclick="rotaSaveDay('${date}')">${unsaved?'● Save day':'Save day'}</button></span></div>`;
   if(!running) return `<div class="gaspanel">${head}</div>`;
   return `<div class="gaspanel">${head}
     ${rotaTheatreBlock(date, day, 1)}${Number(day.theatres)>1?rotaTheatreBlock(date, day, 2):''}
@@ -6625,44 +6704,61 @@ async function rotaPdfDoc(title){
   doc.setDrawColor(176,138,62); doc.setLineWidth(0.8); doc.line(10,25.5,W-10,25.5);
   return doc;
 }
-function rotaFlatRows(dates){
-  // one row per running theatre per day
+// One row per running theatre, for the per-day theatre-breakdown table. HCA/Recovery live here
+// now (moved from Day Cover), so they show inside the theatre team breakdown as requested.
+function rotaTheatreTableRows(day){
   const rows=[];
-  dates.forEach(iso=>{
-    const day = rotaDayObj(iso);
-    if(!(Number(day.theatres)>0)) return;
-    for(let t=1;t<=day.theatres;t++){ const th=day['t'+t]; if(!th) continue;
-      const surg=[th.surgeon,th.surgeon2,th.surgeon3].filter(Boolean).join(' / ');
-      const team=[th.scrub1,th.scrub2,th.scrub3].filter(Boolean).join(', ');
-      const cases=(th.cases||[]).map((c,i)=>`${i+1}. ${c.surgeon||'?'} — ${c.procedure||''}${c.pat?' ('+c.pat+')':''} [${c.stay||'Day case'}]`).join('\n');
-      rows.push([rotaNice(iso,{weekday:'short',day:'numeric',month:'short'}), 'T'+t+' '+(th.type||'GA'),
-        surg, th.anaes||'', th.sfa||'', team||'', th.odp||'',
-        [day.hcaWard&&('Ward HCA: '+day.hcaWard),day.hcaTheatre&&('Th HCA: '+day.hcaTheatre),day.ward&&('Ward: '+day.ward),day.recovery&&('Recovery: '+day.recovery),day.rmoDay&&('RMO day: '+day.rmoDay),day.rmoNight&&('RMO night: '+day.rmoNight)].filter(Boolean).join('\n'),
-        cases, th.detail||'']);
-    }
-  });
+  for(let t=1;t<=Number(day.theatres||0);t++){ const th=day['t'+t]; if(!th) continue;
+    const surg=[th.surgeon,th.surgeon2,th.surgeon3].filter(Boolean).join(' / ');
+    const team=[th.scrub1,th.scrub2,th.scrub3].filter(Boolean).join(', ');
+    const cases=(th.cases||[]).map((c,i)=>`${i+1}. ${c.surgeon||'?'} — ${c.procedure||''}${c.pat?' ('+c.pat+')':''} [${c.stay||'Day case'}]`).join('\n');
+    rows.push(['T'+t+' '+(th.type||'GA'), surg, th.anaes||'', th.sfa||'', team||'', th.odp||'',
+      th.hca||'', th.recovery||'', cases, th.detail||'']);
+  }
   return rows;
 }
+// One row of everything from HCA-ward down to Reception PM -- the general Day Cover
+// allocations, kept together as their own dedicated section separate from the theatre teams.
+function rotaDayCoverRow(day){
+  return [day.hcaWard||'', day.ward||'', day.nightNurse||'', day.hcaNight||'',
+    day.rmoDay||'', day.rmoNight||'', day.housekeepAM||'', day.housekeepPM||'', day.receptionAM||'', day.receptionPM||''];
+}
+const ROTA_THEATRE_TABLE_HEAD = ['Theatre','Surgeon(s)','Anaesthetist','SFA','Scrub team','ODP','Theatre HCA','Recovery Nurse','Cases','Detail'];
+const ROTA_THEATRE_COL_STYLES = {0:{cellWidth:16},1:{cellWidth:30},2:{cellWidth:22},3:{cellWidth:18},4:{cellWidth:26},5:{cellWidth:16},6:{cellWidth:22},7:{cellWidth:22},8:{cellWidth:48},9:{cellWidth:20}};
+const ROTA_DAYCOVER_TABLE_HEAD = ['HCA Ward','Ward Nurse','Night Nurse','HCA Night','RMO Day','RMO Night','Housekeeping AM','Housekeeping PM','Reception AM','Reception PM'];
 async function rotaExport(dates, title, fname){
   if(!isSuperadmin()) return;
   if(typeof window.jspdf==='undefined'){ toast('PDF engine still loading — try again'); return; }
+  const running = dates.map(iso=>({iso, day:rotaDayObj(iso)})).filter(x=>Number(x.day.theatres)>0);
+  if(!running.length){ toast('No lists in this range'); return; }
   const doc = await rotaPdfDoc(title);
   if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh and try again'); return; }
-  const rows = rotaFlatRows(dates);
-  if(!rows.length){ toast('No lists in this range'); return; }
   const W = doc.internal.pageSize.getWidth();
-  doc.autoTable({
-    startY:28, margin:{left:10,right:10},
-    head:[['Date','List','Surgeon(s)','Anaesthetist','SFA','Scrub team','ODP','Day cover','Cases','Detail']],
-    body: rows,
-    theme:'grid',
-    styles:{font:'helvetica', fontSize:7.5, cellPadding:1.6, lineColor:[185,201,197], lineWidth:0.15, textColor:[23,37,31], overflow:'linebreak', valign:'top'},
-    headStyles:{fillColor:[43,97,104], textColor:255, fontSize:7.5, fontStyle:'bold', halign:'left'},
-    alternateRowStyles:{fillColor:[242,247,246]},
-    columnStyles:{0:{cellWidth:22},1:{cellWidth:14},2:{cellWidth:32},3:{cellWidth:24},4:{cellWidth:20},5:{cellWidth:30},6:{cellWidth:18},7:{cellWidth:40},8:{cellWidth:44},9:{cellWidth:20}},
-    didDrawPage: d=>{ doc.setFontSize(7.5); doc.setTextColor(140,140,140);
-      doc.text('Bollin Clinic Stock Manager — Theatre rota', 10, doc.internal.pageSize.getHeight()-6);
-      doc.text('Page '+d.pageNumber, W-10, doc.internal.pageSize.getHeight()-6, {align:'right'}); }
+  const pageH = doc.internal.pageSize.getHeight();
+  const tableStyles = {font:'helvetica', fontSize:7.5, cellPadding:1.6, lineColor:[185,201,197], lineWidth:0.15, textColor:[23,37,31], overflow:'linebreak', valign:'top'};
+  const footer = d=>{ doc.setFontSize(7.5); doc.setTextColor(140,140,140);
+    doc.text('Bollin Clinic Stock Manager — Theatre rota', 10, pageH-6);
+    doc.text('Page '+d.pageNumber, W-10, pageH-6, {align:'right'}); };
+  let y = 28;
+  running.forEach(({iso, day}, i)=>{
+    // Each day gets its own theatre-breakdown table immediately followed by its own Day Cover
+    // row -- a dedicated section per day, not one field buried in a shared table -- with a
+    // rough space estimate so a day's header doesn't get stranded alone at the bottom of a page.
+    const estRows = Math.max(1, day.theatres) + 1;
+    if(i>0 && y + 14 + estRows*9 > pageH - 14){ doc.addPage(); y = 15; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(43,97,104);
+    doc.text(rotaNice(iso,{weekday:'long',day:'numeric',month:'short',year:'numeric'}), 10, y);
+    y += 4;
+    doc.autoTable({ startY:y, margin:{left:10,right:10},
+      head:[ROTA_THEATRE_TABLE_HEAD], body: rotaTheatreTableRows(day), theme:'grid',
+      styles: tableStyles, headStyles:{fillColor:[43,97,104], textColor:255, fontSize:7.5, fontStyle:'bold', halign:'left'},
+      alternateRowStyles:{fillColor:[242,247,246]}, columnStyles: ROTA_THEATRE_COL_STYLES, didDrawPage: footer });
+    y = doc.lastAutoTable.finalY + 2;
+    doc.autoTable({ startY:y, margin:{left:10,right:10},
+      head:[ROTA_DAYCOVER_TABLE_HEAD], body:[rotaDayCoverRow(day)], theme:'grid',
+      styles:{...tableStyles, fontSize:7}, headStyles:{fillColor:[122,90,20], textColor:255, fontSize:7, fontStyle:'bold', halign:'left'},
+      didDrawPage: footer });
+    y = doc.lastAutoTable.finalY + 8;
   });
   doc.save(fname); toast('PDF downloaded');
 }
@@ -6681,6 +6777,106 @@ function rotaCustomPDF(){ const cv=window._rotaCust||{}; if(!(cv.from&&cv.to)) r
   const dates=[]; let d=new Date(cv.from+'T12:00'); const end=new Date(cv.to+'T12:00');
   while(d<=end){ dates.push(rotaISO(d)); d=new Date(d.getTime()+864e5); }
   rotaExport(dates, cv.from+' to '+cv.to, 'Rota_'+cv.from+'_to_'+cv.to+'.pdf'); }
+
+// ---- single-day PDF for the Recovery room TV screen: one page, high contrast, large type ----
+async function rotaDayPDF(date){
+  if(!isSuperadmin()) return;
+  if(typeof window.jspdf==='undefined'){ toast('PDF engine still loading — try again'); return; }
+  const day = rotaDayObj(date);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+  if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh and try again'); return; }
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+  const running = Number(day.theatres)>0;
+  const open = rotaOpenGaps(day).length;
+
+  // ---- header bar ----
+  doc.setFillColor(23,37,31); doc.rect(0,0,W,22,'F');
+  try{
+    const blob = await fetch('logo.png').then(r=>r.blob());
+    const dataUrl = await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(blob);});
+    const img = await new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);setTimeout(()=>res(null),1500);i.src=dataUrl;});
+    if(img){ const hMM=13, wMM=hMM*(img.width/img.height); doc.addImage(dataUrl,'PNG',8,4.5,wMM,hMM); }
+  }catch(e){}
+  doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(255,255,255);
+  doc.text(rotaNice(date,{weekday:'long',day:'numeric',month:'long',year:'numeric'}), W/2, 14, {align:'center'});
+  const statusText = !running ? 'NO LISTS' : (open ? open+' GAP'+(open>1?'S':'') : 'FULLY COVERED');
+  const statusColour = !running ? [120,120,120] : (open ? [200,60,50] : [90,160,90]);
+  doc.setFillColor(...statusColour); doc.roundedRect(W-62,5,54,12,2,2,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(255,255,255);
+  doc.text(statusText, W-35, 12.5, {align:'center'});
+
+  if(!running){
+    doc.setFont('helvetica','bold'); doc.setFontSize(28); doc.setTextColor(120,120,120);
+    doc.text('No theatre lists today', W/2, H/2, {align:'center'});
+    doc.save('Rota_Day_'+date+'.pdf'); toast('PDF downloaded'); return;
+  }
+
+  // ---- theatre panels, side by side (or one full-width panel if only 1 theatre) ----
+  const nT = Number(day.theatres);
+  const panelY = 26, panelH = H - 26 - 34;   // leave room for the day-cover strip + notes at the bottom
+  const gap = 4, panelW = nT===1 ? (W-16) : (W-16-gap)/2;
+  for(let t=1;t<=nT;t++){
+    const th = day['t'+t] || blankTheatre();
+    const x = 8 + (t-1)*(panelW+gap);
+    const colour = th.colour || '#2B6168';
+    doc.setDrawColor(200,200,200); doc.setLineWidth(0.4); doc.rect(x, panelY, panelW, panelH);
+    doc.setFillColor(colour); doc.rect(x, panelY, panelW, 10, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(255,255,255);
+    doc.text('THEATRE '+t+'   ·   '+(th.type||'GA'), x+4, panelY+7);
+    const nCases = (th.cases||[]).length;
+    doc.text(nCases+' case'+(nCases===1?'':'s'), x+panelW-4, panelY+7, {align:'right'});
+
+    let py = panelY + 16;
+    const surg = [th.surgeon,th.surgeon2,th.surgeon3].filter(Boolean).join('  /  ') || '—';
+    doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(23,37,31);
+    const surgLines = doc.splitTextToSize(surg, panelW-8);
+    doc.text(surgLines, x+4, py); py += surgLines.length*7 + 2;
+    if(th.detail){ doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(90,90,90);
+      doc.text(doc.splitTextToSize(th.detail, panelW-8), x+4, py); py += 6; }
+
+    py += 2;
+    const teamPairs = [['Anaesthetist',th.anaes],['SFA',th.sfa],['Scrub 1',th.scrub1],['Scrub 2',th.scrub2],
+      ['Scrub 3',th.scrub3],['ODP',th.odp],['Theatre HCA',th.hca],['Recovery Nurse',th.recovery]].filter(([,v])=>v);
+    doc.autoTable({ startY:py, margin:{left:x+4, right: W-(x+panelW-4)}, tableWidth: panelW-8,
+      body: teamPairs, theme:'plain',
+      styles:{font:'helvetica', fontSize:9.5, cellPadding:0.8, textColor:[23,37,31]},
+      columnStyles:{0:{fontStyle:'bold', cellWidth:32, textColor:[110,110,110]}, 1:{cellWidth:'auto'}} });
+    py = doc.lastAutoTable.finalY + 3;
+
+    if(nCases){
+      const caseRows = (th.cases||[]).map((c,i)=>[i+1, c.surgeon||'—', c.procedure||'—', c.pat||'—', c.stay||'Day case']);
+      doc.autoTable({ startY:py, margin:{left:x+4, right: W-(x+panelW-4)}, tableWidth: panelW-8,
+        head:[['#','Surgeon','Procedure','PAT','Stay']], body: caseRows, theme:'grid',
+        styles:{font:'helvetica', fontSize:9, cellPadding:1.6, lineColor:[210,210,210], lineWidth:0.2, textColor:[23,37,31], overflow:'linebreak'},
+        headStyles:{fillColor:[240,240,240], textColor:[80,80,80], fontStyle:'bold', fontSize:8.5},
+        columnStyles:{0:{cellWidth:8}, 1:{cellWidth:36}, 3:{cellWidth:20}, 4:{cellWidth:22}} });
+    }
+  }
+
+  // ---- day cover strip, full width, below both panels ----
+  const coverY = panelY + panelH + 4;
+  doc.setFillColor(122,90,20); doc.rect(8, coverY, W-16, 8, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,255,255);
+  doc.text('DAY COVER', 12, coverY+5.5);
+  doc.autoTable({ startY: coverY+8, margin:{left:8,right:8},
+    head:[ROTA_DAYCOVER_TABLE_HEAD], body:[rotaDayCoverRow(day)], theme:'grid',
+    styles:{font:'helvetica', fontSize:9, cellPadding:2, lineColor:[210,196,150], lineWidth:0.2, textColor:[23,37,31], halign:'center'},
+    headStyles:{fillColor:[247,239,220], textColor:[122,90,20], fontStyle:'bold', fontSize:8} });
+
+  if(day.notes){
+    const notesY = doc.lastAutoTable.finalY + 3;
+    doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(90,90,90);
+    doc.text('Notes: '+day.notes, 10, notesY);
+  }
+
+  doc.setFontSize(7.5); doc.setTextColor(140,140,140);
+  doc.text('Bollin Clinic Stock Manager — Theatre & Ward Rota — Recovery Room display', 10, H-4);
+  doc.text('Generated '+new Date().toLocaleString('en-GB'), W-10, H-4, {align:'right'});
+
+  doc.save('Rota_Day_'+date+'.pdf');
+  toast('PDF downloaded');
+}
 async function rotaStaffPDF(){
   const sv=window._rotaStaff||{}; if(!sv.name) return;
   const t0=new Date(); let from=sv.from,to=sv.to;
@@ -7919,8 +8115,11 @@ async function api(payload){
       ]);
       if(dErr) throw new Error(dErr.message); if(tErr) throw new Error(tErr.message);
       rota = (days||[]).map(d=>{
-        const out = {Date: d.date, Theatres: d.theatres, HCAWard: d.hca_ward, HCATheatre: d.hca_theatre,
-          WardNurse: d.ward_nurse, NightNurse: d.night_nurse, RecoveryNurse: d.recovery_nurse,
+        // HCATheatre/RecoveryNurse are no longer read here -- those two fields moved from
+        // day-level to per-theatre (T{n}_HCA/T{n}_Recovery below); the old rota_days columns
+        // are kept in the database for historical integrity but the app no longer uses them.
+        const out = {Date: d.date, UpdatedAt: d.updated_at, Theatres: d.theatres, HCAWard: d.hca_ward,
+          WardNurse: d.ward_nurse, NightNurse: d.night_nurse, HCANight: d.hca_night,
           RMODay: d.rmo_day, RMONight: d.rmo_night, HousekeepingAM: d.housekeeping_am, HousekeepingPM: d.housekeeping_pm,
           ReceptionAM: d.reception_am, ReceptionPM: d.reception_pm, Notes: d.notes,
           AcksJSON: JSON.stringify(d.acks||{}), StarsJSON: JSON.stringify(d.stars||{})};
@@ -7932,6 +8131,7 @@ async function api(payload){
           out['T'+n+'_Anaesthetist']=th.anaesthetist||''; out['T'+n+'_SFA']=th.sfa||'';
           out['T'+n+'_Scrub1']=th.scrub1||''; out['T'+n+'_Scrub2']=th.scrub2||'';
           out['T'+n+'_Scrub3']=th.scrub3||''; out['T'+n+'_ODP']=th.odp||'';
+          out['T'+n+'_HCA']=th.hca||''; out['T'+n+'_Recovery']=th.recovery||'';
         });
         return out;
       });
@@ -8308,26 +8508,18 @@ async function api(payload){
     return {ok:true, restored: data.restored, failed: data.failed};
   }
 
-  if(a==='rotaSave'){
-    const f = payload.fields;
-    const {data: day, error: dErr} = await sb.from('rota_days').upsert({date: payload.date,
-      theatres: Number(f.Theatres)||0, hca_ward: strOrNull(f.HCAWard), hca_theatre: strOrNull(f.HCATheatre),
-      ward_nurse: strOrNull(f.WardNurse), night_nurse: strOrNull(f.NightNurse), recovery_nurse: strOrNull(f.RecoveryNurse),
-      rmo_day: strOrNull(f.RMODay), rmo_night: strOrNull(f.RMONight), housekeeping_am: strOrNull(f.HousekeepingAM),
-      housekeeping_pm: strOrNull(f.HousekeepingPM), reception_am: strOrNull(f.ReceptionAM), reception_pm: strOrNull(f.ReceptionPM),
-      notes: strOrNull(f.Notes), acks: JSON.parse(f.AcksJSON||'{}'), stars: JSON.parse(f.StarsJSON||'{}')},
-      {onConflict:'date'}).select().single();
-    if(dErr) throw new Error(dErr.message);
-    for(const n of [1,2]){
-      const {error: tErr} = await sb.from('rota_theatres').upsert({day_id: day.id, theatre_number: n,
-        type: f['T'+n+'_Type']||'GA', detail: strOrNull(f['T'+n+'_Detail']), colour: strOrNull(f['T'+n+'_Colour']),
-        surgeon: strOrNull(f['T'+n+'_Surgeon']), surgeon2: strOrNull(f['T'+n+'_Surgeon2']), surgeon3: strOrNull(f['T'+n+'_Surgeon3']),
-        anaesthetist: strOrNull(f['T'+n+'_Anaesthetist']), sfa: strOrNull(f['T'+n+'_SFA']),
-        scrub1: strOrNull(f['T'+n+'_Scrub1']), scrub2: strOrNull(f['T'+n+'_Scrub2']), scrub3: strOrNull(f['T'+n+'_Scrub3']),
-        odp: strOrNull(f['T'+n+'_ODP']), cases: JSON.parse(f['T'+n+'_CasesJSON']||'[]')}, {onConflict:'day_id,theatre_number'});
-      if(tErr) throw new Error(tErr.message);
+  if(a==='rotaSaveDay'){
+    // Single atomic RPC (see rota_save_day) -- replaces the old plain-upsert sequence, which
+    // had no conflict detection at all: whichever save was based on the older state could
+    // finish last and silently overwrite a newer save's theatre data. The RPC row-locks the
+    // day and refuses the write (ROTA_CONFLICT) if it's changed since payload.expectedUpdatedAt.
+    const {data, error} = await sb.rpc('rota_save_day', {p_date: payload.date,
+      p_expected_updated_at: payload.expectedUpdatedAt||null, p_fields: payload.fields});
+    if(error){
+      if(String(error.message||'').includes('ROTA_CONFLICT')) throw new Error('ROTA_CONFLICT');
+      throw new Error(error.message);
     }
-    return {ok:true};
+    return {ok:true, updatedAt: data.updated_at};
   }
 
   if(a==='sampleSave'){
@@ -8445,9 +8637,11 @@ async function loadAll(){
       role:String(u.Role||'common'), active:String(u.Active||'')}));
     state.rota = (data.rota||[]).map(r=>{
       const S=v=>v!=null?String(v):'';
-      const day={ date:rotaSheetDate(r.Date), theatres:Number(r.Theatres)||0,
-        hcaWard:S(r.HCAWard), hcaTheatre:S(r.HCATheatre), ward:S(r.WardNurse), nightNurse:S(r.NightNurse),
-        recovery:S(r.RecoveryNurse), rmoDay:S(r.RMODay), rmoNight:S(r.RMONight),
+      // updatedAt is needed for the atomic-save conflict check (rota_save_day) -- a save is
+      // refused, not silently applied, if the server's copy has moved on since this was loaded.
+      const day={ date:rotaSheetDate(r.Date), updatedAt:r.UpdatedAt||null, theatres:Number(r.Theatres)||0,
+        hcaWard:S(r.HCAWard), ward:S(r.WardNurse), nightNurse:S(r.NightNurse), hcaNight:S(r.HCANight),
+        rmoDay:S(r.RMODay), rmoNight:S(r.RMONight),
         housekeepAM:S(r.HousekeepingAM), housekeepPM:S(r.HousekeepingPM),
         receptionAM:S(r.ReceptionAM), receptionPM:S(r.ReceptionPM),
         notes:S(r.Notes), acks:{}, stars:{}, t1:{}, t2:{} };
@@ -8457,7 +8651,8 @@ async function loadAll(){
         day['t'+t]={ type:S(r['T'+t+'_Type'])||'GA', detail:S(r['T'+t+'_Detail']), colour:S(r['T'+t+'_Colour']), cases:cases,
         surgeon:S(r['T'+t+'_Surgeon']), surgeon2:S(r['T'+t+'_Surgeon2']), surgeon3:S(r['T'+t+'_Surgeon3']),
         anaes:S(r['T'+t+'_Anaesthetist']), sfa:S(r['T'+t+'_SFA']),
-        scrub1:S(r['T'+t+'_Scrub1']), scrub2:S(r['T'+t+'_Scrub2']), scrub3:S(r['T'+t+'_Scrub3']), odp:S(r['T'+t+'_ODP']) }; });
+        scrub1:S(r['T'+t+'_Scrub1']), scrub2:S(r['T'+t+'_Scrub2']), scrub3:S(r['T'+t+'_Scrub3']), odp:S(r['T'+t+'_ODP']),
+        hca:S(r['T'+t+'_HCA']), recovery:S(r['T'+t+'_Recovery']) }; });
       return day; });
     if(typeof updateRotaBadge==='function') updateRotaBadge();
     // ---- CRITICAL: preserve every room's in-progress procedure + cart across a reload ----
