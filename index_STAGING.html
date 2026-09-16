@@ -7177,15 +7177,51 @@ const TW_COL = {
   dayCase:22
 };
 const TW_TOTAL_COLS = 23;
-const TW_ROOMS = ['Theatre 1','Theatre 2','Treatment Room 1','Treatment Room 2','Minor Op Room'];
+// Confirmed against the live sheet (2026-09-16): Treatment Room 1/2 have zero rows and are no
+// longer used -- the clinic has consolidated onto these three. This is also now the source of
+// truth for the concurrency room tabs below, so the "which room is this case in" field and
+// "which room's console is on screen" tabs can never drift apart into two different lists.
+const TW_ROOMS = ['Theatre 1','Theatre 2','Minor Op Room'];
 const TW_ANAESTHETIC_TYPES = ['General','Local','Sedation','Regional','Spinal'];
 const TW_DAY_CASE_OPTIONS = ['Day Case','Overnight'];
 
 let twRole = 'theatre';          // 'theatre' | 'ward'
-let twCurrentPid = null;         // PID of the record currently loaded, once saved/found
-let twLoadedRow = null;          // the 22-value array from the sheet, once a lookup succeeds
-let twPrefillPid = '';           // searched PID with no existing record -- carried into the form
-let twStatus = {level:'amber', text:'No patient selected — search by ID, or fill in a new theatre record'};
+
+// Concurrency: two theatres genuinely run at the same time on separate devices, each logging a
+// different patient -- confirmed live, one patient's row was written up to ~10 times because two
+// theatres' in-progress lookup/draft state collided in this one shared set of variables. Mirrors
+// procedure costing's per-room model (_procByRoom/activeProc/procSyncActive, see CLAUDE.md §8-9):
+// each theatre room gets its own instance of everything that used to be a single shared global,
+// so switching rooms on screen can never touch another room's in-progress record. Ward staff only
+// ever work one patient at a time from one shared screen, so Ward keeps a single instance, same
+// as the old single-instance behaviour.
+function twBlankInstance(){
+  return {
+    currentPid: null,       // PID of the record currently loaded, once saved/found
+    loadedRow: null,        // the 23-value array from the sheet, once a lookup succeeds
+    prefillPid: '',         // searched PID with no existing record -- carried into the form
+    status: {level:'amber', text:'No patient selected — search by ID, or fill in a new theatre record'},
+    draft: {},              // unsaved-draft safety net, see twSaveDraft below
+    draftKey: null,         // this instance's own localStorage key, set when it's created
+    autosaveTimer: null,
+    autosaveState: null,    // null | 'pending' | 'saving' | 'saved' | 'error'
+    writeChain: Promise.resolve(),     // see twSerializeWrite
+    knownRowIndex: null,    // cached sheet row index for knownRowIndexPid -- see twResolveRow
+    knownRowIndexPid: null,
+    knownRowValues: null,   // last-confirmed full row, kept alongside the index cache
+  };
+}
+let _twByRoom = {};                      // Theatre role: room name -> its own instance
+let _twRoom = TW_ROOMS[0];               // which theatre room's console is on screen
+let twWardInstance = twBlankInstance();  // Ward role: one shared instance, unchanged behaviour
+let twActive = null;                     // the instance actually on screen -- kept in sync by
+                                          // twSyncActive(), same pattern as procedure costing's
+                                          // `activeProc` pointer (CLAUDE.md bug #5: never replace
+                                          // this with a window property accessor).
+function twSyncActive(){
+  twActive = twRole==='ward' ? twWardInstance : (_twByRoom[_twRoom] || (_twByRoom[_twRoom]=twBlankInstance()));
+  return twActive;
+}
 
 // Unsaved-draft safety net -- switching to another tab and back (or an accidental reload) used
 // to lose everything typed into a not-yet-saved record, since these fields were only ever read
@@ -7193,16 +7229,43 @@ let twStatus = {level:'amber', text:'No patient selected — search by ID, or fi
 // or crash loses nothing") -- kept in memory AND in localStorage (this is browser-local, not
 // server-saved like the cart, since there's no "save draft" call on the Worker; it survives a
 // reload/crash on the SAME device, not a switch to a different one). Any field change re-saves
-// it; a fresh lookup, a role switch, the "New / clear form" button, or a successful save all
+// it; a fresh lookup, a room/role switch, the "New / clear form" button, or a successful save all
 // clear it, so it can never bleed from one patient into a different one.
-let twDraft = {};
-try{ twDraft = JSON.parse(localStorage.getItem('bollin_tw_draft')||'{}') || {}; }catch(e){ twDraft = {}; }
 const TW_DRAFT_FIELDS = ['tw_date','tw_theatreNumber','tw_sfaAssistant','tw_pid','tw_patientName','tw_dob',
   'tw_procedure','tw_anaesthetistName','tw_anaestheticType','tw_dayCase','tw_timeSent','tw_intoTheatre','tw_anaStarted','tw_anaReady',
   'tw_knifeToSkin','tw_finishedSuturing','tw_intoRecovery','tw_outRecovery','tw_intoWard','tw_timeDischarge','tw_dateDischarge'];
 const TW_COL_TO_ID = {}; Object.keys(TW_COL).forEach(k => {
   TW_COL_TO_ID[TW_COL[k]] = (k==='surgeonName' ? 'twSurgeon' : k==='surgeon2' ? 'twSurgeon2' : 'tw_'+k);
 });
+function twDraftKeyFor(role, room){ return role==='ward' ? 'bollin_tw_draft_ward' : 'bollin_tw_draft_room_'+room; }
+function twLoadInstanceDraft(inst, key){
+  inst.draftKey = key;
+  try{ inst.draft = JSON.parse(localStorage.getItem(key)||'{}') || {}; }catch(e){ inst.draft = {}; }
+}
+twLoadInstanceDraft(twWardInstance, twDraftKeyFor('ward'));
+TW_ROOMS.forEach(room=>{
+  const inst = twBlankInstance();
+  twLoadInstanceDraft(inst, twDraftKeyFor('theatre', room));
+  _twByRoom[room] = inst;
+});
+// One-time migration: before this change there was a single 'bollin_tw_draft' key shared by
+// every room and by Ward. If a draft was sitting in it at deploy time, move it into whichever
+// room it names (its own tw_theatreNumber), defaulting to the first room if that value is blank
+// or no longer a real room (e.g. an old Treatment Room, since removed) -- never dropped silently.
+(function twMigrateLegacyDraft(){
+  let legacy = null;
+  try{ legacy = JSON.parse(localStorage.getItem('bollin_tw_draft')||'null'); }catch(e){ legacy = null; }
+  if(legacy && legacy.tw_pid){
+    const room = TW_ROOMS.includes(legacy.tw_theatreNumber) ? legacy.tw_theatreNumber : TW_ROOMS[0];
+    const inst = _twByRoom[room];
+    if(!inst.draft || !inst.draft.tw_pid){   // don't clobber a draft this room already has of its own
+      inst.draft = legacy;
+      try{ localStorage.setItem(inst.draftKey, JSON.stringify(legacy)); }catch(e){}
+    }
+  }
+  try{ localStorage.removeItem('bollin_tw_draft'); }catch(e){}
+})();
+twSyncActive();
 function twSaveDraft(){
   const d = {};
   TW_DRAFT_FIELDS.forEach(id=>{ const el=document.getElementById(id); if(el) d[id]=el.value; });
@@ -7210,15 +7273,17 @@ function twSaveDraft(){
     const el = document.getElementById(id);
     if(el){ d[id] = el.value; const p = window._surgeonPick[id]; d[id+'Pick'] = p ? {id:p.id, name:p.name} : null; }
   });
-  twDraft = d;
-  try{ localStorage.setItem('bollin_tw_draft', JSON.stringify(d)); }catch(e){}
+  twActive.draft = d;
+  try{ localStorage.setItem(twActive.draftKey, JSON.stringify(d)); }catch(e){}
   twScheduleAutosave();
 }
-function twClearDraft(){
-  twDraft = {};
-  try{ localStorage.removeItem('bollin_tw_draft'); }catch(e){}
-  clearTimeout(_twAutosaveTimer);
-  twAutosaveState = null;
+function twClearDraft(inst){
+  inst = inst || twActive;
+  inst.draft = {};
+  try{ localStorage.removeItem(inst.draftKey); }catch(e){}
+  clearTimeout(inst.autosaveTimer);
+  inst.autosaveState = null;
+  inst.knownRowIndex = null; inst.knownRowIndexPid = null; inst.knownRowValues = null;
 }
 // One-click "it's happening right now" entry for the timing fields -- still just a normal time
 // input underneath, so typing a time by hand works exactly as before.
@@ -7256,8 +7321,8 @@ function twDateFieldHtml(id, label, value, chg){
 // lookup/reset/save clears the draft and lets the loaded record show through again.
 function twFieldValue(col){
   const id = TW_COL_TO_ID[col];
-  if(twDraft[id]!=null) return twDraft[id];
-  if(twLoadedRow) return twCellDisplay(col, twLoadedRow[col]);
+  if(twActive.draft[id]!=null) return twActive.draft[id];
+  if(twActive.loadedRow) return twCellDisplay(col, twActive.loadedRow[col]);
   return '';
 }
 
@@ -7285,6 +7350,26 @@ async function twFindRowByPid(pid){
   const rows = await twGetRows();
   const idx = rows.findIndex(r => String(r.values[0][TW_COL.pid]).trim() === String(pid).trim());
   return { rows, idx };
+}
+// Bundled fix for a second, distinct bug: SharePoint/Graph read-after-write lag meant a
+// getRows() shortly after this same patient's own last write could still not show it yet,
+// making a plain twFindRowByPid wrongly report "not found" and trigger another addRow --
+// confirmed live, one patient's row created up to ~10 times over a single case. Once a write to
+// a given patient in a given room/ward instance has been CONFIRMED (seen with idx>=0 in a real
+// read), its row index is cached on the instance; a later "not found" for that same pid is then
+// treated as lag, not a genuine new patient, and reused as an update instead of a duplicate add.
+async function twResolveRow(inst, pid){
+  const rows = await twGetRows();
+  const idx = rows.findIndex(r => String(r.values[0][TW_COL.pid]).trim() === String(pid).trim());
+  if(idx >= 0){
+    const existing = rows[idx].values[0];
+    inst.knownRowIndex = rows[idx].index; inst.knownRowIndexPid = pid; inst.knownRowValues = existing;
+    return { index: rows[idx].index, existing, stale:false };
+  }
+  if(inst.knownRowIndexPid === pid && inst.knownRowIndex != null){
+    return { index: inst.knownRowIndex, existing: inst.knownRowValues, stale:true };
+  }
+  return { index: -1, existing: null, stale:false };
 }
 function twVal(id){ const el = document.getElementById(id); return el ? el.value : ''; }
 // Excel stores real dates/times as numbers (serial days since 1899-12-30, and a fraction of a
@@ -7326,49 +7411,57 @@ function twResolveSurgeonName(id, originalName){
 function twStatusBadgeClass(level){ return level==='green'?'b-ok':level==='red'?'b-out':'b-low'; }
 
 /* ---------------- cross-device autosave straight to the real SharePoint row ---------------- */
-// Every draft-tracked field's onchange already captures a synchronous snapshot into twDraft
-// (see twSaveDraft above) -- that snapshot, not a live DOM read, is what gets pushed to the
-// Worker here, because a debounced timer can fire well after the user has switched tabs or
-// role, by which point the fields it would otherwise read may no longer exist in the DOM.
+// Every draft-tracked field's onchange already captures a synchronous snapshot into the active
+// instance's draft (see twSaveDraft above) -- that snapshot, not a live DOM read, is what gets
+// pushed to the Worker here, because a debounced timer can fire well after the user has switched
+// tabs/room/role, by which point the fields it would otherwise read may no longer exist in the DOM.
 // Writing only starts once a Patient ID is present (autosave must never create an
 // unidentifiable row) -- this carries the same accepted risk as the explicit Save already has:
 // a quickly-corrected Patient ID typo can leave an orphan row behind, and the Worker has no
 // delete action, so any such row has to be removed by hand in Excel.
-let _twAutosaveTimer = null;
-let twAutosaveState = null;   // null | 'pending' | 'saving' | 'saved' | 'error'
 // Autosave, the explicit Theatre save, and the explicit Ward save each independently look up
 // the current row for a Patient ID and then add-or-update it -- two separate network round
-// trips. Running two of these at once is a real race: both look up the same Patient ID before
-// either write is visible yet, both conclude "doesn't exist", and both call addRow -- creating
-// two rows for one patient. This is not hypothetical -- it happened live: a slow in-flight
-// autosave and a "Save Theatre Record" click landed close enough together to both add a row.
-// Routing every write through this one queue guarantees the second call's lookup always runs
-// strictly after the first call's write has finished, so it always finds what was just written.
-let _twWriteChain = Promise.resolve();
-function twSerializeWrite(fn){
-  const run = _twWriteChain.then(fn, fn);
-  _twWriteChain = run.then(()=>{}, ()=>{});
+// trips. Running two of these at once FOR THE SAME INSTANCE is a real race: both look up the
+// same Patient ID before either write is visible yet, both conclude "doesn't exist", and both
+// call addRow -- creating two rows for one patient. This is not hypothetical -- it happened
+// live: a slow in-flight autosave and a "Save Theatre Record" click landed close enough together
+// to both add a row. Routing every write for a given instance through that instance's own queue
+// guarantees the second call's lookup always runs strictly after the first call's write has
+// finished -- while two DIFFERENT rooms' queues run fully independently, so one theatre's save
+// never has to wait behind another theatre's.
+function twSerializeWrite(inst, fn){
+  const run = inst.writeChain.then(fn, fn);
+  inst.writeChain = run.then(()=>{}, ()=>{});
   return run;
 }
 function twScheduleAutosave(){
-  if(!(twDraft.tw_pid||'').trim()) return;
-  twAutosaveState = 'pending';
-  const el = document.getElementById('twAutosaveStatus'); if(el) el.outerHTML = twAutosaveStatusHtml();
-  clearTimeout(_twAutosaveTimer);
-  _twAutosaveTimer = setTimeout(twAutosaveNow, 2200);
+  // Captured now, not inside the timeout -- if the user switches room/role before this fires,
+  // it must still save to the room it was scheduled for, not whatever happens to be on screen
+  // when the timer goes off.
+  const inst = twActive;
+  if(!(inst.draft.tw_pid||'').trim()) return;
+  inst.autosaveState = 'pending';
+  twRefreshAutosaveBadge(inst);
+  clearTimeout(inst.autosaveTimer);
+  inst.autosaveTimer = setTimeout(()=>twAutosaveNow(inst), 5000);
 }
 // Lenient by design -- unlike the explicit Save buttons, autosave must never block on an
 // unresolved surgeon pick; it falls back to whatever is already saved (or blank) so a
 // half-typed name in progress never stops the rest of the record from being protected.
-function twAutosaveSurgeonName(pickId, colIndex){
-  const pick = twDraft[pickId+'Pick'];
+function twAutosaveSurgeonName(inst, pickId, colIndex){
+  const pick = inst.draft[pickId+'Pick'];
   if(pick && pick.name) return pick.name;
-  if(twDraft[pickId]!=null) return twDraft[pickId];
-  if(twLoadedRow) return twCellDisplay(colIndex, twLoadedRow[colIndex]);
+  if(inst.draft[pickId]!=null) return inst.draft[pickId];
+  if(inst.loadedRow) return twCellDisplay(colIndex, inst.loadedRow[colIndex]);
   return '';
 }
-function twBuildAutosaveRow(){
-  const g = twFieldValue;
+function twBuildAutosaveRow(inst){
+  const g = (col) => {
+    const id = TW_COL_TO_ID[col];
+    if(inst.draft[id]!=null) return inst.draft[id];
+    if(inst.loadedRow) return twCellDisplay(col, inst.loadedRow[col]);
+    return '';
+  };
   const rowData = new Array(TW_TOTAL_COLS).fill('');
   rowData[TW_COL.date]             = g(TW_COL.date);
   rowData[TW_COL.theatreNumber]    = g(TW_COL.theatreNumber);
@@ -7376,8 +7469,8 @@ function twBuildAutosaveRow(){
   rowData[TW_COL.patientName]      = g(TW_COL.patientName);
   rowData[TW_COL.dob]              = g(TW_COL.dob);
   rowData[TW_COL.procedure]        = g(TW_COL.procedure);
-  rowData[TW_COL.surgeonName]      = twAutosaveSurgeonName('twSurgeon', TW_COL.surgeonName);
-  rowData[TW_COL.surgeon2]         = twAutosaveSurgeonName('twSurgeon2', TW_COL.surgeon2);
+  rowData[TW_COL.surgeonName]      = twAutosaveSurgeonName(inst, 'twSurgeon', TW_COL.surgeonName);
+  rowData[TW_COL.surgeon2]         = twAutosaveSurgeonName(inst, 'twSurgeon2', TW_COL.surgeon2);
   rowData[TW_COL.sfaAssistant]     = g(TW_COL.sfaAssistant);
   rowData[TW_COL.anaesthetistName] = g(TW_COL.anaesthetistName);
   rowData[TW_COL.anaestheticType]  = g(TW_COL.anaestheticType);
@@ -7395,28 +7488,28 @@ function twBuildAutosaveRow(){
   rowData[TW_COL.dateDischarge]    = g(TW_COL.dateDischarge);
   return rowData;
 }
-async function twAutosaveNow(){
-  const pid = (twDraft.tw_pid||'').trim();
-  if(!pid){ twAutosaveState = null; return; }
-  twAutosaveState = 'saving';
-  const el0 = document.getElementById('twAutosaveStatus'); if(el0) el0.outerHTML = twAutosaveStatusHtml();
+async function twAutosaveNow(inst){
+  const pid = (inst.draft.tw_pid||'').trim();
+  if(!pid){ inst.autosaveState = null; return; }
+  inst.autosaveState = 'saving';
+  twRefreshAutosaveBadge(inst);
   try{
-    await twSerializeWrite(async () => {
+    await twSerializeWrite(inst, async () => {
       // Built inside the queued job, not before it -- so if this had to wait its turn behind
       // another write, it still reflects the latest draft rather than a stale snapshot.
-      const rowData = twBuildAutosaveRow();
-      const { rows, idx } = await twFindRowByPid(pid);
-      if(idx >= 0) await twUpdateRow(rows[idx].index, rowData);
+      const rowData = twBuildAutosaveRow(inst);
+      const { index } = await twResolveRow(inst, pid);
+      if(index >= 0) await twUpdateRow(index, rowData);
       else await twAddRow(rowData);
       // Only adopt the freshly-saved row as "current" if the draft is still for the same
       // patient -- the user may have already looked up someone else while this was in flight.
-      if((twDraft.tw_pid||'').trim() === pid){ twCurrentPid = pid; twLoadedRow = rowData; }
+      if((inst.draft.tw_pid||'').trim() === pid){ inst.currentPid = pid; inst.loadedRow = rowData; }
     });
-    twAutosaveState = 'saved';
+    inst.autosaveState = 'saved';
   }catch(e){
-    twAutosaveState = 'error';
+    inst.autosaveState = 'error';
   }
-  const el = document.getElementById('twAutosaveStatus'); if(el) el.outerHTML = twAutosaveStatusHtml();
+  twRefreshAutosaveBadge(inst);
 }
 function twAutosaveStatusHtml(){
   const map = {
@@ -7425,8 +7518,16 @@ function twAutosaveStatusHtml(){
     saved:   ['✓ All changes saved to SharePoint', 'var(--pine)'],
     error:   ['⚠ Autosave failed — check your connection (your entry is still kept on this device)', 'var(--red)']
   };
-  const m = map[twAutosaveState];
+  const m = map[twActive.autosaveState];
   return `<span id="twAutosaveStatus" style="font-size:12.5px;color:${m?m[1]:'var(--ink-soft)'};margin-left:10px">${m?m[0]:''}</span>`;
+}
+// A background room/ward instance's autosave finishing must never force an unsolicited
+// re-render of whatever the user is currently doing elsewhere in the app -- only refresh the
+// badge when the instance that just finished is the one actually on screen. Switching back to a
+// backgrounded room later re-renders it naturally and picks up the right state then.
+function twRefreshAutosaveBadge(inst){
+  if(inst !== twActive) return;
+  const el = document.getElementById('twAutosaveStatus'); if(el) el.outerHTML = twAutosaveStatusHtml();
 }
 
 /* ---------------- ward "currently in recovery" list ---------------- */
@@ -7485,74 +7586,94 @@ function twOpenFromRecoveryList(pid){
 
 function twSwitchRole(role){
   twRole = role;
+  twSyncActive();
   // A role switch -- even an accidental click on the wrong tab -- must never wipe in-progress
-  // data. If there's a live draft for a patient, re-run the lookup so the newly-selected tab
-  // shows the freshest saved state (autosave has usually already pushed the draft to the real
-  // sheet by this point) with the draft still layered on top via twFieldValue's draft-first
-  // priority -- so nothing typed is lost either way.
-  const draftPid = (twDraft.tw_pid || '').trim();
+  // data. If the newly-active instance has a live draft, re-run the lookup so it shows the
+  // freshest saved state (autosave has usually already pushed the draft to the real sheet by
+  // this point) with the draft still layered on top via twFieldValue's draft-first priority --
+  // so nothing typed is lost either way.
+  const draftPid = (twActive.draft.tw_pid || '').trim();
   if(draftPid){
     const el = document.getElementById('twPidLookup'); if(el) el.value = draftPid;
     twLookupPatient();
     return;
   }
-  twCurrentPid = null; twLoadedRow = null; twPrefillPid = '';
-  twStatus = {level:'amber', text:'No patient selected — search by ID'+(role==='theatre'?', or fill in a new record':'')};
+  twActive.currentPid = null; twActive.loadedRow = null; twActive.prefillPid = '';
+  twActive.status = {level:'amber', text:'No patient selected — search by ID'+(role==='theatre'?', or fill in a new record':'')};
+  render();
+}
+// Theatre role only -- switching which theatre's console is on screen. Ward has no rooms; it
+// stays the single shared instance regardless of which room was last active on the Theatre side.
+function twSwitchRoom(room){
+  if(twRole!=='theatre' || TW_ROOMS.indexOf(room)<0 || room===_twRoom) return;
+  _twRoom = room;
+  twSyncActive();
+  const draftPid = (twActive.draft.tw_pid || '').trim();
+  const lookupEl = document.getElementById('twPidLookup');
+  if(draftPid){
+    if(lookupEl) lookupEl.value = draftPid;
+    twLookupPatient();
+    return;
+  }
+  if(lookupEl) lookupEl.value = twActive.currentPid || '';
   render();
 }
 function twResetForm(){
   twClearDraft();
-  twCurrentPid = null; twLoadedRow = null; twPrefillPid = '';
+  twActive.currentPid = null; twActive.loadedRow = null; twActive.prefillPid = '';
   window._surgeonPick['twSurgeon'] = null; window._surgeonPick['twSurgeon2'] = null;
-  twStatus = {level:'amber', text:'No patient selected — search by ID'+(twRole==='theatre'?', or fill in a new record':'')};
+  twActive.status = {level:'amber', text:'No patient selected — search by ID'+(twRole==='theatre'?', or fill in a new record':'')};
   render();
 }
 
 async function twLookupPatient(){
+  const inst = twActive;
   const pid = twVal('twPidLookup').trim();
   if(!pid){ toast('Enter a Patient ID to search'); return; }
   // Only wipe an in-progress draft if this lookup is for a DIFFERENT patient -- re-checking
   // the same PID you're already mid-typing (e.g. "does this one already exist?") must not
   // throw away what you've just entered.
-  if(twDraft.tw_pid && twDraft.tw_pid.trim() !== pid) twClearDraft();
+  if(inst.draft.tw_pid && inst.draft.tw_pid.trim() !== pid) twClearDraft(inst);
   const el = document.getElementById('twStatusWrap');
   if(el) el.innerHTML = '<span class="badge b-low">Searching…</span>';
   try{
     const { rows, idx } = await twFindRowByPid(pid);
     if(idx < 0){
-      twCurrentPid = null; twLoadedRow = null; twPrefillPid = pid;
+      inst.currentPid = null; inst.loadedRow = null; inst.prefillPid = pid;
       window._surgeonPick['twSurgeon'] = null; window._surgeonPick['twSurgeon2'] = null;
-      twStatus = twRole==='ward'
+      inst.status = twRole==='ward'
         ? {level:'red', text:'No theatre record found for '+pid+' — ask theatre staff to save one first'}
         : {level:'amber', text:'No existing record for '+pid+' — fill in a new theatre record below'};
     } else {
       const v = rows[idx].values[0];
-      twCurrentPid = pid; twLoadedRow = v; twPrefillPid = '';
+      inst.currentPid = pid; inst.loadedRow = v; inst.prefillPid = '';
+      inst.knownRowIndex = rows[idx].index; inst.knownRowIndexPid = pid; inst.knownRowValues = v;
       const surgeonName = v[TW_COL.surgeonName]||'';
       const surgeon2Name = v[TW_COL.surgeon2]||'';
       window._surgeonPick['twSurgeon'] = (state.surgeons||[]).find(s=>s.name===surgeonName) || null;
       window._surgeonPick['twSurgeon2'] = (state.surgeons||[]).find(s=>s.name===surgeon2Name) || null;
-      twStatus = {level:'green', text:'Loaded record for '+(v[TW_COL.patientName]||pid)};
+      inst.status = {level:'green', text:'Loaded record for '+(v[TW_COL.patientName]||pid)};
     }
   }catch(err){
-    twStatus = {level:'red', text:err.message};
+    inst.status = {level:'red', text:err.message};
     toast('Lookup failed — '+err.message);
   }
   // A surviving draft for this same PID (see above) still wins over whatever the row itself
   // says for the surgeon picks, matching twFieldValue's draft-first priority for every other field.
-  if(twDraft.tw_pid===pid){
-    if('twSurgeonPick' in twDraft) window._surgeonPick['twSurgeon'] = twDraft.twSurgeonPick;
-    if('twSurgeon2Pick' in twDraft) window._surgeonPick['twSurgeon2'] = twDraft.twSurgeon2Pick;
+  if(inst.draft.tw_pid===pid){
+    if('twSurgeonPick' in inst.draft) window._surgeonPick['twSurgeon'] = inst.draft.twSurgeonPick;
+    if('twSurgeon2Pick' in inst.draft) window._surgeonPick['twSurgeon2'] = inst.draft.twSurgeon2Pick;
   }
   render();
 }
 
 async function twSubmitTheatre(){
+  const inst = twActive;
   const pid = twVal('tw_pid').trim();
   if(!pid){ toast('Patient ID is required'); return; }
-  const surgeonRes = twResolveSurgeonName('twSurgeon', twLoadedRow ? twLoadedRow[TW_COL.surgeonName] : '');
+  const surgeonRes = twResolveSurgeonName('twSurgeon', inst.loadedRow ? inst.loadedRow[TW_COL.surgeonName] : '');
   if(!surgeonRes.ok){ toast('Select a surgeon from the list, or clear the field'); return; }
-  const surgeon2Res = twResolveSurgeonName('twSurgeon2', twLoadedRow ? twLoadedRow[TW_COL.surgeon2] : '');
+  const surgeon2Res = twResolveSurgeonName('twSurgeon2', inst.loadedRow ? inst.loadedRow[TW_COL.surgeon2] : '');
   if(!surgeon2Res.ok){ toast('Select the second surgeon from the list, or clear the field'); return; }
   const btn = document.getElementById('twTheatreSaveBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
@@ -7582,43 +7703,47 @@ async function twSubmitTheatre(){
   const patientNameForStatus = twVal('tw_patientName');
   let isNew = true;
   try{
-    // Look-up-then-write goes through the shared queue (see twSerializeWrite) so this can never
-    // race with an in-flight autosave or a ward save and create a duplicate row.
-    await twSerializeWrite(async () => {
-      const { rows, idx } = await twFindRowByPid(pid);
-      if(idx >= 0){
+    // Look-up-then-write goes through this instance's own queue (see twSerializeWrite) so this
+    // can never race with an in-flight autosave or a ward save for the SAME room and create a
+    // duplicate row -- while a different theatre's save runs on its own queue, unaffected.
+    await twSerializeWrite(inst, async () => {
+      const { index, existing } = await twResolveRow(inst, pid);
+      if(index >= 0){
         // Preserve any ward columns already on this row -- the original page always sent a
         // blank ward section on a theatre-side save, which would silently wipe recovery/
         // discharge times if a theatre record was ever corrected after ward staff had already
-        // filled them in. Carrying the existing values through avoids that data loss.
-        const existing = rows[idx].values[0];
-        rowData[TW_COL.outRecovery]   = existing[TW_COL.outRecovery]   || '';
-        rowData[TW_COL.intoWard]      = existing[TW_COL.intoWard]      || '';
-        rowData[TW_COL.timeDischarge] = existing[TW_COL.timeDischarge] || '';
-        rowData[TW_COL.dateDischarge] = existing[TW_COL.dateDischarge] || '';
-        await twUpdateRow(rows[idx].index, rowData);
+        // filled them in. Carrying the existing values through avoids that data loss. Fall back
+        // to the last-confirmed snapshot if this particular read came back stale (see
+        // twResolveRow) rather than wiping these columns to blank.
+        const base = existing || inst.knownRowValues || [];
+        rowData[TW_COL.outRecovery]   = base[TW_COL.outRecovery]   || '';
+        rowData[TW_COL.intoWard]      = base[TW_COL.intoWard]      || '';
+        rowData[TW_COL.timeDischarge] = base[TW_COL.timeDischarge] || '';
+        rowData[TW_COL.dateDischarge] = base[TW_COL.dateDischarge] || '';
+        await twUpdateRow(index, rowData);
         isNew = false;
       } else {
         await twAddRow(rowData);
         isNew = true;
       }
     });
-    twCurrentPid = pid; twLoadedRow = rowData; twPrefillPid = '';
-    twClearDraft();
-    twStatus = {level:'green', text:'Theatre record '+(isNew?'created':'updated')+' for '+(patientNameForStatus||pid)};
+    inst.currentPid = pid; inst.loadedRow = rowData; inst.prefillPid = '';
+    twClearDraft(inst);
+    inst.status = {level:'green', text:'Theatre record '+(isNew?'created':'updated')+' for '+(patientNameForStatus||pid)};
     toast(isNew ? '✓ New theatre record saved' : '✓ Theatre record updated');
     twRefreshDashCounts();
     twRefreshRecoveryList();
   }catch(err){
-    twStatus = {level:'red', text:err.message};
+    inst.status = {level:'red', text:err.message};
     toast('❌ '+err.message);
   }
   render();
 }
 
 async function twSubmitWard(){
-  if(!twCurrentPid){ toast('Look up a patient first — the theatre record must already exist'); return; }
-  const pid = twCurrentPid;
+  const inst = twActive;
+  if(!inst.currentPid){ toast('Look up a patient first — the theatre record must already exist'); return; }
+  const pid = inst.currentPid;
   const btn = document.getElementById('twWardSaveBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
   // Captured at click time, same reasoning as the theatre save above -- a wait behind another
@@ -7629,13 +7754,13 @@ async function twSubmitWard(){
   const dateDischarge = twVal('tw_dateDischarge');
   let savedName = pid;
   try{
-    // Look-up-then-write goes through the shared queue (see twSerializeWrite) so this can never
-    // race with an in-flight autosave or the theatre save and create a duplicate row.
-    await twSerializeWrite(async () => {
-      const { rows, idx } = await twFindRowByPid(pid);
-      if(idx < 0) throw new Error('Patient record not found — save theatre record first');
-      const existing = rows[idx].values[0];
-      const rowData = [...existing];
+    // Look-up-then-write goes through this instance's own queue (see twSerializeWrite) so this
+    // can never race with an in-flight autosave or the theatre save and create a duplicate row.
+    await twSerializeWrite(inst, async () => {
+      const { index, existing } = await twResolveRow(inst, pid);
+      if(index < 0) throw new Error('Patient record not found — save theatre record first');
+      const base = existing || inst.knownRowValues || [];
+      const rowData = [...base];
       // Defensive: a row saved before Day Case (or Second Surgeon/SFA-Assistant) existed may
       // still be shorter than TW_TOTAL_COLS -- pad it out so this full-row write can't send too
       // few values and misalign every column after the gap.
@@ -7644,7 +7769,7 @@ async function twSubmitWard(){
       rowData[TW_COL.intoWard]      = intoWard;
       rowData[TW_COL.timeDischarge] = timeDischarge;
       rowData[TW_COL.dateDischarge] = dateDischarge;
-      await twUpdateRow(rows[idx].index, rowData);
+      await twUpdateRow(index, rowData);
       savedName = rowData[TW_COL.patientName] || pid;
     });
     // A completed ward record is done, not something to keep editing -- leaving the same
@@ -7652,15 +7777,15 @@ async function twSubmitWard(){
     // and staff had to hard-refresh just to move on to the next patient. Reset back to the
     // lookup/recovery-list state so the screen visibly changes and is immediately ready for
     // whoever's next.
-    twClearDraft();
-    twCurrentPid = null; twLoadedRow = null; twPrefillPid = '';
+    twClearDraft(inst);
+    inst.currentPid = null; inst.loadedRow = null; inst.prefillPid = '';
     const lookupEl = document.getElementById('twPidLookup'); if(lookupEl) lookupEl.value = '';
-    twStatus = {level:'green', text:'Ward record saved for '+savedName+' — look up the next patient, or pick one below'};
+    inst.status = {level:'green', text:'Ward record saved for '+savedName+' — look up the next patient, or pick one below'};
     toast('✓ Ward record saved');
     twRefreshDashCounts();
     twRefreshRecoveryList();
   }catch(err){
-    twStatus = {level:'red', text:err.message};
+    inst.status = {level:'red', text:err.message};
     toast('❌ '+err.message);
   }
   render();
@@ -7701,14 +7826,15 @@ function twDischargeTileHtml(){
 }
 
 function twTheatreFormHtml(){
-  const r = twLoadedRow;
+  const inst = twActive;
+  const r = inst.loadedRow;
   const g = twFieldValue;
-  const pidVal = g(TW_COL.pid) || (r ? '' : twPrefillPid);
+  const pidVal = g(TW_COL.pid) || (r ? '' : inst.prefillPid);
   const surgeonVal = g(TW_COL.surgeonName);
   const surgeon2Val = g(TW_COL.surgeon2);
   const chg = ' onchange="twSaveDraft()"';
   return `
-    ${(twDraft.tw_pid)?`<div class="sub" style="color:var(--amber)">Showing an unsaved draft you were working on — nothing has been lost.</div>`:''}
+    ${(inst.draft.tw_pid)?`<div class="sub" style="color:var(--amber)">Showing an unsaved draft you were working on — nothing has been lost.</div>`:''}
     <div class="gaspanel">
       <h2>Theatre record</h2>
       <div class="steprow">
@@ -7761,7 +7887,8 @@ function twTheatreFormHtml(){
 }
 
 function twWardFormHtml(){
-  const r = twLoadedRow;
+  const inst = twActive;   // twRole==='ward' whenever this renders, so twActive===twWardInstance
+  const r = inst.loadedRow;
   if(!r){
     if(twRecoveryPatients==null && !_twRecoveryFetching) twRefreshRecoveryList();
     return `<div class="gaspanel">
@@ -7775,7 +7902,7 @@ function twWardFormHtml(){
   const chg = ' onchange="twSaveDraft()"';
   const field = (label,val) => `<div><div style="font-size:12px;color:var(--ink-soft)">${label}</div><strong>${val||'—'}</strong></div>`;
   return `
-    ${(twDraft.tw_pid===String(rg(TW_COL.pid)))?`<div class="sub" style="color:var(--amber)">Showing an unsaved draft you were working on — nothing has been lost.</div>`:''}
+    ${(inst.draft.tw_pid===String(rg(TW_COL.pid)))?`<div class="sub" style="color:var(--amber)">Showing an unsaved draft you were working on — nothing has been lost.</div>`:''}
     <div class="gaspanel">
       <h2>Patient (from theatre record — read-only)</h2>
       <div style="display:flex;flex-wrap:wrap;gap:22px">
@@ -7811,12 +7938,25 @@ function theatreWardView(){
       style="padding:10px 18px;border:none;border-bottom:3px solid ${twRole===id?'var(--pine)':'transparent'};
       background:none;font-weight:${twRole===id?'700':'600'};font-size:14.5px;cursor:pointer;
       color:${twRole===id?'var(--pine)':'var(--ink-soft)'}">${label}</button>`;
+  // Mirrors procedure costing's room tabs (procView) -- a green led means that room already has
+  // a loaded or in-progress patient, amber means it's idle. Theatre only: Ward has no rooms.
+  const roomTabBtn = (room) => {
+    const on = _twRoom===room;
+    const inst = _twByRoom[room];
+    const live = !!(inst && (inst.draft.tw_pid || inst.currentPid));
+    return `<button onclick="twSwitchRoom('${room}')" style="padding:9px 16px;border:none;border-radius:10px 10px 0 0;
+      border-bottom:3px solid ${on?'var(--pine)':'transparent'};background:${on?'var(--card)':'transparent'};
+      font-weight:${on?'700':'600'};font-size:14px;color:${on?'var(--pine)':'var(--ink-soft)'};cursor:pointer;display:inline-flex;align-items:center;gap:7px">
+      <span class="led ${live?'green':'amber'}" style="margin:0"></span>${room}</button>`;
+  };
   return `<h1>Theatre &amp; Ward</h1>
     <div class="sub">Patient timings for theatre and ward staff — saved straight to the clinic's SharePoint record, exactly as before. Look up an existing Patient ID to continue a record, or start a new one below.</div>
     <div style="border-bottom:1px solid var(--line);margin-bottom:16px;display:flex;gap:4px">
       ${tabBtn('theatre','🏥 Theatre Staff')}
       ${tabBtn('ward','🛏 Ward Staff')}
     </div>
+    ${twRole==='theatre' ? `<div class="sub" style="margin-top:-8px">Each theatre keeps its own patient lookup and unsaved draft — switching rooms never touches another theatre's in-progress record.</div>
+    <div style="display:flex;gap:4px;border-bottom:1px solid var(--line);margin:10px 0 14px;flex-wrap:wrap">${TW_ROOMS.map(roomTabBtn).join('')}</div>` : ''}
     <div class="gaspanel">
       <h2>Patient identification</h2>
       <div class="steprow" style="align-items:end">
@@ -7826,7 +7966,7 @@ function theatreWardView(){
         <button class="btn" onclick="twLookupPatient()">Look up</button>
         <button class="btn" onclick="twResetForm()" title="Clear this form">↺ New / clear form</button>
       </div>
-      <div id="twStatusWrap" style="margin-top:10px"><span class="badge ${twStatusBadgeClass(twStatus.level)}">${twStatus.text}</span></div>
+      <div id="twStatusWrap" style="margin-top:10px"><span class="badge ${twStatusBadgeClass(twActive.status.level)}">${twActive.status.text}</span></div>
     </div>
     ${twRole==='theatre' ? twTheatreFormHtml() : twWardFormHtml()}`;
 }
