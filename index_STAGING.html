@@ -6878,7 +6878,12 @@ async function rotaDayPDF(date){
     const nCases = (th.cases||[]).length;
     doc.text(nCases+' case'+(nCases===1?'':'s'), x+panelW-4, panelY+7, {align:'right'});
 
-    let py = panelY + 13;
+    // Baseline for the (17pt bold) surgeon name -- needs to clear the coloured ribbon (which
+    // ends at panelY+10) by more than the font's own ascender height, or the text visually
+    // overlaps the ribbon. panelY+13 (tried in an earlier pass to save space) wasn't enough
+    // clearance and did exactly that; panelY+16 leaves a safe ~1.5mm gap. This is independent of
+    // the single-page fix (that's the day-cover table's own margin.bottom, not this offset).
+    let py = panelY + 16;
     const surg = [th.surgeon,th.surgeon2,th.surgeon3].filter(Boolean).join('  /  ') || '—';
     doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(23,37,31);
     const surgLines = doc.splitTextToSize(surg, panelW-8);
@@ -7475,16 +7480,21 @@ function twStatusBadgeClass(level){ return level==='green'?'b-ok':level==='red'?
 // unidentifiable row) -- this carries the same accepted risk as the explicit Save already has:
 // a quickly-corrected Patient ID typo can leave an orphan row behind, and the Worker has no
 // delete action, so any such row has to be removed by hand in Excel.
-// Autosave, the explicit Theatre save, and the explicit Ward save each independently look up
-// the current row for a Patient ID and then add-or-update it -- two separate network round
-// trips. Running two of these at once FOR THE SAME INSTANCE is a real race: both look up the
-// same Patient ID before either write is visible yet, both conclude "doesn't exist", and both
-// call addRow -- creating two rows for one patient. This is not hypothetical -- it happened
-// live: a slow in-flight autosave and a "Save Theatre Record" click landed close enough together
-// to both add a row. Routing every write for a given instance through that instance's own queue
-// guarantees the second call's lookup always runs strictly after the first call's write has
-// finished -- while two DIFFERENT rooms' queues run fully independently, so one theatre's save
-// never has to wait behind another theatre's.
+// IMPORTANT: autosave (twAutosaveNow) only ever UPDATES a row it has already confirmed exists
+// (see twScheduleAutosave's currentPid gate) -- it never calls addRow. Only the explicit Save
+// buttons (twSubmitTheatre/twSubmitWard) may create a brand-new row, and each does its own
+// lag-tolerant recheck first (see the 1.5s wait-and-recheck in both). This was tightened after a
+// row-index-cache alone (an earlier attempt) still wasn't enough live: caching only helps within
+// ONE browser session, so a page reload, a second tab, or a second physical device each started
+// with a blank cache and could independently decide "not found" -- one real case ended up with
+// 12-13 duplicate rows for a single patient, keeping growing every ~5s despite the cache. With
+// autosave never creating rows at all, that entire failure mode is gone regardless of how many
+// sessions/devices are involved; the only remaining (much rarer) race is two people clicking Save
+// for the exact same brand-new patient within the same ~1.5s window.
+// Every write for a given instance is still routed through that instance's own queue
+// (twSerializeWrite) so an autosave and an explicit save for the SAME room can never interleave --
+// while two DIFFERENT rooms' queues run fully independently, so one theatre's save never has to
+// wait behind another theatre's.
 function twSerializeWrite(inst, fn){
   const run = inst.writeChain.then(fn, fn);
   inst.writeChain = run.then(()=>{}, ()=>{});
@@ -7496,6 +7506,19 @@ function twScheduleAutosave(){
   // when the timer goes off.
   const inst = twActive;
   if(!(inst.draft.tw_pid||'').trim()) return;
+  if(!inst.currentPid){
+    // No confirmed row yet for this patient. The row-index cache (twResolveRow) only stops
+    // autosave from DUPLICATING an existing row -- it can't stop it from repeatedly CREATING
+    // one, and that's what was still happening live: every ~5s autosave tick for a brand-new
+    // patient independently found "not found" (SharePoint/Graph read-after-write lag, or simply
+    // a fresh page load/second device with no cache of its own yet) and added another row, up to
+    // a dozen-plus times over one case. The only robust fix is for autosave to never create a
+    // row at all -- only the explicit Save button may do that (see twSubmitTheatre). The draft
+    // is still fully protected in localStorage either way, so nothing typed is at risk.
+    inst.autosaveState = 'localonly';
+    twRefreshAutosaveBadge(inst);
+    return;
+  }
   inst.autosaveState = 'pending';
   twRefreshAutosaveBadge(inst);
   clearTimeout(inst.autosaveTimer);
@@ -7546,7 +7569,10 @@ function twBuildAutosaveRow(inst){
 }
 async function twAutosaveNow(inst){
   const pid = (inst.draft.tw_pid||'').trim();
-  if(!pid){ inst.autosaveState = null; return; }
+  // currentPid must already be set (twScheduleAutosave only starts this timer once it is) --
+  // re-checked here too in case "New / clear form" or a fresh lookup ran while this was
+  // waiting its turn, which must never let a stale timer create/update the wrong row.
+  if(!pid || !inst.currentPid){ inst.autosaveState = null; return; }
   inst.autosaveState = 'saving';
   twRefreshAutosaveBadge(inst);
   try{
@@ -7555,11 +7581,15 @@ async function twAutosaveNow(inst){
       // another write, it still reflects the latest draft rather than a stale snapshot.
       const rowData = twBuildAutosaveRow(inst);
       const { index } = await twResolveRow(inst, pid);
-      if(index >= 0) await twUpdateRow(index, rowData);
-      else await twAddRow(rowData);
-      // Only adopt the freshly-saved row as "current" if the draft is still for the same
-      // patient -- the user may have already looked up someone else while this was in flight.
-      if((inst.draft.tw_pid||'').trim() === pid){ inst.currentPid = pid; inst.loadedRow = rowData; }
+      if(index >= 0){
+        await twUpdateRow(index, rowData);
+        // Only adopt the freshly-saved row as "current" if the draft is still for the same
+        // patient -- the user may have already looked up someone else while this was in flight.
+        if((inst.draft.tw_pid||'').trim() === pid){ inst.currentPid = pid; inst.loadedRow = rowData; }
+      }
+      // else: genuinely can't resolve this row right now (extremely rare -- would mean the row
+      // vanished after having been confirmed). Autosave NEVER creates a row -- do nothing and
+      // let the next explicit Save or lookup sort it out, rather than risk a duplicate.
     });
     inst.autosaveState = 'saved';
   }catch(e){
@@ -7569,6 +7599,7 @@ async function twAutosaveNow(inst){
 }
 function twAutosaveStatusHtml(){
   const map = {
+    localonly: ['◌ Not yet saved to SharePoint — click "Save Theatre Record" to create it', 'var(--ink-soft)'],
     pending: ['● Unsaved changes — saving shortly…', 'var(--amber)'],
     saving:  ['● Saving to SharePoint…', 'var(--amber)'],
     saved:   ['✓ All changes saved to SharePoint', 'var(--pine)'],
@@ -7763,7 +7794,17 @@ async function twSubmitTheatre(){
     // can never race with an in-flight autosave or a ward save for the SAME room and create a
     // duplicate row -- while a different theatre's save runs on its own queue, unaffected.
     await twSerializeWrite(inst, async () => {
-      const { index, existing } = await twResolveRow(inst, pid);
+      let { index, existing } = await twResolveRow(inst, pid);
+      if(index < 0){
+        // About to create a brand-new row -- the one write autosave is no longer allowed to
+        // make, and therefore the one place a duplicate can still originate: another device/tab
+        // may have just created this exact row moments ago and this read simply hasn't caught up
+        // yet (SharePoint/Graph read-after-write lag). A single short wait-and-recheck turns most
+        // such races into a normal update instead of a duplicate add -- worth the brief pause
+        // since this only happens once per patient, not on every autosave tick.
+        await new Promise(res=>setTimeout(res, 1500));
+        ({ index, existing } = await twResolveRow(inst, pid));
+      }
       if(index >= 0){
         // Preserve any ward columns already on this row -- the original page always sent a
         // blank ward section on a theatre-side save, which would silently wipe recovery/
@@ -7783,9 +7824,14 @@ async function twSubmitTheatre(){
         isNew = true;
       }
     });
-    inst.currentPid = pid; inst.loadedRow = rowData; inst.prefillPid = '';
+    // Done with this save -- reset back to the lookup state (mirroring Ward's own post-save
+    // reset) instead of leaving the just-saved patient's data sitting on screen indefinitely.
+    // The record itself is safe in SharePoint either way; look the same ID up again to add more
+    // times later, exactly like re-opening any other saved record.
     twClearDraft(inst);
-    inst.status = {level:'green', text:'Theatre record '+(isNew?'created':'updated')+' for '+(patientNameForStatus||pid)};
+    inst.currentPid = null; inst.loadedRow = null; inst.prefillPid = '';
+    const lookupEl = document.getElementById('twPidLookup'); if(lookupEl) lookupEl.value = '';
+    inst.status = {level:'green', text:'Theatre record '+(isNew?'created':'updated')+' for '+(patientNameForStatus||pid)+' — look up the same ID to add more, or start the next patient below'};
     toast(isNew ? '✓ New theatre record saved' : '✓ Theatre record updated');
     twRefreshDashCounts();
     twRefreshRecoveryList();
@@ -7813,7 +7859,14 @@ async function twSubmitWard(){
     // Look-up-then-write goes through this instance's own queue (see twSerializeWrite) so this
     // can never race with an in-flight autosave or the theatre save and create a duplicate row.
     await twSerializeWrite(inst, async () => {
-      const { index, existing } = await twResolveRow(inst, pid);
+      let { index, existing } = await twResolveRow(inst, pid);
+      if(index < 0){
+        // Same lag guard as the theatre save -- a theatre record saved moments ago (e.g. by
+        // another device) may not show up in this read yet. One short recheck before genuinely
+        // giving up avoids a false "not found" error for ward staff.
+        await new Promise(res=>setTimeout(res, 1500));
+        ({ index, existing } = await twResolveRow(inst, pid));
+      }
       if(index < 0) throw new Error('Patient record not found — save theatre record first');
       const base = existing || inst.knownRowValues || [];
       const rowData = [...base];
