@@ -7298,10 +7298,31 @@ const TW_DRAFT_FIELDS = ['tw_date','tw_theatreNumber','tw_sfaAssistant','tw_pid'
 const TW_COL_TO_ID = {}; Object.keys(TW_COL).forEach(k => {
   TW_COL_TO_ID[TW_COL[k]] = (k==='surgeonName' ? 'twSurgeon' : k==='surgeon2' ? 'twSurgeon2' : 'tw_'+k);
 });
+const TW_ID_TO_COL = {}; Object.keys(TW_COL_TO_ID).forEach(c => { TW_ID_TO_COL[TW_COL_TO_ID[c]] = +c; });
 function twDraftKeyFor(role, room){ return role==='ward' ? 'bollin_tw_draft_ward' : 'bollin_tw_draft_room_'+room; }
+// Which patient a draft belongs to. _pid is recorded on every draft saved since 2026-09-24 (the
+// ward form has no Patient ID input, so tw_pid alone can't say); older drafts fall back to tw_pid.
+function twDraftOwner(d){ return String((d && (d._pid!=null ? d._pid : d.tw_pid)) || '').trim(); }
+// Drafts saved before 2026-09-24 captured EVERY field, empty ones included -- and because a draft
+// value outranks the saved record, a leftover draft full of blanks made a correctly-loaded record
+// show as empty (confirmed live: "Loaded record for Grace Bannister", every field blank, on the
+// clinic computer only). Drop those empty entries from any old-format draft still sitting in a
+// browser; the patient number itself is kept as-is.
+function twNormalizeDraft(d){
+  if(!d || typeof d!=='object') return {};
+  if(d._v===2) return d;
+  const out = { _v: 2 };
+  Object.keys(d).forEach(k=>{
+    if(k==='twSurgeonPick' || k==='twSurgeon2Pick') return;
+    if(k==='tw_pid' || (d[k]!=null && d[k]!=='')) out[k] = d[k];
+  });
+  ['twSurgeon','twSurgeon2'].forEach(k=>{ if(k in out && (k+'Pick') in d) out[k+'Pick'] = d[k+'Pick']; });
+  out._pid = String(out.tw_pid||'').trim();
+  return out;
+}
 function twLoadInstanceDraft(inst, key){
   inst.draftKey = key;
-  try{ inst.draft = JSON.parse(localStorage.getItem(key)||'{}') || {}; }catch(e){ inst.draft = {}; }
+  try{ inst.draft = twNormalizeDraft(JSON.parse(localStorage.getItem(key)||'{}')); }catch(e){ inst.draft = {}; }
 }
 twLoadInstanceDraft(twWardInstance, twDraftKeyFor('ward'));
 TW_ROOMS.forEach(room=>{
@@ -7320,22 +7341,50 @@ TW_ROOMS.forEach(room=>{
     const room = TW_ROOMS.includes(legacy.tw_theatreNumber) ? legacy.tw_theatreNumber : TW_ROOMS[0];
     const inst = _twByRoom[room];
     if(!inst.draft || !inst.draft.tw_pid){   // don't clobber a draft this room already has of its own
-      inst.draft = legacy;
-      try{ localStorage.setItem(inst.draftKey, JSON.stringify(legacy)); }catch(e){}
+      inst.draft = twNormalizeDraft(legacy);
+      try{ localStorage.setItem(inst.draftKey, JSON.stringify(inst.draft)); }catch(e){}
     }
   }
   try{ localStorage.removeItem('bollin_tw_draft'); }catch(e){}
 })();
+// Reopen on the role/room this device was last using -- a reload used to always land on
+// Theatre 1, so a Theatre 2 draft looked "lost" after a refresh even though it was still saved
+// on the device, just under the Theatre 2 tab.
+(function twRestoreView(){
+  try{
+    const v = JSON.parse(localStorage.getItem('bollin_tw_view')||'null');
+    if(v && (v.role==='theatre' || v.role==='ward')) twRole = v.role;
+    if(v && TW_ROOMS.includes(v.room)) _twRoom = v.room;
+  }catch(e){}
+})();
+function twRememberView(){ try{ localStorage.setItem('bollin_tw_view', JSON.stringify({role:twRole, room:_twRoom})); }catch(e){} }
 twSyncActive();
+// What a field shows when there's no unsaved edit to it: the loaded record, or (for a patient
+// with no record yet) a blank form carrying the searched ID.
+function twDraftBase(inst, id){
+  const col = TW_ID_TO_COL[id];
+  if(inst.loadedRow) return twCellDisplay(col, inst.loadedRow[col]);
+  return col===TW_COL.pid ? (inst.prefillPid||'') : '';
+}
+// Only fields that actually differ from what's already showing are kept -- a draft is "the
+// user's own unsaved edits", never a snapshot of the whole form. Capturing untouched blank fields
+// is what let a leftover draft blank out a correctly-loaded record (see twNormalizeDraft).
 function twSaveDraft(){
-  const d = {};
-  TW_DRAFT_FIELDS.forEach(id=>{ const el=document.getElementById(id); if(el) d[id]=el.value; });
+  const inst = twActive;
+  const d = { _v: 2 };
+  TW_DRAFT_FIELDS.forEach(id=>{
+    const el = document.getElementById(id); if(!el) return;
+    if(id==='tw_pid' || el.value !== twDraftBase(inst, id)) d[id] = el.value;
+  });
   ['twSurgeon','twSurgeon2'].forEach(id=>{
     const el = document.getElementById(id);
-    if(el){ d[id] = el.value; const p = window._surgeonPick[id]; d[id+'Pick'] = p ? {id:p.id, name:p.name} : null; }
+    if(el && el.value !== twDraftBase(inst, id)){
+      d[id] = el.value; const p = window._surgeonPick[id]; d[id+'Pick'] = p ? {id:p.id, name:p.name} : null;
+    }
   });
-  twActive.draft = d;
-  try{ localStorage.setItem(twActive.draftKey, JSON.stringify(d)); }catch(e){}
+  d._pid = String(('tw_pid' in d ? d.tw_pid : inst.currentPid) || '').trim();
+  inst.draft = d;
+  try{ localStorage.setItem(inst.draftKey, JSON.stringify(d)); }catch(e){}
   twScheduleAutosave();
 }
 function twClearDraft(inst){
@@ -7674,12 +7723,13 @@ function twOpenFromRecoveryList(pid){
 function twSwitchRole(role){
   twRole = role;
   twSyncActive();
+  twRememberView();
   // A role switch -- even an accidental click on the wrong tab -- must never wipe in-progress
   // data. If the newly-active instance has a live draft, re-run the lookup so it shows the
   // freshest saved state (autosave has usually already pushed the draft to the real sheet by
   // this point) with the draft still layered on top via twFieldValue's draft-first priority --
   // so nothing typed is lost either way.
-  const draftPid = (twActive.draft.tw_pid || '').trim();
+  const draftPid = twDraftOwner(twActive.draft);
   if(draftPid){
     const el = document.getElementById('twPidLookup'); if(el) el.value = draftPid;
     twLookupPatient();
@@ -7695,7 +7745,8 @@ function twSwitchRoom(room){
   if(twRole!=='theatre' || TW_ROOMS.indexOf(room)<0 || room===_twRoom) return;
   _twRoom = room;
   twSyncActive();
-  const draftPid = (twActive.draft.tw_pid || '').trim();
+  twRememberView();
+  const draftPid = twDraftOwner(twActive.draft);
   const lookupEl = document.getElementById('twPidLookup');
   if(draftPid){
     if(lookupEl) lookupEl.value = draftPid;
@@ -7720,7 +7771,8 @@ async function twLookupPatient(){
   // Only wipe an in-progress draft if this lookup is for a DIFFERENT patient -- re-checking
   // the same PID you're already mid-typing (e.g. "does this one already exist?") must not
   // throw away what you've just entered.
-  if(inst.draft.tw_pid && inst.draft.tw_pid.trim() !== pid) twClearDraft(inst);
+  const owner = twDraftOwner(inst.draft);
+  if(owner && owner !== pid) twClearDraft(inst);
   const el = document.getElementById('twStatusWrap');
   if(el) el.innerHTML = '<span class="badge b-low">Searching…</span>';
   try{
@@ -7733,6 +7785,10 @@ async function twLookupPatient(){
         : {level:'amber', text:'No existing record for '+pid+' — fill in a new theatre record below'};
     } else {
       const v = rows[idx].values[0];
+      // A draft may only sit on top of a real saved record when it's that same patient's own
+      // unsaved edit. A leftover draft with no patient number (e.g. "Today" clicked on an empty
+      // form earlier) must never be layered over a record that actually loaded.
+      if(twDraftOwner(inst.draft) !== pid) twClearDraft(inst);
       inst.currentPid = pid; inst.loadedRow = v; inst.prefillPid = '';
       inst.knownRowIndex = rows[idx].index; inst.knownRowIndexPid = pid; inst.knownRowValues = v;
       const surgeonName = v[TW_COL.surgeonName]||'';
@@ -7747,7 +7803,7 @@ async function twLookupPatient(){
   }
   // A surviving draft for this same PID (see above) still wins over whatever the row itself
   // says for the surgeon picks, matching twFieldValue's draft-first priority for every other field.
-  if(inst.draft.tw_pid===pid){
+  if(twDraftOwner(inst.draft)===pid){
     if('twSurgeonPick' in inst.draft) window._surgeonPick['twSurgeon'] = inst.draft.twSurgeonPick;
     if('twSurgeon2Pick' in inst.draft) window._surgeonPick['twSurgeon2'] = inst.draft.twSurgeon2Pick;
   }
@@ -8042,7 +8098,19 @@ function twWardFormHtml(){
     </div>`;
 }
 
+// First time this page load shows Theatre & Ward: if the restored room has an unsaved draft,
+// look its patient up once, same as switching to that room would -- so after a reload the form
+// is re-linked to its saved record (and autosave resumes) instead of sitting there unlinked.
+let _twRestoreLookupDone = false;
 function theatreWardView(){
+  if(!_twRestoreLookupDone){
+    _twRestoreLookupDone = true;
+    const dp = twDraftOwner(twActive.draft);
+    if(dp && !twActive.currentPid) setTimeout(()=>{
+      const el = document.getElementById('twPidLookup');
+      if(el && !el.value){ el.value = dp; twLookupPatient(); }
+    }, 0);
+  }
   const tabBtn = (id,label) => `<button onclick="twSwitchRole('${id}')"
       style="padding:10px 18px;border:none;border-bottom:3px solid ${twRole===id?'var(--pine)':'transparent'};
       background:none;font-weight:${twRole===id?'700':'600'};font-size:14.5px;cursor:pointer;
