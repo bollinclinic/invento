@@ -6295,6 +6295,11 @@ function rotaDraft(date){
   if(fresh){ rotaSyncCaseSurgeons(d, 1); rotaSyncCaseSurgeons(d, 2); }   // older saved days catch up on first edit
   return d;
 }
+// The rota holds no PAT numbers (removed on request): case = {surgeon, procedure, stay}. Any
+// 'pat' from an older day is dropped when loaded and when saved (the database strips it too).
+function rotaCasesNoPat(cases){
+  return (Array.isArray(cases)?cases:[]).map(c=>{ if(!c || typeof c!=='object') return c; const o={...c}; delete o.pat; return o; });
+}
 // The surgeons on a theatre's list (Surgeon, 2nd, 3rd), in order, no blanks or repeats.
 function rotaListSurgeons(th){
   return [...new Set([th&&th.surgeon, th&&th.surgeon2, th&&th.surgeon3].map(s=>String(s||'').trim()).filter(Boolean))];
@@ -6316,7 +6321,7 @@ function rotaSet(date, path, val){
   else if(p.length===2) d[p[0]][p[1]] = val;
   else if(p.length===4 && p[1]==='cases'){ // t1.cases.0.surgeon
     const arr = d[p[0]].cases; const ix=+p[2];
-    while(arr.length<=ix) arr.push({surgeon:'',procedure:'',pat:'',stay:'Day case'});
+    while(arr.length<=ix) arr.push({surgeon:'',procedure:'',stay:'Day case'});
     arr[ix][p[3]] = val;
   }
   // a change to a list's surgeons re-applies the one-surgeon auto-fill to its cases
@@ -6326,7 +6331,7 @@ function rotaSet(date, path, val){
 function rotaSetCaseCount(date, t, n){
   const d = rotaDraft(date); const arr = d['t'+t].cases;
   n = Math.max(0, Math.min(20, n|0));
-  while(arr.length<n) arr.push({surgeon:'',procedure:'',pat:'',stay:'Day case'});
+  while(arr.length<n) arr.push({surgeon:'',procedure:'',stay:'Day case'});
   arr.length = n;
   rotaSyncCaseSurgeons(d, t);   // new cases on a one-surgeon list get that surgeon straight away
   render();
@@ -6391,7 +6396,7 @@ async function rotaSaveDay(date){
   Object.keys(D).forEach(k=>f[D[k]] = d[k]||'');
   [1,2].forEach(t=>{ const th=d['t'+t]||{};
     f['T'+t+'_Type']=th.type||''; f['T'+t+'_Detail']=th.detail||''; f['T'+t+'_Colour']=th.colour||'';
-    f['T'+t+'_CasesJSON']=JSON.stringify(th.cases||[]);
+    f['T'+t+'_CasesJSON']=JSON.stringify(rotaCasesNoPat(th.cases));
     f['T'+t+'_Surgeon']=th.surgeon||''; f['T'+t+'_Surgeon2']=th.surgeon2||''; f['T'+t+'_Surgeon3']=th.surgeon3||'';
     f['T'+t+'_Anaesthetist']=th.anaes||''; f['T'+t+'_SFA']=th.sfa||'';
     f['T'+t+'_Scrub1']=th.scrub1||''; f['T'+t+'_Scrub2']=th.scrub2||'';
@@ -7365,7 +7370,6 @@ function rotaCaseBlock(date, t, th, locked){
       <div class="rgrid">
         <div class="rslot"><label>Surgeon</label>${rotaCaseSurgeonField(date, t, ci, c, list, locked)}</div>
         <div class="rslot"><label>Procedure</label><input value="${String(c.procedure||'').replace(/"/g,'&quot;')}" ${dis} onchange="rotaSet('${date}','t${t}.cases.${ci}.procedure',this.value)"></div>
-        <div class="rslot"><label>PAT number</label><input value="${String(c.pat||'').replace(/"/g,'&quot;')}" ${dis} onchange="rotaSet('${date}','t${t}.cases.${ci}.pat',this.value)"></div>
         <div class="rslot"><label>Stay</label><select ${dis} onchange="rotaSet('${date}','t${t}.cases.${ci}.stay',this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
           <option ${c.stay!=='Overnight'?'selected':''}>Day case</option><option ${c.stay==='Overnight'?'selected':''}>Overnight</option></select></div>
       </div>
@@ -7641,7 +7645,7 @@ function rotaTheatreTableRows(day){
     const surg=['surgeon','surgeon2','surgeon3'].filter(k=>th[k]).map(k=>{
       const et = k==='surgeon' ? '' : rotaSlotOwnTime(day, 't'+t+'.'+k); return th[k]+(et?' (from '+et+')':''); }).join(' / ');
     const team=['scrub1','scrub2','scrub3'].map(nt).filter(Boolean).join(', ');
-    const cases=(th.cases||[]).map((c,i)=>`${i+1}. ${c.surgeon||'?'} — ${c.procedure||''}${c.pat?' ('+c.pat+')':''} [${c.stay||'Day case'}]`).join('\n');
+    const cases=(th.cases||[]).map((c,i)=>`${i+1}. ${c.surgeon||'?'} — ${c.procedure||''} [${c.stay||'Day case'}]`).join('\n');
     rows.push(['T'+t+' '+(th.type||'GA')+(smsTimeOk(th.startTime)?'\nStarts '+th.startTime:''), surg, th.anaes||'', nt('sfa'), team||'', nt('odp'),
       nt('hca'), nt('recovery'), cases, th.detail||'']);
   }
@@ -7799,12 +7803,12 @@ async function rotaDayPDF(date){
     py = doc.lastAutoTable.finalY + 2;
 
     if(nCases){
-      const caseRows = (th.cases||[]).map((c,i)=>[i+1, c.surgeon||'—', c.procedure||'—', c.pat||'—', c.stay||'Day case']);
+      const caseRows = (th.cases||[]).map((c,i)=>[i+1, c.surgeon||'—', c.procedure||'—', c.stay||'Day case']);
       doc.autoTable({ startY:py, margin:{left:x+4, right: W-(x+panelW-4), bottom:4}, tableWidth: panelW-8,
-        head:[['#','Surgeon','Procedure','PAT','Stay']], body: caseRows, theme:'grid',
+        head:[['#','Surgeon','Procedure','Stay']], body: caseRows, theme:'grid',
         styles:{font:'helvetica', fontSize:9, cellPadding:1.3, lineColor:[210,210,210], lineWidth:0.2, textColor:[23,37,31], overflow:'linebreak'},
         headStyles:{fillColor:[240,240,240], textColor:[80,80,80], fontStyle:'bold', fontSize:8.5},
-        columnStyles:{0:{cellWidth:8}, 1:{cellWidth:36}, 3:{cellWidth:20}, 4:{cellWidth:22}} });
+        columnStyles:{0:{cellWidth:8}, 1:{cellWidth:36}, 3:{cellWidth:22}} });
     }
     contentBottom = Math.max(contentBottom, doc.lastAutoTable ? doc.lastAutoTable.finalY : py);
   }
@@ -9940,7 +9944,7 @@ async function loadAll(){
       try{ day.acks = JSON.parse(r.AcksJSON||'{}')||{}; }catch(e){}
       try{ day.stars = JSON.parse(r.StarsJSON||'{}')||{}; }catch(e){}
       try{ day.times = JSON.parse(r.TimesJSON||'{}')||{}; }catch(e){}
-      [1,2].forEach(t=>{ let cases=[]; try{ cases=JSON.parse(r['T'+t+'_CasesJSON']||'[]')||[]; }catch(e){}
+      [1,2].forEach(t=>{ let cases=[]; try{ cases=rotaCasesNoPat(JSON.parse(r['T'+t+'_CasesJSON']||'[]')||[]); }catch(e){}
         day['t'+t]={ type:S(r['T'+t+'_Type'])||'GA', detail:S(r['T'+t+'_Detail']), colour:S(r['T'+t+'_Colour']), cases:cases,
         surgeon:S(r['T'+t+'_Surgeon']), surgeon2:S(r['T'+t+'_Surgeon2']), surgeon3:S(r['T'+t+'_Surgeon3']),
         anaes:S(r['T'+t+'_Anaesthetist']), sfa:S(r['T'+t+'_SFA']),

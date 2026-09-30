@@ -217,7 +217,9 @@ report is the **canonical PDF style** (§8).
   custom range.
 - **Theatres:** 0–2 per day. Per theatre: GA/LA type, colour, **"List starts" time**, detail
   line, up to 3 surgeons, anaesthetist/SFA/scrub 1–3/ODP, **per-theatre HCA and recovery
-  nurse/ODP**, and a case list.
+  nurse/ODP**, and a case list (surgeon / procedure / stay -- **no PAT numbers**: removed on request
+  2026-09-30; migration `20260930220000_rota_remove_pat.sql` deleted stored ones and a trigger on
+  `rota_theatres` strips any `pat` key, and the page drops it on load and save).
 - **Case surgeons follow the list** (`rotaSyncCaseSurgeons`, `rotaCaseSurgeonField`):
   - With one surgeon on the list, every case that is empty or names someone off the list gets
     that surgeon automatically (new cases, a swapped surgeon, and older days on first edit).
@@ -349,7 +351,8 @@ gate, add it on **both** sides (§9 #6).
 
 `profiles`, `items` (all trackers; `tracker` enum incl. `services`), `barcode_link_events`,
 `dispatch_log`, `procedures` (`cart` jsonb, `room`, `surgeon_id`), `procedure_lines` (cost +
-bill snapshots), `surgeons`, `rota_days`, `rota_theatres` (`cases` jsonb), 
+bill snapshots), `surgeons`, `rota_days`, `rota_theatres` (`cases` jsonb of {surgeon, procedure,
+stay}; no PAT), 
 `sample_collections`, `specimens`, `implants`, `stock_requests`, `activity_log`, `alerts`,
 `assets`, `gas_checks`, `stores`, `settings`, `stocktakes`.
 
