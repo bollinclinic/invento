@@ -6287,11 +6287,27 @@ function blankRotaDay(date){
 function rotaSaved(date){ return (state.rota||[]).find(r=>r.date===date); }
 function rotaDayObj(date){ return _rotaDrafts[date] || rotaSaved(date) || blankRotaDay(date); }
 function rotaDraft(date){
-  if(!_rotaDrafts[date]) _rotaDrafts[date] = JSON.parse(JSON.stringify(rotaDayObj(date)));
+  const fresh = !_rotaDrafts[date];
+  if(fresh) _rotaDrafts[date] = JSON.parse(JSON.stringify(rotaDayObj(date)));
   const d = _rotaDrafts[date];
   d.acks = d.acks||{}; d.stars = d.stars||{}; d.times = d.times||{};
   [1,2].forEach(t=>{ if(!d['t'+t]) d['t'+t]=blankTheatre(); if(!Array.isArray(d['t'+t].cases)) d['t'+t].cases=[]; });
+  if(fresh){ rotaSyncCaseSurgeons(d, 1); rotaSyncCaseSurgeons(d, 2); }   // older saved days catch up on first edit
   return d;
+}
+// The surgeons on a theatre's list (Surgeon, 2nd, 3rd), in order, no blanks or repeats.
+function rotaListSurgeons(th){
+  return [...new Set([th&&th.surgeon, th&&th.surgeon2, th&&th.surgeon3].map(s=>String(s||'').trim()).filter(Boolean))];
+}
+// Case surgeons follow the list: with exactly ONE surgeon on the list, every case that's empty
+// or names someone no longer on the list gets that surgeon. With 2+ surgeons nothing is filled
+// in automatically -- each case is chosen from a dropdown of the list's surgeons. Cases naming
+// someone not on the list are never silently cleared (they show as "not on this list").
+function rotaSyncCaseSurgeons(d, t){
+  const th = d && d['t'+t]; if(!th || !Array.isArray(th.cases)) return;
+  const list = rotaListSurgeons(th);
+  if(list.length!==1) return;
+  th.cases.forEach(c=>{ const cur = String(c.surgeon||'').trim(); if(!cur || !list.includes(cur)) c.surgeon = list[0]; });
 }
 function rotaSet(date, path, val){
   const d = rotaDraft(date);
@@ -6303,6 +6319,8 @@ function rotaSet(date, path, val){
     while(arr.length<=ix) arr.push({surgeon:'',procedure:'',pat:'',stay:'Day case'});
     arr[ix][p[3]] = val;
   }
+  // a change to a list's surgeons re-applies the one-surgeon auto-fill to its cases
+  if(p.length===2 && /^t[12]$/.test(p[0]) && /^surgeon[23]?$/.test(p[1])) rotaSyncCaseSurgeons(d, +p[0].slice(1));
   render();
 }
 function rotaSetCaseCount(date, t, n){
@@ -6310,6 +6328,7 @@ function rotaSetCaseCount(date, t, n){
   n = Math.max(0, Math.min(20, n|0));
   while(arr.length<n) arr.push({surgeon:'',procedure:'',pat:'',stay:'Day case'});
   arr.length = n;
+  rotaSyncCaseSurgeons(d, t);   // new cases on a one-surgeon list get that surgeon straight away
   render();
 }
 // star (provisional) toggle per slot key
@@ -6502,12 +6521,22 @@ function rotaSurgeonSlot(date, day, key, label, req, locked){
   window._surgeonPick = window._surgeonPick||{};
   window._surgeonPick[inputId] = (state.surgeons||[]).find(s=>s.name===val) || null;
   const dis = locked ? 'disabled' : '';
+  // 2nd / 3rd surgeon sharing a list: an expected start (the 1st surgeon starts at the list
+  // start), kept in day.times like own start times -- shown to theatre staff and on the PDFs.
+  const later = /\.surgeon[23]$/.test(key) && !empty;
+  const exp = later ? rotaSlotOwnTime(day, key) : '';
+  const listStart = rotaSlotBaseTime(day, key);
   return `<div class="rslot">
     <label>${label}${req?'':' <span style="font-weight:400">(optional)</span>'}</label>
     ${surgeonInputHTML(inputId, val, 'Type 3+ letters…', "rotaSurgeonCommit('"+date+"','"+key+"','"+inputId+"')", cls, locked)}
     <button class="rstar ${starred?'on':''}" ${dis} title="${starred?'Provisional — click to confirm':'Mark provisional (booked, not confirmed)'}"
       onclick="rotaStar('${date}','${key}')">${starred?'★':'☆'}</button>
     ${empty&&req&&!ack?`<button class="rsil" ${dis} title="Silence this gap with a cover note" onclick="rotaAck('${date}','${key}')">🔕</button>`:''}
+    ${later?`<button class="rsil" id="rclk_${date.replace(/-/g,'')}_${key.replace(/\./g,'_')}" ${dis} style="${exp?'color:var(--pine)':'opacity:.55'}"
+      title="${exp?'Expected from '+exp+' — click to change':'When is this surgeon expected?'+(listStart?' (list starts '+listStart+')':'')}"
+      onclick="rotaSetOwnTime('${date}','${key}')">🕐</button>`:''}
+    ${exp?`<div style="font-size:11px;margin-top:2px;color:var(--pine);font-weight:600">🕐 Expected from ${exp}
+      ${locked?'':`<span onclick="rotaClearOwnTime('${date}','${key}')" title="Clear the expected time" style="cursor:pointer;color:var(--red);font-weight:700;margin-left:4px">✕</span>`}</div>`:''}
     ${empty&&ack?`<div class="racknote">🔕 ${String(ack).replace(/</g,'&lt;')} <span ${locked?'':`onclick="rotaUnack('${date}','${key}')"`} style="cursor:${locked?'default':'pointer'};color:var(--red);font-weight:700">✕</span></div>`:''}
   </div>`;
 }
@@ -6521,6 +6550,10 @@ function rotaSurgeonCommit(date, key, inputId){
   const text = (el?el.value:'').trim();
   const pick = window._surgeonPick[inputId];
   const name = (pick && pick.name===text) ? pick.name : text;
+  // an expected start belongs to the surgeon, not the box: a different surgeon starts clean
+  const p = key.split('.'); const d0 = rotaDayObj(date);
+  const cur = p.length===2 ? String((d0[p[0]]||{})[p[1]]||'') : '';
+  if(p.length===2 && name!==cur){ const dr = rotaDraft(date); if(dr.times) delete dr.times[key]; }
   rotaSet(date, key, name);
 }
 
@@ -6679,11 +6712,13 @@ function rotaSetOwnTime(date, key){
   const day = rotaDayObj(date);
   const p = key.split('.');
   const who = p.length===2 ? String((day[p[0]]||{})[p[1]]||'') : String(day[key]||'');
-  const role = p.length===2 ? ((ROTA_T_ROLES.find(([k])=>k===p[1])||[p[1],p[1]])[1]+' · Theatre '+p[0].slice(1))
+  const SURG = {surgeon:'Surgeon', surgeon2:'2nd surgeon', surgeon3:'3rd surgeon'};
+  const surgeon = p.length===2 && !!SURG[p[1]];
+  const role = p.length===2 ? ((surgeon ? SURG[p[1]] : (ROTA_T_ROLES.find(([k])=>k===p[1])||[p[1],p[1]])[1])+' · Theatre '+p[0].slice(1))
                             : (ROTA_D_ROLES.find(([k])=>k===key)||[key,key])[1];
   const base = rotaSlotBaseTime(day, key);
   const baseFrom = p.length===2 ? 'list starts' : (ROTA_NIGHT_KEYS.includes(key) && rotaNightTeamTime(day) ? 'night team' : 'usual time');
-  timePickerOpen({date, key, who, role, base, baseFrom, cur: rotaSlotOwnTime(day, key), night: ROTA_NIGHT_KEYS.includes(key)});
+  timePickerOpen({date, key, who, role, base, baseFrom, cur: rotaSlotOwnTime(day, key), night: ROTA_NIGHT_KEYS.includes(key), surgeon});
 }
 function rotaSetNightTeamTime(date){
   const day = rotaDayObj(date), defs = smsDefaultTimes();
@@ -6693,7 +6728,8 @@ function rotaSetNightTeamTime(date){
 }
 function timePickerOpen(o){
   _tp = o;
-  $('#timeDlgTitle').textContent = o.key==='nightTeam' ? '🌙 Night team start time' : '🕐 Start time — '+(o.who||'this person');
+  $('#timeDlgTitle').textContent = o.key==='nightTeam' ? '🌙 Night team start time'
+    : (o.surgeon ? '🕐 Expected start — ' : '🕐 Start time — ')+(o.who||'this person');
   timePickerPaint();
   if(!timeDlg.open) timeDlg.showModal();
 }
@@ -6732,7 +6768,8 @@ function timePickerChoose(v){
   timeDlg.close(); _tp = null;
   render();
   toast(o.key==='nightTeam' ? `Night team starts ${t} — remember to Save the day`
-    : (t===o.base ? 'Normal start time — remember to Save the day' : `${o.who||'Own'} starts ${t} — remember to Save the day`));
+    : (t===o.base ? 'Normal start time — remember to Save the day'
+       : `${o.who||'Own'} ${o.surgeon?'expected from':'starts'} ${t} — remember to Save the day`));
 }
 function timePickerClear(){
   if(!_tp) return;
@@ -7274,18 +7311,33 @@ async function smsSendTest(){
   }catch(err){ toast('Not sent — '+err.message); }
 }
 
-function rotaCaseBlock(date, t, th, locked){
-  const dis = locked ? 'disabled' : '';
-  const rows = (th.cases||[]).map((c,ci)=>{
-    const caseKey = 't'+t+'.cases.'+ci+'.surgeon';
-    const caseInputId = 'rsg_'+date.replace(/-/g,'')+'_t'+t+'_case'+ci;
+// A case's surgeon: when the list has surgeons, a dropdown of just those (one surgeon is filled
+// in automatically, see rotaSyncCaseSurgeons); with none yet, the normal surgeon search.
+function rotaCaseSurgeonField(date, t, ci, c, list, locked){
+  const caseKey = 't'+t+'.cases.'+ci+'.surgeon';
+  const caseInputId = 'rsg_'+date.replace(/-/g,'')+'_t'+t+'_case'+ci;
+  if(!list.length){
     window._surgeonPick = window._surgeonPick||{};
     window._surgeonPick[caseInputId] = (state.surgeons||[]).find(s=>s.name===(c.surgeon||'')) || null;
+    return surgeonInputHTML(caseInputId, c.surgeon||'', 'Type 3+ letters…', "rotaSurgeonCommit('"+date+"','"+caseKey+"','"+caseInputId+"')", '', locked);
+  }
+  const cur = String(c.surgeon||'').trim();
+  const opts = [];
+  if(!cur) opts.push(`<option value="" selected>${list.length>1?'Choose surgeon…':'—'}</option>`);
+  else if(!list.includes(cur)) opts.push(`<option value="${smsEsc(cur)}" selected>${smsEsc(cur)} (not on this list)</option>`);
+  list.forEach(s=>opts.push(`<option value="${smsEsc(s)}" ${s===cur?'selected':''}>${smsEsc(s)}</option>`));
+  return `<select id="${caseInputId}" ${locked?'disabled':''} onchange="rotaSet('${date}','${caseKey}',this.value)"
+    style="width:100%;padding:9px 10px;border:1px solid ${cur&&!list.includes(cur)?'var(--red)':'var(--line)'};border-radius:8px;background:var(--card)">${opts.join('')}</select>`;
+}
+function rotaCaseBlock(date, t, th, locked){
+  const dis = locked ? 'disabled' : '';
+  const list = rotaListSurgeons(th);
+  const rows = (th.cases||[]).map((c,ci)=>{
     return `
     <div style="border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:6px;background:var(--mist)">
       <div style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:5px">Case ${ci+1}</div>
       <div class="rgrid">
-        <div class="rslot"><label>Surgeon</label>${surgeonInputHTML(caseInputId, c.surgeon||'', 'Type 3+ letters…', "rotaSurgeonCommit('"+date+"','"+caseKey+"','"+caseInputId+"')", '', locked)}</div>
+        <div class="rslot"><label>Surgeon</label>${rotaCaseSurgeonField(date, t, ci, c, list, locked)}</div>
         <div class="rslot"><label>Procedure</label><input value="${String(c.procedure||'').replace(/"/g,'&quot;')}" ${dis} onchange="rotaSet('${date}','t${t}.cases.${ci}.procedure',this.value)"></div>
         <div class="rslot"><label>PAT number</label><input value="${String(c.pat||'').replace(/"/g,'&quot;')}" ${dis} onchange="rotaSet('${date}','t${t}.cases.${ci}.pat',this.value)"></div>
         <div class="rslot"><label>Stay</label><select ${dis} onchange="rotaSet('${date}','t${t}.cases.${ci}.stay',this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
@@ -7559,7 +7611,9 @@ function rotaTheatreTableRows(day){
     // Start times: the theatre's "List starts" goes with the theatre; anyone with their own
     // time gets it next to their name, e.g. "Bob Baker (10:00)".
     const nt = k=>rotaNameWithTime(day, 't'+t+'.'+k, th[k]||'');
-    const surg=[th.surgeon,th.surgeon2,th.surgeon3].filter(Boolean).join(' / ');
+    // later surgeons with an expected start: "Mubashir Cheema (from 10:30)"
+    const surg=['surgeon','surgeon2','surgeon3'].filter(k=>th[k]).map(k=>{
+      const et = k==='surgeon' ? '' : rotaSlotOwnTime(day, 't'+t+'.'+k); return th[k]+(et?' (from '+et+')':''); }).join(' / ');
     const team=['scrub1','scrub2','scrub3'].map(nt).filter(Boolean).join(', ');
     const cases=(th.cases||[]).map((c,i)=>`${i+1}. ${c.surgeon||'?'} — ${c.procedure||''}${c.pat?' ('+c.pat+')':''} [${c.stay||'Day case'}]`).join('\n');
     rows.push(['T'+t+' '+(th.type||'GA')+(smsTimeOk(th.startTime)?'\nStarts '+th.startTime:''), surg, th.anaes||'', nt('sfa'), team||'', nt('odp'),
@@ -7700,10 +7754,15 @@ async function rotaDayPDF(date){
     doc.text(casesTxt, x+panelW-4, panelY+7, {align:'right'});
 
     // The team list now starts right under the ribbon (ribbon ends at panelY+10).
-    let py = panelY + 12;
+    let py = panelY + 12, yb = panelY + 14.5;
     if(th.detail){ doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(90,90,90);
       const dl = doc.splitTextToSize(th.detail, panelW-8);
-      doc.text(dl, x+4, panelY+14.5); py = panelY + 14.5 + (Array.isArray(dl)?dl.length:1)*4; }
+      doc.text(dl, x+4, yb); yb += (Array.isArray(dl)?dl.length:1)*4; py = yb; }
+    // 2nd / 3rd surgeon expected times, so the team knows when to expect them
+    const expected = ['surgeon2','surgeon3'].map(k=>({n:th[k], t:rotaSlotOwnTime(day,'t'+t+'.'+k)})).filter(o=>o.n && o.t);
+    if(expected.length){ doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(43,97,104);
+      const et = doc.splitTextToSize('Expected: '+expected.map(o=>o.n+' from '+o.t).join('   ·   '), panelW-8);
+      doc.text(et, x+4, yb); yb += (Array.isArray(et)?et.length:1)*4.2; py = yb; }
     const nt = k=>rotaNameWithTime(day, 't'+t+'.'+k, th[k]||'', true);   // every team member with their start: "Alice Able (08:00)", "Bob Baker (10:00)"
     const teamPairs = [['Anaesthetist',th.anaes],['SFA',nt('sfa')],['Scrub 1',nt('scrub1')],['Scrub 2',nt('scrub2')],
       ['Scrub 3',nt('scrub3')],['ODP',nt('odp')],['Theatre HCA',nt('hca')],['Recovery Nurse',nt('recovery')]].filter(([,v])=>v);

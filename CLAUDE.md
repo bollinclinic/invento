@@ -218,6 +218,18 @@ report is the **canonical PDF style** (§8).
 - **Theatres:** 0–2 per day. Per theatre: GA/LA type, colour, **"List starts" time**, detail
   line, up to 3 surgeons, anaesthetist/SFA/scrub 1–3/ODP, **per-theatre HCA and recovery
   nurse/ODP**, and a case list.
+- **Case surgeons follow the list** (`rotaSyncCaseSurgeons`, `rotaCaseSurgeonField`):
+  - With one surgeon on the list, every case that is empty or names someone off the list gets
+    that surgeon automatically (new cases, a swapped surgeon, and older days on first edit).
+  - With 2–3 surgeons, each case's surgeon is a dropdown of just those surgeons; nothing is
+    guessed.
+  - With no surgeon yet, the normal surgeon search is used.
+  - A case naming someone not on the list is kept and flagged "(not on this list)".
+- **Expected start for the 2nd / 3rd surgeon:** 🕐 on those boxes (the same clock picker),
+  stored in `rota_days.times` (`t1.surgeon2` …). The 1st surgeon starts at the list start. It
+  shows as "Expected from 10:30" on the rota, as an "Expected: … from 10:30" line under the
+  Day PDF ribbon, and as "Name (from 10:30)" in week/month/range PDFs. Surgeons are never
+  texted.
 - **Day cover** roles, including HCA night.
 - **Gap detection:** LA lists don't require an anaesthetist, ODP or SFA. Gaps can be silenced
   with per-day cover notes, and every name slot has a ★ provisional flag.
