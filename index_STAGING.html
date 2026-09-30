@@ -7257,8 +7257,34 @@ function rotaStaffDirPanel(){
       <div class="toolrow" style="margin-top:6px"><input id="smsTestNo" type="tel" inputmode="tel" placeholder="Your mobile, 07…" style="padding:9px 11px;border:1px solid var(--line);border-radius:8px">
         <button class="btn" onclick="smsSendTest()">Send test text</button></div>
       <div class="sub" style="margin:4px 0 0">Sends one test text now, to check the clinic phone is working.</div></details>
-    <details style="margin-top:8px" ${recent?'open':''} ontoggle="if(this.open&&!window._smsRecent)smsLoadRecent()"><summary style="cursor:pointer;font-weight:600">Recent texts</summary>${recentHtml}</details>
+    <details style="margin-top:8px" ${recent?'open':''} ontoggle="if(this.open&&!window._smsRecent)smsLoadRecent()"><summary style="cursor:pointer;font-weight:600">Recent texts</summary>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0;font-size:13px">
+        Keep texts for
+        <select id="smsKeepDays" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px">
+          ${SMS_KEEP_OPTIONS.map(n=>`<option value="${n}" ${n===smsKeepDays()?'selected':''}>${n} days</option>`).join('')}</select>
+        after the shift <button class="btn" style="padding:6px 10px" onclick="smsSaveKeepDays()">Save</button>
+        <span class="sub" style="margin:0">Older texts are cleared automatically (super admins can change this).</span></div>
+      ${recentHtml}</details>
   </div>`;
+}
+// How long texts are kept after the shift -- same rule as sms_log_keep_days() (7-365, default 30).
+const SMS_KEEP_OPTIONS = [7, 14, 30, 60, 90, 180, 365];
+function smsKeepDays(){
+  const s = (state.settings||[]).find(x=>x.Key==='sms_log_keep_days');
+  const n = s ? parseInt(s.Value,10) : NaN;
+  return (n>=7 && n<=365) ? n : 30;
+}
+async function smsSaveKeepDays(){
+  if(!isSuperadmin()) return;
+  const n = parseInt(($('#smsKeepDays')||{}).value, 10);
+  if(!(n>=7 && n<=365)){ toast('Choose between 7 and 365 days'); return; }
+  try{
+    if(LIVE) await api({action:'smsSetLogDays', days:n});
+    state.settings = state.settings || [];
+    const s = state.settings.find(z=>z.Key==='sms_log_keep_days'); if(s) s.Value=String(n); else state.settings.push({Key:'sms_log_keep_days', Value:String(n)});
+    toast('Texts will be kept for '+n+' days after the shift');
+    render();
+  }catch(err){ toast('Not saved — '+err.message); }
 }
 async function smsLoadRecent(){
   if(!LIVE){ window._smsRecent = []; render(); return; }
@@ -9770,6 +9796,11 @@ async function api(payload){
     const {data, error} = await sb.rpc('sms_recent', {p_limit: payload.limit||30});
     if(error) throw new Error(error.message);
     return data||[];
+  }
+  if(a==='smsSetLogDays'){
+    const {data, error} = await sb.rpc('sms_set_log_days', {p_days: payload.days});
+    if(error) throw new Error(error.message);
+    return data;
   }
   if(a==='smsTest'){
     const {data, error} = await sb.rpc('sms_queue_test', {p_mobile: payload.mobile});

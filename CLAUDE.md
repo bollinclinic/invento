@@ -291,6 +291,21 @@ is ever sent automatically; this is a firm rule from Yasar.**
 - **Staff picker:** every textable slot uses a staff picker (`rotaStaffSlot`, modelled
   on the surgeon picker, which is untouched). Unlisted names are saved as typed and flagged
   "Not in the staff list".
+- **Who:** only superadmin+ can see or use any of this, in the UI (`isSuperadmin()`) and on the
+  server (RLS and RPCs at `app_role_rank() >= 3`).
+- **Text log keep period:** 30 days after the shift by default (setting `sms_log_keep_days`,
+  7–365). It can be changed in Staff & mobiles → Recent texts by superadmin/developer only,
+  via `sms_set_log_days()` (the general settings table is admin-writable, so this has its own
+  gate). `sms_purge_old()` runs hourly from `sms_claim_due`. It never clears a future shift's
+  texts (needed for the cancellation check) or anything scheduled or sending.
+- **Clinic phone:** the SMS Gateway for Android APK comes from GitHub releases
+  (github.com/capcom6/android-sms-gateway). In the app: grant SMS permissions → Settings →
+  System → turn off battery optimisation → toggle "Cloud Server" → tap "Offline" so it shows
+  "Online" → the username and password appear in the Cloud Server section. Put those into
+  `secrets/`, then set them with `supabase secrets set` (`SMS_GATEWAY_USER`/`PASS`). Set
+  Settings → Messages → "Delay between messages" (a few seconds) to stay under Android's
+  sending limit. The phone can be carried: it only needs to be switched on with signal or
+  data. Texts wait while it's offline and expire after 12 h.
 - **Staff & mobiles panel** on the rota page: the directory, the message wording (templates
   in `settings`, placeholders `{first_name}` `{day}` `{roles}` `{start}`, never patient
   details), the usual start times for ward and night roles, a test text, and the recent-texts
