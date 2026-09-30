@@ -7675,33 +7675,35 @@ async function rotaDayPDF(date){
   // on the day-cover autoTable below, which is the actual fix (jsPDF-autoTable defaults to a
   // 40mm bottom margin, so without an override a table starting this close to the page edge
   // silently page-breaks the WHOLE day-cover section onto a second page).
-  const panelY = 23, panelH = H - 23 - 37;
+  // panelMaxH is the most room the panels may take; each panel now ends just below its own
+  // content (see panelBottom), so the day cover moves up instead of sitting under dead space.
+  const panelY = 23, panelMaxH = H - 23 - 37;
   const gap = 4, panelW = nT===1 ? (W-16) : (W-16-gap)/2;
+  let contentBottom = panelY + 30;
   for(let t=1;t<=nT;t++){
     const th = day['t'+t] || blankTheatre();
     const x = 8 + (t-1)*(panelW+gap);
     const colour = th.colour || '#2B6168';
-    doc.setDrawColor(200,200,200); doc.setLineWidth(0.4); doc.rect(x, panelY, panelW, panelH);
     doc.setFillColor(colour); doc.rect(x, panelY, panelW, 10, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(255,255,255);
-    doc.text('THEATRE '+t+'   ·   '+(th.type||'GA')+(smsTimeOk(th.startTime)?'   ·   STARTS '+th.startTime:''), x+4, panelY+7);
+    // Ribbon: "THEATRE 1 · MARK GORMAN-GA · STARTS 07:30" (surgeon moved up from the panel body).
+    // The font shrinks, never clips, if long surgeon names wouldn't fit beside the case count.
     const nCases = (th.cases||[]).length;
-    doc.text(nCases+' case'+(nCases===1?'':'s'), x+panelW-4, panelY+7, {align:'right'});
+    const surgUp = [th.surgeon,th.surgeon2,th.surgeon3].filter(Boolean).join(' / ').toUpperCase();
+    const ribbon = 'THEATRE '+t+'   ·   '+(surgUp ? surgUp+'-'+(th.type||'GA') : (th.type||'GA'))
+      +(smsTimeOk(th.startTime)?'   ·   STARTS '+th.startTime:'');
+    const casesTxt = nCases+' case'+(nCases===1?'':'s');
+    const tw = s=>typeof doc.getTextWidth==='function' ? doc.getTextWidth(s) : 0;
+    doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+    let rfs = 14; doc.setFontSize(rfs);
+    while(rfs>7 && tw(ribbon)+tw(casesTxt)+6 > panelW-8){ rfs -= 0.5; doc.setFontSize(rfs); }
+    doc.text(ribbon, x+4, panelY+7);
+    doc.text(casesTxt, x+panelW-4, panelY+7, {align:'right'});
 
-    // Baseline for the (17pt bold) surgeon name -- needs to clear the coloured ribbon (which
-    // ends at panelY+10) by more than the font's own ascender height, or the text visually
-    // overlaps the ribbon. panelY+13 (tried in an earlier pass to save space) wasn't enough
-    // clearance and did exactly that; panelY+16 leaves a safe ~1.5mm gap. This is independent of
-    // the single-page fix (that's the day-cover table's own margin.bottom, not this offset).
-    let py = panelY + 16;
-    const surg = [th.surgeon,th.surgeon2,th.surgeon3].filter(Boolean).join('  /  ') || '—';
-    doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(23,37,31);
-    const surgLines = doc.splitTextToSize(surg, panelW-8);
-    doc.text(surgLines, x+4, py); py += surgLines.length*6.5 + 1;
+    // The team list now starts right under the ribbon (ribbon ends at panelY+10).
+    let py = panelY + 12;
     if(th.detail){ doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(90,90,90);
-      doc.text(doc.splitTextToSize(th.detail, panelW-8), x+4, py); py += 5; }
-
-    py += 1;
+      const dl = doc.splitTextToSize(th.detail, panelW-8);
+      doc.text(dl, x+4, panelY+14.5); py = panelY + 14.5 + (Array.isArray(dl)?dl.length:1)*4; }
     const nt = k=>rotaNameWithTime(day, 't'+t+'.'+k, th[k]||'', true);   // every team member with their start: "Alice Able (08:00)", "Bob Baker (10:00)"
     const teamPairs = [['Anaesthetist',th.anaes],['SFA',nt('sfa')],['Scrub 1',nt('scrub1')],['Scrub 2',nt('scrub2')],
       ['Scrub 3',nt('scrub3')],['ODP',nt('odp')],['Theatre HCA',nt('hca')],['Recovery Nurse',nt('recovery')]].filter(([,v])=>v);
@@ -7719,10 +7721,20 @@ async function rotaDayPDF(date){
         headStyles:{fillColor:[240,240,240], textColor:[80,80,80], fontStyle:'bold', fontSize:8.5},
         columnStyles:{0:{cellWidth:8}, 1:{cellWidth:36}, 3:{cellWidth:20}, 4:{cellWidth:22}} });
     }
+    contentBottom = Math.max(contentBottom, doc.lastAutoTable ? doc.lastAutoTable.finalY : py);
+  }
+  // Panel borders, drawn now that the content height is known (sides + bottom only; the
+  // ribbon forms the top). Same height for both theatres so they line up.
+  const panelBottom = Math.min(contentBottom + 3, panelY + panelMaxH);
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.4);
+  for(let t=1;t<=nT;t++){
+    const x = 8 + (t-1)*(panelW+gap);
+    doc.line(x, panelY+10, x, panelBottom); doc.line(x+panelW, panelY+10, x+panelW, panelBottom);
+    doc.line(x, panelBottom, x+panelW, panelBottom);
   }
 
   // ---- day cover strip, full width, below both panels ----
-  const coverY = panelY + panelH + 3;
+  const coverY = panelBottom + 3;
   doc.setFillColor(122,90,20); doc.rect(8, coverY, W-16, 7, 'F');
   doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,255,255);
   doc.text('DAY COVER', 12, coverY+5);
@@ -7743,7 +7755,6 @@ async function rotaDayPDF(date){
   }
 
   doc.setFontSize(7.5); doc.setTextColor(140,140,140);
-  doc.text('Bollin Clinic Stock Manager — Theatre & Ward Rota — Recovery Room display', 10, H-4);
   doc.text('Generated '+new Date().toLocaleString('en-GB'), W-10, H-4, {align:'right'});
 
   doc.save('Rota_Day_'+date+'.pdf');
