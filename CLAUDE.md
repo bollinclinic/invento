@@ -229,16 +229,21 @@ report is the **canonical PDF style** (§8).
 is ever sent automatically; this is a firm rule from Yasar.**
 - **Textable slots** (`ROTA_SMS_T_KEYS` / `ROTA_SMS_D_KEYS` in `index.html`, which must match
   `rota_sms_slots()` in the database):
-  - per running theatre: Scrub 1–3, ODP, SFA / practitioner, Recovery nurse / ODP;
-  - day cover: Ward nurse, HCA — ward, Night nurse, HCA night, RMO on site — night.
-  - **Not textable:** surgeons, anaesthetist, theatre HCA, RMO day, housekeeping and
-    reception.
+  - per running theatre: Scrub 1–3, ODP, SFA / practitioner, Theatre HCA, Recovery nurse /
+    ODP;
+  - day cover: Ward nurse, HCA — ward, Night nurse, HCA night, RMO — day, RMO on site — night.
+  - **Not textable (Yasar's choice):** surgeons (they keep the surgeon picker), anaesthetist,
+    housekeeping AM/PM and reception AM/PM.
   - Role names in texts are plain ASCII ("Ward HCA", "RMO on site (night)"), because one
     non-GSM character (like "—") cuts a text from 160 to 70 characters.
 - **Start times (required):** every confirmation says when the person starts (`{start}`).
   - Theatre staff get their theatre's "List starts" time from the rota.
   - Day-cover roles get their usual time, set once in Staff & mobiles (setting
     `sms_default_times`, JSON keyed by slot, e.g. `{"nightNurse":"19:30"}`).
+  - **Own time per person:** the 🕐 button next to a textable name's ★ gives that person their
+    own start time for that day (e.g. Recovery starting later than the list). It is stored in
+    `rota_days.times` (keyed by slot, like `stars`), overrides the theatre or usual time, shows
+    under their name, and is dropped when a different person is put in that box.
   - No time means the person can't be ticked (`no_start_time`), and the dialog says where to
     fill it in.
   - If a start time changes after someone was texted, the post-save prompt **offers** an
@@ -320,15 +325,17 @@ Rules:
 
 Rota texts (migrations `20260930100000_rota_sms.sql`, then
 `20260930120000_rota_sms_more_roles.sql`, which added the extra textable roles, then
-`20260930140000_rota_sms_start_times.sql`):
+`20260930140000_rota_sms_start_times.sql`, then `20260930160000_rota_sms_hca_rmo_own_times.sql`):
 - **`staff`:** the directory. Name unique case-insensitively; mobile stored as `+447…`;
   `sms_opt_in`; `active`. Superadmin-read only, written via `staff_upsert`.
 - **`sms_messages`:** the outbox and log. `kind` confirm/cancel/test; `status` scheduled →
   sending → sent/delivered, or failed/held/cancelled/dry_run. Superadmin-read only, written
   only by RPCs and the dispatcher.
-- **`rota_theatres.start_time`** (`time`): the theatre's "List starts". `rota_save_day` was
-  re-created identically apart from saving `T1_/T2_StartTime`. An older page that doesn't send
-  it still saves; the time is simply left empty.
+- **`rota_theatres.start_time`** (`time`): the theatre's "List starts".
+- **`rota_days.times`** (`jsonb`): per-person own start times, keyed by slot.
+- **`rota_save_day`** was re-created identically apart from saving `T1_/T2_StartTime` and
+  `TimesJSON`. An older page that sends neither still saves: the list time is left empty and
+  the existing own times are **kept**, not wiped.
 - **Slots still hold names as text,** and the server matches them to `staff.name`
   case-insensitively.
 - **Tests:** `tests/sql/rota_sms_db_tests.sql` runs against staging and cleans up after
