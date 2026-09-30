@@ -58,13 +58,33 @@ theatre lists depend on it. The working mantra throughout the build has been:
 - **Backend:** Supabase. Schema, RLS policies and ~45 RPC functions live in
   `supabase/migrations/*.sql` (applied in filename order). Multi-step writes are
   `SECURITY DEFINER` RPCs that check `app_role_rank()` themselves.
-- **Edge Functions** (`supabase/functions/`): `create-user`, `manage-user` (reset password,
-  rename). They need the service-role key, so they run server-side and verify the caller is
-  an active `developer` first.
+- **Edge Functions** (`supabase/functions/`):
+  - `create-user` and `manage-user` (reset password, rename) need the service-role key, so
+    they run server-side and verify the caller is an active `developer` first.
+  - `sms-dispatch` sends rota texts (see "Rota texts pipeline" below).
 - **Auth:** Supabase Auth. Staff log in with a **username**; the app turns it into a
   synthetic email `username@bollin.local` (`synthEmail`). Role and active flag live on
-  `profiles`. `app_role_rank()` returns 0 for an inactive profile, so deactivation takes
+  `profiles`. `app_role_rank()` returns -1 for an inactive profile, so deactivation takes
   effect everywhere at once, including already-open sessions.
+- **Rota texts pipeline:** texts go from the **clinic's own Android phone** (SIM with
+  unlimited texts), running the open-source *SMS Gateway for Android* app (sms-gate.app,
+  cloud mode).
+  - **Queueing:** `rota_sms_queue` (a superadmin pressed Send) writes rows to
+    `sms_messages`.
+  - **Sending:** a **pg_cron** job calls `sms-dispatch` every minute with an
+    `x-dispatch-secret` header (via pg_net; the secret is in Supabase Vault). The function
+    claims due rows, hands them to the gateway, and polls the gateway for
+    sent/delivered/failed.
+  - **No double texts:** the gateway message id = our `sms_messages.id`, and the gateway
+    returns 409 for a duplicate id, so a retry can't double-text.
+  - **Secrets** (Edge Function secrets, never in the repo): `DISPATCH_SECRET`, `SMS_MODE`
+    (`live` sends; anything else is a dry run, which is the default), `SMS_ALLOWLIST`
+    (staging: the only numbers really texted), `SMS_GATEWAY_USER` and `SMS_GATEWAY_PASS`.
+    Texts expire after 12 h if the phone is offline.
+  - **The cron job is created by hand** per project from `supabase/manual/sms_cron_setup.sql`
+    (placeholders replaced in a local copy that is then deleted). It is **never** a
+    migration, because migrations are public. To stop all sending at once, run
+    `select cron.unschedule('sms-dispatch');`.
 - **Theatre & Ward pipeline (not Supabase):** `THEATRE_WORKER_URL`
   (`bollin-theatre-proxy.bollinclinic.workers.dev`) is a Cloudflare Worker → Microsoft Graph →
   SharePoint Excel `Table1` (23 columns, mapped by `TW_COL`). The Worker has no delete action;
@@ -90,7 +110,8 @@ theatre lists depend on it. The working mantra throughout the build has been:
 3. `bash sync-staging.sh`: regenerates `index_STAGING.html` (staging title, staging
    Supabase URL/key). Commit both files.
 4. `bash deploy-staging.sh`: force-pushes a temporary branch to the `staging` remote's
-   `main`. Verify on the staging URL.
+   `main`. Verify on the staging URL. **Commit first:** the script switches branches and
+   copies over `index.html`, so uncommitted edits to it would be lost.
 5. Only after Yasar's go-ahead: `git push origin main`. Then confirm the Pages build
    (`gh api repos/bollinclinic/invento/pages/builds/latest`) and that the live
    `bollin.hashirhub.uk` file matches the pushed `index.html`.
@@ -102,9 +123,19 @@ PRODUCTION.** Sequence: `supabase link --project-ref ozlskwtbgblfmqjgcrmf` (stag
 `supabase db push` → test (RPC tests via `supabase db query --linked`, impersonating a user
 with `set_config('request.jwt.claim.sub', …)`, cleaning up test rows) → deploy the matching
 frontend to staging → with go-ahead, `supabase link --project-ref ozkragagmtdjjlkvygjc` →
-`supabase db push`. Always check which project is linked before any `db` command.
+`supabase db push`. Always check which project is linked before any `db` command. If
+`db push` fails part-way on a migration that has only reached staging, remove what it
+created, run `supabase migration repair --status reverted <version> --linked`, fix the file
+and push again.
 
-**Edge Functions:** `supabase functions deploy <name> --project-ref <ref>`, staging first.
+**Edge Functions:** `supabase functions deploy <name> --project-ref <ref> --use-api`
+(bundled server-side, so no Docker is needed), staging first. Functions not called by a
+signed-in user need `verify_jwt = false` in `supabase/config.toml` and must check their own
+secret.
+
+**Shell gotcha (Windows):** never name a shell variable `TMP` or `TEMP`. On Windows these are
+the system temp-folder settings, and changing them makes the Supabase CLI fail with a
+misleading "Access token not provided".
 
 ---
 
@@ -193,6 +224,28 @@ report is the **canonical PDF style** (§8).
 - **Saving** is one atomic, version-checked RPC, `rota_save_day`: a stale save is refused,
   never silently applied (§9 #8).
 
+**Rota texts (SMS)** (superadmin+): texts Scrub 1–3, ODP and Ward nurse staff from the
+clinic's own phone. **Nothing is ever sent automatically; this is a firm rule from Yasar.**
+- **Confirmations:** "✉ Message staff" (next to Save/Edit day; enabled only for a saved day
+  with no unsaved changes) opens a tick-list of that day's people. Confirmed means named with
+  no ★. Provisional, not-in-list, no-mobile and not-opted-in people can't be ticked. You
+  choose "Send now" or "Schedule for" (pre-filled with 18:00 the evening before).
+  - A schedule time that has passed is refused.
+  - "Send now" at night (22:00–07:00) asks whether to send anyway or schedule for 07:00.
+- **Cancellations:** after a save, if someone already texted is no longer confirmed
+  (removed, replaced or ★'d; moving slots on the same day doesn't count), a prompt
+  **offers** to send a cancellation, or to cancel their unsent text. "Not now" leaves a ⚠ chip
+  on the day.
+- **Safety net:** at send time the server **holds** (never sends) a confirmation for someone
+  no longer confirmed, a cancellation for someone confirmed again, or any text to someone
+  deactivated or opted out.
+- **Staff picker:** Scrub/ODP/Ward nurse slots use a staff picker (`rotaStaffSlot`, modelled
+  on the surgeon picker, which is untouched). Unlisted names are saved as typed and flagged
+  "Not in the staff list".
+- **Staff & mobiles panel** on the rota page: the directory, the message wording (templates
+  in `settings`, placeholders `{first_name}` `{day}` `{roles}`, never patient details), a test
+  text, and the recent-texts log.
+
 **Users & roles** (developer only): list users, change role, activate/deactivate, create
 accounts (`create-user`), reset password / rename (`manage-user`).
 
@@ -218,7 +271,7 @@ policies and RPCs.
 | Unit cost / bill price visible (masked in `get_items`) | | ✓ | ✓ | ✓ | ✓ |
 | Stocktake, implants, alerts, stock value, create/edit samples | | ✓ | ✓ | ✓ | ✓ |
 | Add/edit items, labels, stores/offsite/services, obsolete, assets, procedure financials & admin controls, delete specimen | | | ✓ | ✓ | ✓ |
-| Theatre rota, bulk item edit, physical stock-take sheet | | | | ✓ | ✓ |
+| Theatre rota, rota texts & staff mobiles, bulk item edit, physical stock-take sheet | | | | ✓ | ✓ |
 | Users & roles, billing report, item usage, procedure pre-fill | | | | | ✓ |
 
 Enforced in **two places**: `viewAllowed(view)` / `can()` on the frontend, and RLS + RPC rank
@@ -244,6 +297,17 @@ Rules:
   `procedure_lines` at consumption time.
 - Old `rota_days.hca_theatre` / `recovery_nurse` columns are kept for history; live data is
   per-theatre.
+
+Rota texts (migration `20260930100000_rota_sms.sql`):
+- **`staff`:** the directory. Name unique case-insensitively; mobile stored as `+447…`;
+  `sms_opt_in`; `active`. Superadmin-read only, written via `staff_upsert`.
+- **`sms_messages`:** the outbox and log. `kind` confirm/cancel/test; `status` scheduled →
+  sending → sent/delivered, or failed/held/cancelled/dry_run. Superadmin-read only, written
+  only by RPCs and the dispatcher.
+- **Rota tables and `rota_save_day` are unchanged.** Slots still hold names as text, and the
+  server matches them to `staff.name` case-insensitively.
+- **Tests:** `tests/sql/rota_sms_db_tests.sql` runs against staging and cleans up after
+  itself.
 
 The SharePoint Theatre Records Excel is **not** in Supabase (see §3).
 
@@ -323,6 +387,13 @@ Sheets-era notes and may be out of date; this file is the current reference.
     `index.html` out with CRLF, and the script's multi-line replaces (STAGING badge, striped
     border) silently don't match. The title and Supabase URL swaps still work. Known and
     deliberately left as-is; don't rely on the badge to tell staging apart, check the URL.
+12. **Same-transaction timestamps:** `now()` is the *transaction* start time, so rows
+    inserted in one transaction share `created_at` and "latest row" ordering becomes
+    arbitrary. Use `default clock_timestamp()` where ordering matters (as `sms_messages`
+    does).
+13. **`$$` lost in generated SQL:** building SQL with JavaScript `String.replace` turns `$$`
+    in the replacement into `$`, which breaks function bodies. Check that dollar-quote pairs
+    balance before pushing.
 
 ---
 
@@ -332,7 +403,13 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
 - Theatre & Ward;
 - Theatre & Ward room tabs;
 - stock/procedures (7-feature batch);
-- rota.
+- rota;
+- rota texts (screens);
+- SMS dispatcher: `tests/sms_dispatch_tests.mjs`, which runs the Edge Function's `core.ts`
+  directly (Node 24 runs TypeScript without a build step).
+
+Database tests for rota texts: `tests/sql/rota_sms_db_tests.sql`. Run it against **staging**
+with `supabase db query --linked -f …`.
 
 `tests/extract.js` pulls the last `<script>` block from the current `index.html`. Each suite
 runs the **whole app script** in a `vm` context with stubbed `document`/`window`/
