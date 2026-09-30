@@ -6656,11 +6656,13 @@ function rotaSlotTime(day, key){ return rotaSlotOwnTime(day, key) || rotaSlotBas
 // "Name (10:00)" for PDFs: always for day-cover roles (they have no theatre start to read it
 // from); for theatre roles only when the person has their own time (the theatre start is shown
 // with the theatre).
-function rotaNameWithTime(day, key, name){
+// allTimes: also show theatre roles' time when it's just the list start (the Day PDF lists
+// every theatre-team member with their start time).
+function rotaNameWithTime(day, key, name, allTimes){
   if(!name) return '';
   const textable = key.includes('.') ? ROTA_SMS_T_KEYS.includes(key.split('.')[1]) : ROTA_SMS_D_KEYS.includes(key);
   if(!textable) return name;
-  const t = key.includes('.') ? rotaSlotOwnTime(day, key) : rotaSlotTime(day, key);
+  const t = (key.includes('.') && !allTimes) ? rotaSlotOwnTime(day, key) : rotaSlotTime(day, key);
   return t ? name+' ('+t+')' : name;
 }
 function smsNormTime(v){
@@ -7700,7 +7702,7 @@ async function rotaDayPDF(date){
       doc.text(doc.splitTextToSize(th.detail, panelW-8), x+4, py); py += 5; }
 
     py += 1;
-    const nt = k=>rotaNameWithTime(day, 't'+t+'.'+k, th[k]||'');   // "Bob Baker (10:00)" for an own time
+    const nt = k=>rotaNameWithTime(day, 't'+t+'.'+k, th[k]||'', true);   // every team member with their start: "Alice Able (08:00)", "Bob Baker (10:00)"
     const teamPairs = [['Anaesthetist',th.anaes],['SFA',nt('sfa')],['Scrub 1',nt('scrub1')],['Scrub 2',nt('scrub2')],
       ['Scrub 3',nt('scrub3')],['ODP',nt('odp')],['Theatre HCA',nt('hca')],['Recovery Nurse',nt('recovery')]].filter(([,v])=>v);
     doc.autoTable({ startY:py, margin:{left:x+4, right: W-(x+panelW-4), bottom:4}, tableWidth: panelW-8,

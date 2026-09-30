@@ -252,9 +252,11 @@ is ever sent automatically; this is a firm rule from Yasar.**
   - **Precedence:** own time > night team time (night roles only) > theatre "List starts" /
     usual time. Frontend helpers are `rotaSlotOwnTime` / `rotaSlotBaseTime` / `rotaSlotTime`;
     they mirror `rota_sms_slots()`.
-  - **PDFs:** Day, week, month and range PDFs show "Starts HH:MM" per theatre, "Name (HH:MM)"
-    for own times, and times for ward, night and RMO names (`rotaNameWithTime`).
-    Anaesthetist, surgeons, housekeeping and reception never show a time.
+  - **PDFs:** Day, week, month and range PDFs show "Starts HH:MM" per theatre and times for
+    ward, night and RMO names (`rotaNameWithTime`). The **Day PDF** shows every theatre-team
+    member's start time next to their name (`allTimes`: SFA, Scrub 1–3, ODP, Theatre HCA,
+    Recovery). Week, month and range PDFs add a time there only for own times. Anaesthetist,
+    surgeons, housekeeping and reception never show a time.
   - No time means the person can't be ticked (`no_start_time`), and the dialog says where to
     fill it in.
   - If a start time changes after someone was texted, the post-save prompt **offers** an
