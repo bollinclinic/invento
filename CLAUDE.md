@@ -240,10 +240,21 @@ is ever sent automatically; this is a firm rule from Yasar.**
   - Theatre staff get their theatre's "List starts" time from the rota.
   - Day-cover roles get their usual time, set once in Staff & mobiles (setting
     `sms_default_times`, JSON keyed by slot, e.g. `{"nightNurse":"19:30"}`).
-  - **Own time per person:** the 🕐 button next to a textable name's ★ gives that person their
-    own start time for that day (e.g. Recovery starting later than the list). It is stored in
-    `rota_days.times` (keyed by slot, like `stars`), overrides the theatre or usual time, shows
-    under their name, and is dropped when a different person is put in that box.
+  - **Own time per person:** the 🕐 button next to a textable name's ★ opens a **clock
+    picker** (`timePickerOpen`, `#timeDlg`). It has one-tap "list +30 min … +3 h" buttons,
+    common times, an exact time box, and "Use normal time". The chosen time is that person's
+    own start for the day (e.g. Recovery starting later than the list). It is stored in
+    `rota_days.times` (keyed by slot, like `stars`), shows under their name, and is dropped
+    when a different person is put in that box.
+  - **Night team time:** "🌙 Night team starts" (Day cover heading, same picker) sets Night
+    nurse, HCA night and RMO night at once. It is stored as `rota_days.times.nightTeam`, so
+    `rota_save_day` is unchanged by it.
+  - **Precedence:** own time > night team time (night roles only) > theatre "List starts" /
+    usual time. Frontend helpers are `rotaSlotOwnTime` / `rotaSlotBaseTime` / `rotaSlotTime`;
+    they mirror `rota_sms_slots()`.
+  - **PDFs:** Day, week, month and range PDFs show "Starts HH:MM" per theatre, "Name (HH:MM)"
+    for own times, and times for ward, night and RMO names (`rotaNameWithTime`).
+    Anaesthetist, surgeons, housekeeping and reception never show a time.
   - No time means the person can't be ticked (`no_start_time`), and the dialog says where to
     fill it in.
   - If a start time changes after someone was texted, the post-save prompt **offers** an
@@ -325,14 +336,16 @@ Rules:
 
 Rota texts (migrations `20260930100000_rota_sms.sql`, then
 `20260930120000_rota_sms_more_roles.sql`, which added the extra textable roles, then
-`20260930140000_rota_sms_start_times.sql`, then `20260930160000_rota_sms_hca_rmo_own_times.sql`):
+`20260930140000_rota_sms_start_times.sql`, then `20260930160000_rota_sms_hca_rmo_own_times.sql`,
+then `20260930180000_rota_sms_night_team_time.sql`):
 - **`staff`:** the directory. Name unique case-insensitively; mobile stored as `+447…`;
   `sms_opt_in`; `active`. Superadmin-read only, written via `staff_upsert`.
 - **`sms_messages`:** the outbox and log. `kind` confirm/cancel/test; `status` scheduled →
   sending → sent/delivered, or failed/held/cancelled/dry_run. Superadmin-read only, written
   only by RPCs and the dispatcher.
 - **`rota_theatres.start_time`** (`time`): the theatre's "List starts".
-- **`rota_days.times`** (`jsonb`): per-person own start times, keyed by slot.
+- **`rota_days.times`** (`jsonb`): per-person own start times keyed by slot, plus the day's
+  `nightTeam` time.
 - **`rota_save_day`** was re-created identically apart from saving `T1_/T2_StartTime` and
   `TimesJSON`. An older page that sends neither still saves: the list time is left empty and
   the existing own times are **kept**, not wiped.

@@ -842,6 +842,12 @@
   </div>
 </dialog>
 
+<dialog id="timeDlg" style="max-width:480px">
+  <div class="m-head" id="timeDlgTitle">Start time</div>
+  <div class="m-body" id="timeDlgBody"></div>
+  <div class="m-actions" id="timeDlgActions"></div>
+</dialog>
+
 <dialog id="smsDlg" style="max-width:680px">
   <div class="m-head" id="smsDlgTitle">Text staff</div>
   <div class="m-body" id="smsDlgBody" style="max-height:70vh;overflow-y:auto">Loading…</div>
@@ -6603,7 +6609,7 @@ function rotaStaffSlot(date, day, key, label, req, locked){
   window._staffSlotCtx[inputId] = {date, key};
   const dis = locked ? 'disabled' : '';
   const unknown = !empty && !staffByName(val);
-  const own = !empty && smsTimeOk(day.times && day.times[key]) ? day.times[key] : '';
+  const own = !empty ? rotaSlotOwnTime(day, key) : '';
   const base = rotaSlotBaseTime(day, key);
   return `<div class="rslot">
     <label>${label}${req?'':' <span style="font-weight:400">(optional)</span>'}</label>
@@ -6634,30 +6640,115 @@ function rotaStaffCommit(date, key, inputId){
   const dr = rotaDraft(date); if(dr.times) delete dr.times[key];
   rotaSet(date, key, name);
 }
-// The normal start time for a slot: its theatre's "List starts", or the role's usual time.
+/* ---- start times: own time (🕐) > night team time (night roles) > theatre "List starts" /
+   the role's usual time. Mirrors rota_sms_slots() in the database. ---- */
+const ROTA_NIGHT_KEYS = ['nightNurse','hcaNight','rmoNight'];
+function rotaNightTeamTime(day){ return day && day.times && smsTimeOk(day.times.nightTeam) ? day.times.nightTeam : ''; }
+function rotaSlotOwnTime(day, key){ return day && day.times && smsTimeOk(day.times[key]) ? day.times[key] : ''; }
+// The normal start time for a slot (what applies without an own time).
 function rotaSlotBaseTime(day, key){
   const p = String(key).split('.');
   if(p.length===2){ const th = (day && day[p[0]]) || {}; return smsTimeOk(th.startTime) ? th.startTime : ''; }
+  if(ROTA_NIGHT_KEYS.includes(key)){ const n = rotaNightTeamTime(day); if(n) return n; }
   const d = smsDefaultTimes(); return smsTimeOk(d[key]) ? d[key] : '';
 }
+function rotaSlotTime(day, key){ return rotaSlotOwnTime(day, key) || rotaSlotBaseTime(day, key); }
+// "Name (10:00)" for PDFs: always for day-cover roles (they have no theatre start to read it
+// from); for theatre roles only when the person has their own time (the theatre start is shown
+// with the theatre).
+function rotaNameWithTime(day, key, name){
+  if(!name) return '';
+  const textable = key.includes('.') ? ROTA_SMS_T_KEYS.includes(key.split('.')[1]) : ROTA_SMS_D_KEYS.includes(key);
+  if(!textable) return name;
+  const t = key.includes('.') ? rotaSlotOwnTime(day, key) : rotaSlotTime(day, key);
+  return t ? name+' ('+t+')' : name;
+}
+function smsNormTime(v){
+  const t = String(v==null?'':v).trim().replace(/[.h]/i,':');
+  const n = /^\d{1,2}:\d{2}$/.test(t) ? t.padStart(5,'0') : (/^\d{3,4}$/.test(t) ? t.padStart(4,'0').replace(/^(\d\d)(\d\d)$/,'$1:$2') : t);
+  return smsTimeOk(n) ? n : null;
+}
+function smsAddMins(hhmm, mins){ const [h,m]=hhmm.split(':').map(Number); const x=((h*60+m+mins)%1440+1440)%1440;
+  return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0'); }
+
+/* ---- the clock picker (own time per person, and the night team time) ---- */
+let _tp = null;   // {date, key (slot key, or 'nightTeam'), who, base, cur, night}
 function rotaSetOwnTime(date, key){
   const day = rotaDayObj(date);
   const p = key.split('.');
   const who = p.length===2 ? String((day[p[0]]||{})[p[1]]||'') : String(day[key]||'');
+  const role = p.length===2 ? ((ROTA_T_ROLES.find(([k])=>k===p[1])||[p[1],p[1]])[1]+' · Theatre '+p[0].slice(1))
+                            : (ROTA_D_ROLES.find(([k])=>k===key)||[key,key])[1];
   const base = rotaSlotBaseTime(day, key);
-  const cur = (day.times && smsTimeOk(day.times[key])) ? day.times[key] : '';
-  const v = prompt(`Own start time for ${who||'this person'} on this day (e.g. 10:00).\n`+
-    (base ? `Leave empty to use the normal start time (${base}).` : 'Leave empty to use the normal start time.'), cur);
-  if(v===null) return;
-  const t = String(v).trim().replace('.',':');
-  const norm = /^\d{1,2}:\d{2}$/.test(t) ? t.padStart(5,'0') : t;
-  if(norm && !smsTimeOk(norm)){ toast('Use a time like 10:00'); return; }
-  const d = rotaDraft(date);
-  if(norm && norm!==base) d.times[key] = norm; else delete d.times[key];
+  const baseFrom = p.length===2 ? 'list starts' : (ROTA_NIGHT_KEYS.includes(key) && rotaNightTeamTime(day) ? 'night team' : 'usual time');
+  timePickerOpen({date, key, who, role, base, baseFrom, cur: rotaSlotOwnTime(day, key), night: ROTA_NIGHT_KEYS.includes(key)});
+}
+function rotaSetNightTeamTime(date){
+  const day = rotaDayObj(date), defs = smsDefaultTimes();
+  const usual = ROTA_NIGHT_KEYS.map(k=>smsTimeOk(defs[k]) ? (ROTA_D_ROLES.find(([kk])=>kk===k)||[k,k])[1]+' '+defs[k] : '').filter(Boolean).join(', ');
+  timePickerOpen({date, key:'nightTeam', who:'Night team', role:'Night nurse, HCA night and RMO night together', base:'', baseFrom:'',
+    usual, cur: rotaNightTeamTime(day), night:true});
+}
+function timePickerOpen(o){
+  _tp = o;
+  $('#timeDlgTitle').textContent = o.key==='nightTeam' ? '🌙 Night team start time' : '🕐 Start time — '+(o.who||'this person');
+  timePickerPaint();
+  if(!timeDlg.open) timeDlg.showModal();
+}
+function timePickerPaint(){
+  if(!_tp) return;
+  const o = _tp, sel = o.cur || o.base;
+  const chip = (t, extra)=>`<button class="btn ${t===sel?'primary':''}" style="padding:8px 10px;min-width:64px" onclick="timePickerChoose('${t}')">${t}${extra?`<span style="display:block;font-size:10.5px;font-weight:500;opacity:.8">${extra}</span>`:''}</button>`;
+  let quick = '';
+  if(o.base && o.key!=='nightTeam'){
+    quick = `<div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin:2px 0 6px">Later than the ${smsEsc(o.baseFrom)} (${o.base})</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${[30,60,90,120,180].map(m=>chip(smsAddMins(o.base,m), '+'+(m<60?m+' min':(m/60)+' h'))).join('')}</div>`;
+  }
+  const grid = [];
+  const [from, to] = o.night ? [17*60, 23*60] : [6*60+30, 13*60];
+  for(let m=from; m<=to; m+=30) grid.push(smsAddMins('00:00', m));
+  $('#timeDlgBody').innerHTML = `
+    <div style="font-size:13px;color:var(--ink-soft);margin-bottom:10px">${smsEsc(o.role||'')}${o.key==='nightTeam'
+      ? `<br>Applies to everyone on the night team this day, unless someone has their own 🕐 time.${o.usual?' Usual: '+smsEsc(o.usual)+'.':''}`
+      : (o.base?`<br>Normal start: <strong>${o.base}</strong> (${smsEsc(o.baseFrom)})`:'<br>No normal start time is set for this role yet.')}</div>
+    ${quick}
+    <div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin:2px 0 6px">${o.night?'Evening / night':'Common times'}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-bottom:12px">${grid.map(t=>chip(t)).join('')}</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:12px;font-weight:600;color:var(--ink-soft)">Exact time</label>
+      <input type="time" id="tpExact" step="300" value="${sel||''}" style="padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:16px">
+      <button class="btn primary" onclick="timePickerChoose($('#tpExact').value)">Set</button></div>`;
+  $('#timeDlgActions').innerHTML = `<button class="btn" onclick="timeDlg.close();_tp=null">Cancel</button>
+    ${o.cur?`<button class="btn" onclick="timePickerClear()">${o.key==='nightTeam'?'Use usual night times':'Use normal time'+(o.base?' ('+o.base+')':'')}</button>`:''}`;
+}
+function timePickerChoose(v){
+  if(!_tp) return;
+  const t = smsNormTime(v);
+  if(!t){ toast('Use a time like 10:00'); return; }
+  const o = _tp, d = rotaDraft(o.date);
+  if(o.key!=='nightTeam' && t===o.base) delete d.times[o.key]; else d.times[o.key] = t;
+  timeDlg.close(); _tp = null;
   render();
-  toast(norm && norm!==base ? `Own start time ${norm} set — remember to Save the day` : 'Back to the normal start time — remember to Save the day');
+  toast(o.key==='nightTeam' ? `Night team starts ${t} — remember to Save the day`
+    : (t===o.base ? 'Normal start time — remember to Save the day' : `${o.who||'Own'} starts ${t} — remember to Save the day`));
+}
+function timePickerClear(){
+  if(!_tp) return;
+  const o = _tp, d = rotaDraft(o.date);
+  delete d.times[o.key];
+  timeDlg.close(); _tp = null;
+  render();
+  toast(o.key==='nightTeam' ? 'Night team back to the usual times — remember to Save the day' : 'Normal start time — remember to Save the day');
 }
 function rotaClearOwnTime(date, key){ const d = rotaDraft(date); delete d.times[key]; render(); }
+function rotaNightTeamButton(date, day, locked){
+  const t = rotaNightTeamTime(day), defs = smsDefaultTimes();
+  const usual = [...new Set(ROTA_NIGHT_KEYS.map(k=>defs[k]).filter(smsTimeOk))];
+  const label = t ? `🌙 Night team starts <strong>${t}</strong>` : `🌙 Night team starts${usual.length?' (usual '+usual.join(' / ')+')':' — set time'}`;
+  return `<button class="btn" id="rotaNight_${date.replace(/-/g,'')}" ${locked?'disabled':''} onclick="rotaSetNightTeamTime('${date}')"
+    title="One start time for Night nurse, HCA night and RMO night on this day (anyone with their own 🕐 time keeps it)"
+    style="padding:5px 10px;font-size:12.5px;${t?'border-color:var(--pine);color:var(--pine)':''}">${label}</button>`;
+}
 
 /* ---- staff add/edit dialog ---- */
 let _staffDlgCtx = null;
@@ -6762,13 +6853,11 @@ function smsRolesStarts(roles){ return [...new Set((roles||[]).map(r=>r && r.sta
 function rotaSmsPersonStarts(day, nameLower){
   const out = new Set();
   if(!day || !(Number(day.theatres)>0)) return [];
-  const defs = smsDefaultTimes();
-  const take = (key, v, start)=>{
-    const own = day.times && smsTimeOk(day.times[key]) ? day.times[key] : '';   // own time wins
-    if(String(v||'').trim().toLowerCase()===nameLower && !(day.stars && day.stars[key]) && (own||start)) out.add(own||start); };
-  ROTA_SMS_D_KEYS.forEach(k=>take(k, day[k], smsTimeOk(defs[k]) ? defs[k] : ''));
+  const take = (key, v)=>{ const st = rotaSlotTime(day, key);   // own > night team > list/usual
+    if(String(v||'').trim().toLowerCase()===nameLower && !(day.stars && day.stars[key]) && st) out.add(st); };
+  ROTA_SMS_D_KEYS.forEach(k=>take(k, day[k]));
   for(let t=1;t<=Math.min(2,Number(day.theatres));t++){ const th=day['t'+t]||{};
-    ROTA_SMS_T_KEYS.forEach(k=>take('t'+t+'.'+k, th[k], smsTimeOk(th.startTime) ? th.startTime : '')); }
+    ROTA_SMS_T_KEYS.forEach(k=>take('t'+t+'.'+k, th[k])); }
   return [...out].sort();
 }
 function rotaSmsChips(date){
@@ -7112,7 +7201,7 @@ function rotaStaffDirPanel(){
     ${staff.length?`<table style="margin-top:8px"><thead><tr><th>Name</th><th>Works as</th><th>Mobile</th><th>Texts</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
                   :'<div class="sub">No staff added yet. You can also add people straight from any of those boxes on the rota.</div>'}
     <details style="margin-top:12px" ${missingDefs?'open':''}><summary style="cursor:pointer;font-weight:600">Usual start times — ward &amp; night roles${missingDefs?` <span style="color:var(--red)">(${missingDefs} not set)</span>`:''}</summary>
-      <div class="sub" style="margin:6px 0">Theatre staff get their theatre's <strong>List starts</strong> time from the rota. These roles aren't tied to a theatre, so they get their usual time below. Nobody can be texted without a start time.</div>
+      <div class="sub" style="margin:6px 0">Theatre staff get their theatre's <strong>List starts</strong> time from the rota. These roles aren't tied to a theatre, so they get their usual time below. On a given day, <strong>🌙 Night team starts</strong> (under Day cover) sets the whole night team at once, and 🕐 next to a name gives one person their own time. Nobody can be texted without a start time.</div>
       <div style="display:flex;gap:10px 16px;flex-wrap:wrap">${ROTA_SMS_D_KEYS.map(k=>{
         const lab = (ROTA_D_ROLES.find(([kk])=>kk===k)||[k,k])[1];
         return `<label style="display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:var(--ink-soft)">${smsEsc(lab)}
@@ -7282,7 +7371,8 @@ function rotaDayCard(date, opts){
   if(collapsed) return `<div class="gaspanel">${head}</div>`;
   return `<div class="gaspanel">${head}
     ${rotaTheatreBlock(date, day, 1, locked)}${Number(day.theatres)>1?rotaTheatreBlock(date, day, 2, locked):''}
-    <div style="margin-top:10px"><strong style="font-size:13px">Day cover</strong>
+    <div style="margin-top:10px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong style="font-size:13px">Day cover</strong>
+      ${rotaNightTeamButton(date, day, locked)}</div>
       <div class="rgrid" style="margin-top:6px">${ROTA_D_ROLES.map(([k,lab,req])=>ROTA_SMS_D_KEYS.includes(k)
         ? rotaStaffSlot(date,day,k,lab,!!req,locked) : rotaSlot(date,day,k,lab,!!req,locked)).join('')}</div></div>
     <div class="m-row" style="margin-top:10px"><label>Notes</label>
@@ -7464,19 +7554,24 @@ async function rotaPdfDoc(title){
 function rotaTheatreTableRows(day){
   const rows=[];
   for(let t=1;t<=Number(day.theatres||0);t++){ const th=day['t'+t]; if(!th) continue;
+    // Start times: the theatre's "List starts" goes with the theatre; anyone with their own
+    // time gets it next to their name, e.g. "Bob Baker (10:00)".
+    const nt = k=>rotaNameWithTime(day, 't'+t+'.'+k, th[k]||'');
     const surg=[th.surgeon,th.surgeon2,th.surgeon3].filter(Boolean).join(' / ');
-    const team=[th.scrub1,th.scrub2,th.scrub3].filter(Boolean).join(', ');
+    const team=['scrub1','scrub2','scrub3'].map(nt).filter(Boolean).join(', ');
     const cases=(th.cases||[]).map((c,i)=>`${i+1}. ${c.surgeon||'?'} — ${c.procedure||''}${c.pat?' ('+c.pat+')':''} [${c.stay||'Day case'}]`).join('\n');
-    rows.push(['T'+t+' '+(th.type||'GA'), surg, th.anaes||'', th.sfa||'', team||'', th.odp||'',
-      th.hca||'', th.recovery||'', cases, th.detail||'']);
+    rows.push(['T'+t+' '+(th.type||'GA')+(smsTimeOk(th.startTime)?'\nStarts '+th.startTime:''), surg, th.anaes||'', nt('sfa'), team||'', nt('odp'),
+      nt('hca'), nt('recovery'), cases, th.detail||'']);
   }
   return rows;
 }
 // One row of everything from HCA-ward down to Reception PM -- the general Day Cover
 // allocations, kept together as their own dedicated section separate from the theatre teams.
 function rotaDayCoverRow(day){
-  return [day.hcaWard||'', day.ward||'', day.nightNurse||'', day.hcaNight||'',
-    day.rmoDay||'', day.rmoNight||'', day.housekeepAM||'', day.housekeepPM||'', day.receptionAM||'', day.receptionPM||''];
+  // ward / night / RMO names carry their start time, e.g. "Nina Night (19:30)"
+  const nt = k=>rotaNameWithTime(day, k, day[k]||'');
+  return [nt('hcaWard'), nt('ward'), nt('nightNurse'), nt('hcaNight'),
+    nt('rmoDay'), nt('rmoNight'), day.housekeepAM||'', day.housekeepPM||'', day.receptionAM||'', day.receptionPM||''];
 }
 const ROTA_THEATRE_TABLE_HEAD = ['Theatre','Surgeon(s)','Anaesthetist','SFA','Scrub team','ODP','Theatre HCA','Recovery Nurse','Cases','Detail'];
 const ROTA_THEATRE_COL_STYLES = {0:{cellWidth:16},1:{cellWidth:30},2:{cellWidth:22},3:{cellWidth:18},4:{cellWidth:26},5:{cellWidth:16},6:{cellWidth:22},7:{cellWidth:22},8:{cellWidth:48},9:{cellWidth:20}};
@@ -7587,7 +7682,7 @@ async function rotaDayPDF(date){
     doc.setDrawColor(200,200,200); doc.setLineWidth(0.4); doc.rect(x, panelY, panelW, panelH);
     doc.setFillColor(colour); doc.rect(x, panelY, panelW, 10, 'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(255,255,255);
-    doc.text('THEATRE '+t+'   ·   '+(th.type||'GA'), x+4, panelY+7);
+    doc.text('THEATRE '+t+'   ·   '+(th.type||'GA')+(smsTimeOk(th.startTime)?'   ·   STARTS '+th.startTime:''), x+4, panelY+7);
     const nCases = (th.cases||[]).length;
     doc.text(nCases+' case'+(nCases===1?'':'s'), x+panelW-4, panelY+7, {align:'right'});
 
@@ -7605,8 +7700,9 @@ async function rotaDayPDF(date){
       doc.text(doc.splitTextToSize(th.detail, panelW-8), x+4, py); py += 5; }
 
     py += 1;
-    const teamPairs = [['Anaesthetist',th.anaes],['SFA',th.sfa],['Scrub 1',th.scrub1],['Scrub 2',th.scrub2],
-      ['Scrub 3',th.scrub3],['ODP',th.odp],['Theatre HCA',th.hca],['Recovery Nurse',th.recovery]].filter(([,v])=>v);
+    const nt = k=>rotaNameWithTime(day, 't'+t+'.'+k, th[k]||'');   // "Bob Baker (10:00)" for an own time
+    const teamPairs = [['Anaesthetist',th.anaes],['SFA',nt('sfa')],['Scrub 1',nt('scrub1')],['Scrub 2',nt('scrub2')],
+      ['Scrub 3',nt('scrub3')],['ODP',nt('odp')],['Theatre HCA',nt('hca')],['Recovery Nurse',nt('recovery')]].filter(([,v])=>v);
     doc.autoTable({ startY:py, margin:{left:x+4, right: W-(x+panelW-4), bottom:4}, tableWidth: panelW-8,
       body: teamPairs, theme:'plain',
       styles:{font:'helvetica', fontSize:9.5, cellPadding:0.6, textColor:[23,37,31]},
