@@ -830,11 +830,7 @@
   <div class="m-body">
     <div class="m-row"><label for="stfName">Name *</label><input id="stfName" type="text" placeholder="e.g. Jane Smith"></div>
     <div class="m-row"><label>Works as</label>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:14px">
-        <label style="display:flex;gap:5px;align-items:center;width:auto"><input type="checkbox" id="stfRoleScrub" style="width:auto;flex:none;padding:0"> Scrub</label>
-        <label style="display:flex;gap:5px;align-items:center;width:auto"><input type="checkbox" id="stfRoleOdp" style="width:auto;flex:none;padding:0"> ODP</label>
-        <label style="display:flex;gap:5px;align-items:center;width:auto"><input type="checkbox" id="stfRoleWard" style="width:auto;flex:none;padding:0"> Ward nurse</label>
-      </div></div>
+      <div id="stfRoles" style="display:flex;gap:8px 14px;flex-wrap:wrap;font-size:14px"></div></div>
     <div class="m-row"><label for="stfMobile">Mobile</label><input id="stfMobile" type="tel" inputmode="tel" placeholder="07…"></div>
     <div class="m-row"><label>Texts</label><label style="display:flex;gap:6px;align-items:center;width:auto;font-size:14px"><input type="checkbox" id="stfOptIn" style="width:auto;flex:none;padding:0"> Has agreed to rota texts on this number</label></div>
     <div class="m-row"><label>Status</label><label style="display:flex;gap:6px;align-items:center;width:auto;font-size:14px"><input type="checkbox" id="stfActive" style="width:auto;flex:none;padding:0" checked> Currently works here</label></div>
@@ -6245,9 +6241,14 @@ const ROTA_D_ROLES = [['hcaWard','HCA — ward',1],
   ['housekeepAM','Housekeeping AM',0],['housekeepPM','Housekeeping PM',0],
   ['receptionAM','Reception AM',0],['receptionPM','Reception PM',0]];
 // Rota slots whose person can be texted -- must match rota_sms_slots() in the database
-// (migration 20260930100000_rota_sms.sql): Scrub 1-3 and ODP per running theatre, plus Ward nurse.
-const ROTA_SMS_T_KEYS = ['scrub1','scrub2','scrub3','odp'];
-const ROTA_SMS_D_KEYS = ['ward'];
+// (migrations 20260930100000_rota_sms.sql + 20260930120000_rota_sms_more_roles.sql):
+// per running theatre Scrub 1-3, ODP, SFA / practitioner, Recovery nurse / ODP; day cover
+// Ward nurse, HCA - ward, Night nurse, HCA night, RMO on site - night.
+const ROTA_SMS_T_KEYS = ['scrub1','scrub2','scrub3','odp','sfa','recovery'];
+const ROTA_SMS_D_KEYS = ['ward','hcaWard','nightNurse','hcaNight','rmoNight'];
+// "Works as" options in the staff list (information only -- the picker offers every active person).
+const STAFF_ROLES = [['scrub','Scrub'],['odp','ODP'],['sfa','SFA / practitioner'],['recovery','Recovery nurse / ODP'],
+  ['ward_nurse','Ward nurse'],['night_nurse','Night nurse'],['hca','HCA'],['rmo','RMO']];
 const SMS_COLS = 'id,rota_date,staff_id,staff_name,kind,status,send_at,sent_at,created_at,error';
 const LIST_COLOURS = [
   ['','None'],['#2B6168','Teal'],['#B4436C','Rose'],['#6A8D3F','Green'],
@@ -6533,8 +6534,11 @@ function smsNormaliseMobile(s){ const d=String(s||'').replace(/[^0-9]/g,'');
   if(/^00447[0-9]{9}$/.test(d)) return '+'+d.slice(2);
   return null; }
 function smsPrettyMobile(m){ return /^\+447[0-9]{9}$/.test(m||'') ? '0'+m.slice(3,7)+' '+m.slice(7) : String(m||''); }
-const SMS_ROLE_LABEL = {scrub:'Scrub', odp:'ODP', ward_nurse:'Ward nurse'};
-function rotaSmsRoleForKey(key){ const k=String(key).split('.').pop(); return k==='odp'?'odp':(k==='ward'?'ward_nurse':'scrub'); }
+const SMS_ROLE_LABEL = Object.fromEntries(STAFF_ROLES);
+// Rota slot key -> the "works as" role pre-ticked when adding someone from that box.
+const SMS_SLOT_ROLE = {scrub1:'scrub', scrub2:'scrub', scrub3:'scrub', odp:'odp', sfa:'sfa', recovery:'recovery',
+  ward:'ward_nurse', nightNurse:'night_nurse', hcaWard:'hca', hcaNight:'hca', rmoNight:'rmo'};
+function rotaSmsRoleForKey(key){ return SMS_SLOT_ROLE[String(key).split('.').pop()] || 'scrub'; }
 
 /* ---- staff picker for the texted slots (Scrub 1-3, ODP, Ward nurse): type-ahead against the
    staff directory, modelled on the surgeon picker above but kept separate on purpose so
@@ -6626,9 +6630,8 @@ function openStaffDlg(staffId, presetName, slotCtx, reopenSmsDate, presetRoles){
   $('#stfDlgTitle').textContent = s ? 'Edit staff member' : 'Add staff member';
   $('#stfName').value = s ? s.name : (presetName||'');
   const roles = s ? s.roles : (presetRoles||[]);
-  $('#stfRoleScrub').checked = roles.includes('scrub');
-  $('#stfRoleOdp').checked = roles.includes('odp');
-  $('#stfRoleWard').checked = roles.includes('ward_nurse');
+  $('#stfRoles').innerHTML = STAFF_ROLES.map(([r,lab])=>`<label style="display:flex;gap:5px;align-items:center;width:auto"><input type="checkbox" id="stfRole_${r}" ${roles.includes(r)?'checked':''} style="width:auto;flex:none;padding:0"> ${lab}</label>`).join('');
+  STAFF_ROLES.forEach(([r])=>{ const el=$('#stfRole_'+r); if(el) el.checked = roles.includes(r); });
   $('#stfMobile').value = s && s.mobile ? smsPrettyMobile(s.mobile) : '';
   $('#stfOptIn').checked = s ? s.optIn : false;
   $('#stfActive').checked = s ? s.active : true;
@@ -6643,7 +6646,7 @@ async function saveStaffDlg(){
   const mobile = mobileRaw ? smsNormaliseMobile(mobileRaw) : '';
   if(mobileRaw && !mobile){ toast('That isn\'t a UK mobile number — use the 07… format'); return; }
   if(optIn && !mobile){ toast('Add a mobile number, or untick "agreed to rota texts"'); return; }
-  const roles = [['stfRoleScrub','scrub'],['stfRoleOdp','odp'],['stfRoleWard','ward_nurse']].filter(([id])=>$('#'+id).checked).map(([,r])=>r);
+  const roles = STAFF_ROLES.map(([r])=>r).filter(r=>{ const el=$('#stfRole_'+r); return !!(el && el.checked); });
   const btn = $('#stfSaveBtn'); btn.disabled = true;
   try{
     const row = LIVE
@@ -6822,7 +6825,7 @@ function smsAffectedHtml(){
 }
 function smsPeopleHtml(){
   const people = (_sms.pv && _sms.pv.people) || [];
-  if(!people.length) return `<div class="sub">Nobody is named as Scrub, ODP or Ward nurse on this day yet.</div>`;
+  if(!people.length) return `<div class="sub">Nobody who can be texted is named on this day yet.</div>`;
   const eligible = people.filter(p=>p.eligible);
   const allOn = eligible.length && eligible.every(p=>_sms.sel[p.staff_id]);
   const rows = people.map((p,i)=>{
@@ -7003,10 +7006,10 @@ function rotaStaffDirPanel(){
         <td data-label="Type">${m.kind==='confirm'?'Confirmation':m.kind==='cancel'?'Cancellation':'Test'}</td><td data-label="Status">${smsEsc(smsStatusText(m))}</td></tr>`).join('')}
       </tbody></table>` : '<div class="sub">No texts yet.</div>');
   return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px">${head}
-    <div class="sub" style="margin:8px 0 0">People named as Scrub, ODP or Ward nurse can be texted about a saved day with <strong>✉ Message staff</strong> — only when you press Send, never automatically. Mobile numbers are visible to super admins only.</div>
+    <div class="sub" style="margin:8px 0 0">People named as Scrub, ODP, SFA / practitioner, Recovery nurse / ODP, Ward nurse, HCA — ward, Night nurse, HCA night or RMO on site — night can be texted about a saved day with <strong>✉ Message staff</strong> — only when you press Send, never automatically. Mobile numbers are visible to super admins only.</div>
     <div class="toolrow" style="margin-top:8px"><button class="btn primary" onclick="openStaffDlg(null,'')">＋ Add staff member</button></div>
     ${staff.length?`<table style="margin-top:8px"><thead><tr><th>Name</th><th>Works as</th><th>Mobile</th><th>Texts</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
-                  :'<div class="sub">No staff added yet. You can also add people straight from a Scrub, ODP or Ward nurse box on the rota.</div>'}
+                  :'<div class="sub">No staff added yet. You can also add people straight from any of those boxes on the rota.</div>'}
     <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">Message wording</summary>
       <div class="sub" style="margin:6px 0">Use {first_name}, {day} and {roles} — they're filled in for each person. Never put patient details here.</div>
       <label style="font-size:12px;font-weight:600;color:var(--ink-soft)">Confirmation</label>

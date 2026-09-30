@@ -224,8 +224,16 @@ report is the **canonical PDF style** (§8).
 - **Saving** is one atomic, version-checked RPC, `rota_save_day`: a stale save is refused,
   never silently applied (§9 #8).
 
-**Rota texts (SMS)** (superadmin+): texts Scrub 1–3, ODP and Ward nurse staff from the
-clinic's own phone. **Nothing is ever sent automatically; this is a firm rule from Yasar.**
+**Rota texts (SMS)** (superadmin+): texts rota staff from the clinic's own phone. **Nothing
+is ever sent automatically; this is a firm rule from Yasar.**
+- **Textable slots** (`ROTA_SMS_T_KEYS` / `ROTA_SMS_D_KEYS` in `index.html`, which must match
+  `rota_sms_slots()` in the database):
+  - per running theatre: Scrub 1–3, ODP, SFA / practitioner, Recovery nurse / ODP;
+  - day cover: Ward nurse, HCA — ward, Night nurse, HCA night, RMO on site — night.
+  - **Not textable:** surgeons, anaesthetist, theatre HCA, RMO day, housekeeping and
+    reception.
+  - Role names in texts are plain ASCII ("Ward HCA", "RMO on site (night)"), because one
+    non-GSM character (like "—") cuts a text from 160 to 70 characters.
 - **Confirmations:** "✉ Message staff" (next to Save/Edit day; enabled only for a saved day
   with no unsaved changes) opens a tick-list of that day's people. Confirmed means named with
   no ★. Provisional, not-in-list, no-mobile and not-opted-in people can't be ticked. You
@@ -239,7 +247,7 @@ clinic's own phone. **Nothing is ever sent automatically; this is a firm rule fr
 - **Safety net:** at send time the server **holds** (never sends) a confirmation for someone
   no longer confirmed, a cancellation for someone confirmed again, or any text to someone
   deactivated or opted out.
-- **Staff picker:** Scrub/ODP/Ward nurse slots use a staff picker (`rotaStaffSlot`, modelled
+- **Staff picker:** every textable slot uses a staff picker (`rotaStaffSlot`, modelled
   on the surgeon picker, which is untouched). Unlisted names are saved as typed and flagged
   "Not in the staff list".
 - **Staff & mobiles panel** on the rota page: the directory, the message wording (templates
@@ -298,7 +306,8 @@ Rules:
 - Old `rota_days.hca_theatre` / `recovery_nurse` columns are kept for history; live data is
   per-theatre.
 
-Rota texts (migration `20260930100000_rota_sms.sql`):
+Rota texts (migrations `20260930100000_rota_sms.sql`, then
+`20260930120000_rota_sms_more_roles.sql`, which added the extra textable roles):
 - **`staff`:** the directory. Name unique case-insensitively; mobile stored as `+447…`;
   `sms_opt_in`; `active`. Superadmin-read only, written via `staff_upsert`.
 - **`sms_messages`:** the outbox and log. `kind` confirm/cancel/test; `status` scheduled →
@@ -391,9 +400,11 @@ Sheets-era notes and may be out of date; this file is the current reference.
     inserted in one transaction share `created_at` and "latest row" ordering becomes
     arbitrary. Use `default clock_timestamp()` where ordering matters (as `sms_messages`
     does).
-13. **`$$` lost in generated SQL:** building SQL with JavaScript `String.replace` turns `$$`
-    in the replacement into `$`, which breaks function bodies. Check that dollar-quote pairs
-    balance before pushing.
+13. **`$` patterns in JavaScript `String.replace`:** in the *replacement* string, `$$`
+    becomes `$` (breaking SQL function bodies) and `` $` `` / `$'` insert the text before or
+    after the match (duplicating half a file). When scripting edits to SQL, use
+    `s.split(a).join(b)` or a replacer function, or use the editor. Check that dollar-quote
+    pairs balance before running.
 
 ---
 
