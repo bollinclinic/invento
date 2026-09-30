@@ -6249,7 +6249,7 @@ const ROTA_SMS_D_KEYS = ['ward','hcaWard','nightNurse','hcaNight','rmoNight'];
 // "Works as" options in the staff list (information only -- the picker offers every active person).
 const STAFF_ROLES = [['scrub','Scrub'],['odp','ODP'],['sfa','SFA / practitioner'],['recovery','Recovery nurse / ODP'],
   ['ward_nurse','Ward nurse'],['night_nurse','Night nurse'],['hca','HCA'],['rmo','RMO']];
-const SMS_COLS = 'id,rota_date,staff_id,staff_name,kind,status,send_at,sent_at,created_at,error';
+const SMS_COLS = 'id,rota_date,staff_id,staff_name,kind,status,send_at,sent_at,created_at,error,roles';
 const LIST_COLOURS = [
   ['','None'],['#2B6168','Teal'],['#B4436C','Rose'],['#6A8D3F','Green'],
   ['#B08A3E','Gold'],['#7A5AC2','Purple'],['#C25A3E','Orange'],['#3E6AC2','Blue'],['#555','Grey']];
@@ -6270,7 +6270,7 @@ function rotaMonday(off){
 function rotaISO(d){ return d.toISOString().slice(0,10); }
 function rotaNice(date, opt){ return new Date(date+'T12:00').toLocaleDateString('en-GB', opt||{weekday:'long',day:'numeric',month:'short'}); }
 function blankTheatre(){ return {type:'GA',detail:'',colour:'',cases:[],
-  surgeon:'',surgeon2:'',surgeon3:'',anaes:'',sfa:'',scrub1:'',scrub2:'',scrub3:'',odp:'',hca:'',recovery:''}; }
+  surgeon:'',surgeon2:'',surgeon3:'',anaes:'',sfa:'',scrub1:'',scrub2:'',scrub3:'',odp:'',hca:'',recovery:'',startTime:''}; }
 function blankRotaDay(date){
   const d = {date, theatres:0, notes:'', acks:{}, stars:{}, t1:blankTheatre(), t2:blankTheatre()};
   ROTA_D_ROLES.forEach(([k])=>d[k]='');
@@ -6369,7 +6369,8 @@ async function rotaSaveDay(date){
     f['T'+t+'_Anaesthetist']=th.anaes||''; f['T'+t+'_SFA']=th.sfa||'';
     f['T'+t+'_Scrub1']=th.scrub1||''; f['T'+t+'_Scrub2']=th.scrub2||'';
     f['T'+t+'_Scrub3']=th.scrub3||''; f['T'+t+'_ODP']=th.odp||'';
-    f['T'+t+'_HCA']=th.hca||''; f['T'+t+'_Recovery']=th.recovery||''; });
+    f['T'+t+'_HCA']=th.hca||''; f['T'+t+'_Recovery']=th.recovery||'';
+    f['T'+t+'_StartTime']=th.startTime||''; });
 
   if(!LIVE){
     const obj = JSON.parse(JSON.stringify(d));
@@ -6698,13 +6699,40 @@ function rotaSmsLocalAffected(date){
     if(!last) return;
     const st = staffById(last.staff_id);
     const name = (st ? st.name : last.staff_name).toLowerCase();
-    if(conf.has(name)) return;
+    if(conf.has(name)){
+      // still confirmed -- but was the start time they were told changed since? (texts from
+      // before start times existed carry no 'start' and can't be compared)
+      const roles = Array.isArray(last.roles) ? last.roles : [];
+      if(roles.some(r=>r && Object.prototype.hasOwnProperty.call(r,'start'))
+         && smsRolesStarts(roles).join()!==rotaSmsPersonStarts(day, name).join()) out.push(last);
+      return;
+    }
     if(list.some(m=>m.kind==='cancel' && String(m.created_at)>String(last.created_at) && !['cancelled','failed'].includes(m.status))) return;
     out.push(last);
   });
   return out;
 }
 function staffById(id){ return (state.staff||[]).find(s=>s.id===id) || null; }
+// Start times. Theatre staff start at their theatre's "List starts"; day-cover roles at their
+// usual time (settings key sms_default_times, JSON by slot key) -- same as sms_default_time().
+function smsTimeOk(v){ return /^[0-2][0-9]:[0-5][0-9]$/.test(String(v||'')); }
+function smsDefaultTimes(){
+  try{ const s=(state.settings||[]).find(x=>x.Key==='sms_default_times');
+       const o = s ? JSON.parse(s.Value||'{}') : {}; return (o && typeof o==='object') ? o : {}; }
+  catch(e){ return {}; }
+}
+function smsRolesStarts(roles){ return [...new Set((roles||[]).map(r=>r && r.start).filter(Boolean))].sort(); }
+// Sorted distinct start times of one person's confirmed slots on a day (mirror of the database).
+function rotaSmsPersonStarts(day, nameLower){
+  const out = new Set();
+  if(!day || !(Number(day.theatres)>0)) return [];
+  const defs = smsDefaultTimes();
+  const take = (key, v, start)=>{ if(String(v||'').trim().toLowerCase()===nameLower && !(day.stars && day.stars[key]) && start) out.add(start); };
+  ROTA_SMS_D_KEYS.forEach(k=>take(k, day[k], smsTimeOk(defs[k]) ? defs[k] : ''));
+  for(let t=1;t<=Math.min(2,Number(day.theatres));t++){ const th=day['t'+t]||{};
+    ROTA_SMS_T_KEYS.forEach(k=>take('t'+t+'.'+k, th[k], smsTimeOk(th.startTime) ? th.startTime : '')); }
+  return [...out].sort();
+}
 function rotaSmsChips(date){
   if(!isSuperadmin()) return '';
   const ms = (state.sms||[]).filter(m=>m.rota_date===date && m.kind!=='test');
@@ -6727,7 +6755,18 @@ function rotaSmsChips(date){
 let _sms = null;   // {date, mode:'confirm'|'cancel', pv, sel:{staffId:true}, selAff:{staffId:true}, when:'now'|'at', at, nightAsk, nightOk, busy}
 const SMS_REASON = {provisional:'★ Provisional — confirm them on the rota first', not_in_directory:'Not in the staff list',
   inactive:'Marked as no longer working here', no_mobile:'No mobile number', not_opted_in:"Hasn't agreed to rota texts",
-  not_on_rota:'No longer on this day', not_affected:'Nothing to cancel', confirmation_not_sent_yet:"Their text hadn't gone yet"};
+  not_on_rota:'No longer on this day', not_affected:'Nothing to cancel', confirmation_not_sent_yet:"Their text hadn't gone yet",
+  no_start_time:'No start time set'};
+// Where to fill in the missing start time for someone who can't be texted yet.
+function smsNoTimeText(p){
+  const missing = (p.roles||[]).filter(r=>!r.starred && !r.start);
+  const th = [...new Set(missing.filter(r=>r.theatre>0).map(r=>r.theatre))];
+  const dc = [...new Set(missing.filter(r=>!(r.theatre>0)).map(r=>r.label))];
+  const parts = [];
+  if(th.length) parts.push('fill in "List starts" for Theatre '+th.join(' and ')+' on the rota');
+  if(dc.length) parts.push('set the usual start time for '+dc.join(', ')+' in Staff & mobiles');
+  return 'No start time — '+(parts.join(', and ')||'add one first');
+}
 function smsFmt(ts){ if(!ts) return ''; return new Date(ts).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
 function smsStatusText(m){
   switch(m.status){
@@ -6748,7 +6787,7 @@ function smsToLocalInput(d){ const p=n=>String(n).padStart(2,'0');
 function smsIsNight(d){ const h=(d||new Date()).getHours(); return h>=22 || h<7; }
 function smsNext7am(){ const now=new Date(), d=new Date(now); d.setHours(7,0,0,0); if(d<=now) d.setDate(d.getDate()+1); return d; }
 function smsRolesText(roles, withStars){
-  return (roles||[]).map(r=>(withStars&&r.starred?'★ ':'')+r.label+(r.theatre>0?' (Theatre '+r.theatre+')':'')).join(', ');
+  return (roles||[]).map(r=>(withStars&&r.starred?'★ ':'')+r.label+(r.theatre>0?' (Theatre '+r.theatre+')':'')+(r.start?' · '+r.start:'')).join(', ');
 }
 
 async function rotaSmsOpen(date){
@@ -6774,7 +6813,7 @@ async function rotaSmsOpen(date){
       const last = smsLastOf(p.messages,'confirm');
       if(p.eligible && !(last && ['scheduled','sending','sent','delivered','held'].includes(last.status))) _sms.sel[p.staff_id] = true;
     });
-    (pv.affected||[]).forEach(a=>{ _sms.selAff[a.staff_id] = true; });
+    (pv.affected||[]).forEach(a=>{ if(smsAffCanAct(a)) _sms.selAff[a.staff_id] = true; });
     const def = pv.default_send_at ? new Date(pv.default_send_at) : null;
     _sms.at = def && def.getTime()>Date.now() ? smsToLocalInput(def) : '';
     smsPaint();
@@ -6793,31 +6832,45 @@ async function rotaSmsAfterSave(date){
     const saved = rotaSaved(date);
     _sms = {date, mode:'cancel', pv:{affected, people:[], updated_at: saved?saved.updatedAt:null},
       sel:{}, selAff:{}, when:'now', at:'', nightAsk:null, nightOk:false, busy:false};
-    affected.forEach(a=>{ _sms.selAff[a.staff_id] = true; });
-    $('#smsDlgTitle').textContent = 'Texted staff no longer confirmed — '+rotaNice(date);
+    affected.forEach(a=>{ if(smsAffCanAct(a)) _sms.selAff[a.staff_id] = true; });
+    $('#smsDlgTitle').textContent = 'Texted staff — changes since their text — '+rotaNice(date);
     smsPaint();
     if(!smsDlg.open) smsDlg.showModal();
     render();
   }catch(err){ console.warn('rota text check after save failed:', err); }
 }
 
+// A "changed since their text" row the user can act on. A start-time change with no time set
+// can't be answered with an updated text until the time is filled in.
+function smsAffCanAct(a){ return !(a.change==='time_changed' && a.missing_time); }
+// What ticking a row does: 'cancel' (their unsent confirmation), 'cancelText' (send a
+// cancellation), or 'update' (send an updated confirmation with the new start time).
+function smsAffAction(a){
+  if(a.change==='time_changed') return 'update';
+  return ['scheduled','held'].includes(a.confirm_status) ? 'cancel' : 'cancelText';
+}
 function smsAffectedHtml(){
   const aff = (_sms.pv && _sms.pv.affected) || [];
   if(!aff.length) return '';
   const rows = aff.map(a=>{
-    const notSent = ['scheduled','held'].includes(a.confirm_status);
-    const what = notSent
-      ? `Their confirmation hasn't gone yet (${smsStatusText({status:a.confirm_status, send_at:a.send_at})}). Tick to <strong>cancel it</strong>.`
-      : `They were told they're confirmed (${smsStatusText({status:a.confirm_status, send_at:a.send_at, sent_at:a.sent_at})}). Tick to <strong>send a cancellation text</strong>.`;
+    const act = smsAffAction(a), can = smsAffCanAct(a);
+    const status = smsStatusText({status:a.confirm_status, send_at:a.send_at, sent_at:a.sent_at});
+    const what = act==='update'
+      ? (can ? `Start time changed since their text (${status}): told <strong>${smsEsc(a.old_start||'—')}</strong>, now <strong>${smsEsc(a.new_start)}</strong>. Tick to <strong>send an updated confirmation</strong>.`
+             : `Start time changed since their text (${status}), and there's no start time set now — fill it in on the rota first.`)
+      : act==='cancel'
+        ? `Their confirmation hasn't gone yet (${status}). Tick to <strong>cancel it</strong>.`
+        : `They were told they're confirmed (${status}) but no longer are. Tick to <strong>send a cancellation text</strong>.`;
+    const showBody = act!=='cancel' && can;
     return `<label style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);align-items:flex-start">
-      <input type="checkbox" ${_sms.selAff[a.staff_id]?'checked':''} onchange="_sms.selAff['${a.staff_id}']=this.checked;smsPaint()" style="margin-top:3px;flex:none">
+      <input type="checkbox" ${can?'':'disabled'} ${can&&_sms.selAff[a.staff_id]?'checked':''} onchange="_sms.selAff['${a.staff_id}']=this.checked;smsPaint()" style="margin-top:3px;flex:none">
       <div style="flex:1"><strong>${smsEsc(a.name)}</strong> <span style="color:var(--ink-soft);font-size:13px">${smsEsc(smsRolesText(a.roles))}</span>
         <div style="font-size:12.5px;margin-top:2px">${what}</div>
-        ${notSent?'':`<div style="font-size:12px;color:var(--ink-soft);margin-top:3px;white-space:pre-wrap">“${smsEsc(a.body)}”</div>`}</div></label>`;
+        ${showBody?`<div style="font-size:12px;color:var(--ink-soft);margin-top:3px;white-space:pre-wrap">“${smsEsc(a.body)}”</div>`:''}</div></label>`;
   }).join('');
   const intro = _sms.mode==='cancel'
-    ? `These people were texted about <strong>${smsEsc(rotaNice(_sms.date))}</strong> and are no longer confirmed (removed, replaced or marked ★ provisional). Nothing is sent unless you choose to.`
-    : `<strong>⚠ Texted but no longer confirmed</strong> — decide what to do for each person:`;
+    ? `Some people texted about <strong>${smsEsc(rotaNice(_sms.date))}</strong> are affected by this change (removed, replaced, marked ★ provisional, or a new start time). Nothing is sent unless you choose to.`
+    : `<strong>⚠ Changed since their text</strong> — decide what to do for each person:`;
   const btn = _sms.mode==='confirm'
     ? `<div style="text-align:right;margin-top:8px"><button class="btn" ${_sms.busy?'disabled':''} onclick="smsApplyAffected()">Apply to ticked</button></div>` : '';
   return `<div style="border:1px solid var(--red);background:var(--red-bg);border-radius:10px;padding:10px 12px;margin-bottom:14px">
@@ -6834,15 +6887,16 @@ function smsPeopleHtml(){
       const cancellable = ['scheduled','held'].includes(m.status);
       return `<div style="font-size:12px;margin-top:2px">${m.kind==='cancel'?'Cancellation: ':''}${smsEsc(smsStatusText(m))}${cancellable?` · <a href="#" onclick="smsCancelOne('${m.id}');return false">Cancel this text</a>`:''}</div>`;
     };
-    const fix = p.reason && p.reason!=='provisional'
+    const fix = p.reason && p.reason!=='provisional' && p.reason!=='no_start_time'
       ? ` · <a href="#" onclick="smsFixPerson(${i});return false">${p.reason==='not_in_directory'?'Add to staff list':'Edit details'}</a>` : '';
+    const reasonText = p.reason==='no_start_time' ? smsNoTimeText(p) : (SMS_REASON[p.reason]||p.reason||'');
     return `<label style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);align-items:flex-start">
       <input type="checkbox" ${p.eligible?'':'disabled'} ${p.eligible&&_sms.sel[p.staff_id]?'checked':''}
         onchange="_sms.sel['${p.staff_id}']=this.checked;smsPaint()" style="margin-top:3px;flex:none">
       <div style="flex:1;${p.eligible?'':'opacity:.8'}"><strong>${smsEsc(p.name)}</strong>
         <span style="color:var(--ink-soft);font-size:13px">${smsEsc(smsRolesText(p.roles, true))}</span>
         ${p.eligible?`<div style="font-size:12px;color:var(--ink-soft)">📱 number ending ${smsEsc(p.mobile_tail||'')}</div>`
-                    :`<div style="font-size:12px;color:${p.reason==='provisional'?'#7A5A14':'var(--red)'}">${smsEsc(SMS_REASON[p.reason]||p.reason||'')}${fix}</div>`}
+                    :`<div style="font-size:12px;color:${p.reason==='provisional'||p.reason==='no_start_time'?'#7A5A14':'var(--red)'}">${smsEsc(reasonText)}${fix}</div>`}
         ${lastC?msgLine(lastC):''}${lastX?msgLine(lastX):''}</div></label>`;
   }).join('');
   return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong>Who to text</strong>
@@ -6867,7 +6921,7 @@ function smsPaint(){
   if(!_sms) return;
   const body = $('#smsDlgBody'), acts = $('#smsDlgActions');
   if(_sms.mode==='cancel'){
-    const nText = ((_sms.pv.affected)||[]).filter(a=>_sms.selAff[a.staff_id] && !['scheduled','held'].includes(a.confirm_status)).length;
+    const nText = ((_sms.pv.affected)||[]).filter(a=>_sms.selAff[a.staff_id] && smsAffCanAct(a) && smsAffAction(a)!=='cancel').length;
     body.innerHTML = smsAffectedHtml() + (nText ? smsWhenHtml() : '');
     acts.innerHTML = `<button class="btn" onclick="smsDlg.close()">Not now</button>
       <button class="btn primary" ${_sms.busy?'disabled':''} onclick="smsApplyAffected()">${_sms.busy?'Working…':'Send / apply'}</button>`;
@@ -6939,12 +6993,13 @@ async function smsSendConfirm(){
 }
 async function smsApplyAffected(){
   if(!_sms || _sms.busy) return;
-  const pick = ((_sms.pv&&_sms.pv.affected)||[]).filter(a=>_sms.selAff[a.staff_id]);
+  const pick = ((_sms.pv&&_sms.pv.affected)||[]).filter(a=>_sms.selAff[a.staff_id] && smsAffCanAct(a));
   if(!pick.length){ toast('Nothing ticked — press "Not now" to leave it'); return; }
-  const toCancel = pick.filter(a=>['scheduled','held'].includes(a.confirm_status));
-  const toText = pick.filter(a=>!['scheduled','held'].includes(a.confirm_status));
+  const toCancel = pick.filter(a=>smsAffAction(a)==='cancel');
+  const toText = pick.filter(a=>smsAffAction(a)==='cancelText');
+  const toUpdate = pick.filter(a=>smsAffAction(a)==='update');
   let when = null;
-  if(toText.length){ when = smsResolveWhen('affected'); if(when===false) return; }
+  if(toText.length || toUpdate.length){ when = smsResolveWhen('affected'); if(when===false) return; }
   _sms.busy = true; smsPaint();
   try{
     for(const a of toCancel) await api({action:'smsCancel', id:a.confirm_id});
@@ -6952,7 +7007,13 @@ async function smsApplyAffected(){
     if(toText.length){
       const res = await api({action:'smsQueue', date:_sms.date, expectedUpdatedAt:_sms.pv.updated_at,
         staffIds:toText.map(a=>a.staff_id), kind:'cancel', sendAt:when});
-      msg += smsResultText(res, when, 'cancel');
+      msg += smsResultText(res, when, 'cancel')+' ';
+    }
+    if(toUpdate.length){
+      // an updated confirmation replaces any of theirs that hasn't gone yet (server side)
+      const res = await api({action:'smsQueue', date:_sms.date, expectedUpdatedAt:_sms.pv.updated_at,
+        staffIds:toUpdate.map(a=>a.staff_id), kind:'confirm', sendAt:when});
+      msg += 'Updated start time: '+smsResultText(res, when, 'confirm');
     }
     toast(msg.trim());
     await smsAfterAction();
@@ -6996,6 +7057,8 @@ function rotaStaffDirPanel(){
       <td data-label="Texts">${s.optIn?'✓ agreed':'—'}</td>
       <td data-label=""><button class="btn" onclick="openStaffDlg('${s.id}')">Edit</button></td></tr>`).join('');
   const tpl = k=>{ const s=(state.settings||[]).find(x=>x.Key===k); return s ? String(s.Value||'') : ''; };
+  const defs = smsDefaultTimes();
+  const missingDefs = ROTA_SMS_D_KEYS.filter(k=>!smsTimeOk(defs[k])).length;
   const recent = window._smsRecent;
   const lastOut = recent ? recent.filter(m=>['sent','delivered'].includes(m.status) && m.sent_at).map(m=>m.sent_at).sort().pop() : null;
   const recentHtml = !recent ? '<div class="sub">Loading…</div>' : (recent.length ? `
@@ -7010,8 +7073,15 @@ function rotaStaffDirPanel(){
     <div class="toolrow" style="margin-top:8px"><button class="btn primary" onclick="openStaffDlg(null,'')">＋ Add staff member</button></div>
     ${staff.length?`<table style="margin-top:8px"><thead><tr><th>Name</th><th>Works as</th><th>Mobile</th><th>Texts</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
                   :'<div class="sub">No staff added yet. You can also add people straight from any of those boxes on the rota.</div>'}
-    <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">Message wording</summary>
-      <div class="sub" style="margin:6px 0">Use {first_name}, {day} and {roles} — they're filled in for each person. Never put patient details here.</div>
+    <details style="margin-top:12px" ${missingDefs?'open':''}><summary style="cursor:pointer;font-weight:600">Usual start times — ward &amp; night roles${missingDefs?` <span style="color:var(--red)">(${missingDefs} not set)</span>`:''}</summary>
+      <div class="sub" style="margin:6px 0">Theatre staff get their theatre's <strong>List starts</strong> time from the rota. These roles aren't tied to a theatre, so they get their usual time below. Nobody can be texted without a start time.</div>
+      <div style="display:flex;gap:10px 16px;flex-wrap:wrap">${ROTA_SMS_D_KEYS.map(k=>{
+        const lab = (ROTA_D_ROLES.find(([kk])=>kk===k)||[k,k])[1];
+        return `<label style="display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:var(--ink-soft)">${smsEsc(lab)}
+          <input type="time" id="smsDef_${k}" value="${smsTimeOk(defs[k])?defs[k]:''}" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:14px"></label>`; }).join('')}</div>
+      <div style="margin-top:8px"><button class="btn" onclick="smsSaveDefaultTimes()">Save start times</button></div></details>
+    <details style="margin-top:8px"><summary style="cursor:pointer;font-weight:600">Message wording</summary>
+      <div class="sub" style="margin:6px 0">Use {first_name}, {day}, {roles} and {start} — they're filled in for each person ({start} is required in the confirmation). Never put patient details here.</div>
       <label style="font-size:12px;font-weight:600;color:var(--ink-soft)">Confirmation</label>
       <textarea id="smsTplConfirm" rows="3" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit">${smsEsc(tpl('sms_template_confirm'))}</textarea>
       <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-top:6px">Cancellation</label>
@@ -7033,6 +7103,7 @@ async function smsLoadRecent(){
 async function smsSaveTemplates(){
   const c = ($('#smsTplConfirm').value||'').trim(), x = ($('#smsTplCancel').value||'').trim();
   if(!c || !x){ toast('Both messages need some wording'); return; }
+  if(!c.includes('{start}')){ toast('The confirmation must include {start} — every confirmation says when the person starts'); return; }
   try{
     if(LIVE){
       await api({action:'setSetting', key:'sms_template_confirm', value:c});
@@ -7043,6 +7114,22 @@ async function smsSaveTemplates(){
       const s = state.settings.find(z=>z.Key===k); if(s) s.Value=v; else state.settings.push({Key:k, Value:v});
     });
     toast('Message wording saved');
+  }catch(err){ toast('Not saved — '+err.message); }
+}
+async function smsSaveDefaultTimes(){
+  const out = {};
+  for(const k of ROTA_SMS_D_KEYS){
+    const el = $('#smsDef_'+k); const v = el ? String(el.value||'').trim() : '';
+    if(v && !smsTimeOk(v)){ toast('Use a time like 07:30'); return; }
+    if(v) out[k] = v;
+  }
+  const value = JSON.stringify(out);
+  try{
+    if(LIVE) await api({action:'setSetting', key:'sms_default_times', value});
+    state.settings = state.settings || [];
+    const s = state.settings.find(z=>z.Key==='sms_default_times'); if(s) s.Value=value; else state.settings.push({Key:'sms_default_times', Value:value});
+    toast('Start times saved');
+    render();
   }catch(err){ toast('Not saved — '+err.message); }
 }
 async function smsSendTest(){
@@ -7098,6 +7185,10 @@ function rotaTheatreBlock(date, day, t, locked){
         <select ${dis} onchange="rotaSet('${date}','t${t}.colour',this.value)" title="Colour-code this list (e.g. per surgeon)"
           style="padding:7px 10px;border:1px solid var(--line);border-radius:8px">
           ${LIST_COLOURS.map(([v,n])=>`<option value="${v}" ${th.colour===v?'selected':''}>${n}</option>`).join('')}</select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-soft)" title="Start time sent to this theatre's team in their rota texts">List starts
+          <input type="time" id="rotaStart_${date.replace(/-/g,'')}_t${t}" value="${String(th.startTime||'').replace(/"/g,'&quot;')}" ${dis}
+            onchange="rotaSet('${date}','t${t}.startTime',this.value)"
+            style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:14px"></label>
         <input placeholder="Detail — Overnight ×2, AM only, Transform…" value="${String(th.detail||'').replace(/"/g,'&quot;')}" ${dis}
           onchange="rotaSet('${date}','t${t}.detail',this.value)"
           style="flex:1;min-width:160px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
@@ -9033,6 +9124,7 @@ async function api(payload){
           out['T'+n+'_Scrub1']=th.scrub1||''; out['T'+n+'_Scrub2']=th.scrub2||'';
           out['T'+n+'_Scrub3']=th.scrub3||''; out['T'+n+'_ODP']=th.odp||'';
           out['T'+n+'_HCA']=th.hca||''; out['T'+n+'_Recovery']=th.recovery||'';
+          out['T'+n+'_StartTime']=th.start_time ? String(th.start_time).slice(0,5) : '';   // "07:30:00" -> "07:30"
         });
         return out;
       });
@@ -9615,7 +9707,7 @@ async function loadAll(){
         surgeon:S(r['T'+t+'_Surgeon']), surgeon2:S(r['T'+t+'_Surgeon2']), surgeon3:S(r['T'+t+'_Surgeon3']),
         anaes:S(r['T'+t+'_Anaesthetist']), sfa:S(r['T'+t+'_SFA']),
         scrub1:S(r['T'+t+'_Scrub1']), scrub2:S(r['T'+t+'_Scrub2']), scrub3:S(r['T'+t+'_Scrub3']), odp:S(r['T'+t+'_ODP']),
-        hca:S(r['T'+t+'_HCA']), recovery:S(r['T'+t+'_Recovery']) }; });
+        hca:S(r['T'+t+'_HCA']), recovery:S(r['T'+t+'_Recovery']), startTime:S(r['T'+t+'_StartTime']) }; });
       return day; });
     if(typeof updateRotaBadge==='function') updateRotaBadge();
     // ---- CRITICAL: preserve every room's in-progress procedure + cart across a reload ----

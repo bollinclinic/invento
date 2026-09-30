@@ -215,8 +215,9 @@ report is the **canonical PDF style** (§8).
 **Theatre rota** (superadmin+): replaces Ruby's transposed spreadsheet.
 - **Views:** weekly, monthly (calendar grid with gap badges and ★ provisional counts) and
   custom range.
-- **Theatres:** 0–2 per day. Per theatre: GA/LA type, colour, detail line, up to 3 surgeons,
-  anaesthetist/SFA/scrub 1–3/ODP, **per-theatre HCA and recovery nurse/ODP**, and a case list.
+- **Theatres:** 0–2 per day. Per theatre: GA/LA type, colour, **"List starts" time**, detail
+  line, up to 3 surgeons, anaesthetist/SFA/scrub 1–3/ODP, **per-theatre HCA and recovery
+  nurse/ODP**, and a case list.
 - **Day cover** roles, including HCA night.
 - **Gap detection:** LA lists don't require an anaesthetist, ODP or SFA. Gaps can be silenced
   with per-day cover notes, and every name slot has a ★ provisional flag.
@@ -234,6 +235,16 @@ is ever sent automatically; this is a firm rule from Yasar.**
     reception.
   - Role names in texts are plain ASCII ("Ward HCA", "RMO on site (night)"), because one
     non-GSM character (like "—") cuts a text from 160 to 70 characters.
+- **Start times (required):** every confirmation says when the person starts (`{start}`).
+  - Theatre staff get their theatre's "List starts" time from the rota.
+  - Day-cover roles get their usual time, set once in Staff & mobiles (setting
+    `sms_default_times`, JSON keyed by slot, e.g. `{"nightNurse":"19:30"}`).
+  - No time means the person can't be ticked (`no_start_time`), and the dialog says where to
+    fill it in.
+  - If a start time changes after someone was texted, the post-save prompt **offers** an
+    updated confirmation ("told 07:30, now 08:00"). A scheduled text whose time is out of date
+    is held at send time.
+  - The confirmation wording must contain `{start}`.
 - **Confirmations:** "✉ Message staff" (next to Save/Edit day; enabled only for a saved day
   with no unsaved changes) opens a tick-list of that day's people. Confirmed means named with
   no ★. Provisional, not-in-list, no-mobile and not-opted-in people can't be ticked. You
@@ -251,8 +262,9 @@ is ever sent automatically; this is a firm rule from Yasar.**
   on the surgeon picker, which is untouched). Unlisted names are saved as typed and flagged
   "Not in the staff list".
 - **Staff & mobiles panel** on the rota page: the directory, the message wording (templates
-  in `settings`, placeholders `{first_name}` `{day}` `{roles}`, never patient details), a test
-  text, and the recent-texts log.
+  in `settings`, placeholders `{first_name}` `{day}` `{roles}` `{start}`, never patient
+  details), the usual start times for ward and night roles, a test text, and the recent-texts
+  log.
 
 **Users & roles** (developer only): list users, change role, activate/deactivate, create
 accounts (`create-user`), reset password / rename (`manage-user`).
@@ -307,14 +319,18 @@ Rules:
   per-theatre.
 
 Rota texts (migrations `20260930100000_rota_sms.sql`, then
-`20260930120000_rota_sms_more_roles.sql`, which added the extra textable roles):
+`20260930120000_rota_sms_more_roles.sql`, which added the extra textable roles, then
+`20260930140000_rota_sms_start_times.sql`):
 - **`staff`:** the directory. Name unique case-insensitively; mobile stored as `+447…`;
   `sms_opt_in`; `active`. Superadmin-read only, written via `staff_upsert`.
 - **`sms_messages`:** the outbox and log. `kind` confirm/cancel/test; `status` scheduled →
   sending → sent/delivered, or failed/held/cancelled/dry_run. Superadmin-read only, written
   only by RPCs and the dispatcher.
-- **Rota tables and `rota_save_day` are unchanged.** Slots still hold names as text, and the
-  server matches them to `staff.name` case-insensitively.
+- **`rota_theatres.start_time`** (`time`): the theatre's "List starts". `rota_save_day` was
+  re-created identically apart from saving `T1_/T2_StartTime`. An older page that doesn't send
+  it still saves; the time is simply left empty.
+- **Slots still hold names as text,** and the server matches them to `staff.name`
+  case-insensitively.
 - **Tests:** `tests/sql/rota_sms_db_tests.sql` runs against staging and cleans up after
   itself.
 
