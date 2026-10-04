@@ -220,6 +220,12 @@ report is the **canonical PDF style** (§8).
   nurse/ODP**, and a case list (surgeon / procedure / stay -- **no PAT numbers**: removed on request
   2026-09-30; migration `20260930220000_rota_remove_pat.sql` deleted stored ones and a trigger on
   `rota_theatres` strips any `pat` key, and the page drops it on load and save).
+- **Which theatre on a one-list day:** the day dropdown is "No lists / 1 theatre — Theatre 1 /
+  1 theatre — Theatre 2 / 2 theatres". `rota_days.theatres` is still the count;
+  `flags.only = 2` means the single list runs in Theatre 2, and its data lives in `t2`.
+  **Always loop over `rotaRunning(day)`** (`[]`, `[1]`, `[2]` or `[1,2]`), never `1..theatres`.
+  Switching a one-list day between theatres moves the whole list, with its ★, own times, Lead
+  tick and cover notes (`rotaSwapTheatres`). `rota_sms_slots()` applies the same rule.
 - **Case surgeons follow the list** (`rotaSyncCaseSurgeons`, `rotaCaseSurgeonField`):
   - With one surgeon on the list, every case that is empty or names someone off the list gets
     that surgeon automatically (new cases, a swapped surgeon, and older days on first edit).
@@ -261,7 +267,7 @@ is ever sent automatically; this is a firm rule from Yasar.**
     non-GSM character (like "—") cuts a text from 160 to 70 characters.
 - **Start times (required):** every confirmation says when the person starts (`{start}`).
   - Theatre staff get their theatre's "List starts" time from the rota.
-  - Day-cover roles get their usual time, set once in Staff & mobiles (setting
+  - Day-cover roles get their usual time, set once in Text settings (setting
     `sms_default_times`, JSON keyed by slot, e.g. `{"nightNurse":"19:30"}`).
   - **Own time per person:** the 🕐 button next to a textable name's ★ opens a **clock
     picker** (`timePickerOpen`, `#timeDlg`). It has one-tap "list +30 min … +3 h" buttons,
@@ -299,13 +305,15 @@ is ever sent automatically; this is a firm rule from Yasar.**
 - **Safety net:** at send time the server **holds** (never sends) a confirmation for someone
   no longer confirmed, a cancellation for someone confirmed again, or any text to someone
   deactivated or opted out.
-- **Staff picker:** every textable slot uses a staff picker (`rotaStaffSlot`, modelled
-  on the surgeon picker, which is untouched). Unlisted names are saved as typed and flagged
-  "Not in the staff list".
+- **Staff picker:** every rota name box except surgeons and anaesthetist uses a staff picker
+  (`rotaStaffSlot`, modelled on the surgeon picker, which is untouched). That includes
+  housekeeping and reception, which are in the staff database but never texted and have no
+  time controls. Typing a new name opens the add form straight away. If that is cancelled, the
+  name is saved as typed and flagged "Not in the staff list · Add".
 - **Who:** only superadmin+ can see or use any of this, in the UI (`isSuperadmin()`) and on the
   server (RLS and RPCs at `app_role_rank() >= 3`).
 - **Text log keep period:** 30 days after the shift by default (setting `sms_log_keep_days`,
-  7–365). It can be changed in Staff & mobiles → Recent texts by superadmin/developer only,
+  7–365). It can be changed in Text settings → Recent texts by superadmin/developer only,
   via `sms_set_log_days()` (the general settings table is admin-writable, so this has its own
   gate). `sms_purge_old()` runs hourly from `sms_claim_due`. It never clears a future shift's
   texts (needed for the cancellation check) or anything scheduled or sending.
@@ -317,10 +325,21 @@ is ever sent automatically; this is a firm rule from Yasar.**
   Settings → Messages → "Delay between messages" (a few seconds) to stay under Android's
   sending limit. The phone can be carried: it only needs to be switched on with signal or
   data. Texts wait while it's offline and expire after 12 h.
-- **Staff & mobiles panel** on the rota page: the directory, the message wording (templates
-  in `settings`, placeholders `{first_name}` `{day}` `{roles}` `{start}`, never patient
-  details), the usual start times for ward and night roles, a test text, and the recent-texts
-  log.
+- **Two collapsible panels on the rota page** (`rotaStaffDirPanel` = both):
+  - **👥 Staff database** (`rotaStaffDbPanel`): one row per person (Name, Works as, Mobile,
+    Active yes/no, Texts), with search, a filter by job role and status, and sorting by name or
+    role. It covers everyone except surgeons and anaesthetists.
+    - People can be **added** here or from a rota box. **Edit and Delete are only here.**
+    - It lists names that are on the rota but not in the database, each with an Add button
+      (`rotaUnlistedNames`).
+    - **Rename follows through:** `staff_upsert` calls `rota_rename_person`, so a corrected
+      name is corrected in every staff box on every rota day, and those days' `updated_at`
+      moves. The page blocks a rename while rota days are unsaved, then reloads.
+    - **Delete** (`staff_delete`): the name stays on rota days as typed, waiting texts to them
+      are cancelled, and the log keeps past texts.
+  - **✉ Text settings** (`rotaSmsSettingsPanel`): the usual start times for ward and night
+    roles, the message wording (templates in `settings`, placeholders `{first_name}` `{day}`
+    `{roles}` `{start}`, never patient details), a test text, and the recent-texts log.
 
 **Users & roles** (developer only): list users, change role, activate/deactivate, create
 accounts (`create-user`), reset password / rename (`manage-user`).
