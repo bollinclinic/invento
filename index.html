@@ -6280,7 +6280,7 @@ function rotaNice(date, opt){ return new Date(date+'T12:00').toLocaleDateString(
 function blankTheatre(){ return {type:'GA',detail:'',colour:'',cases:[],
   surgeon:'',surgeon2:'',surgeon3:'',anaes:'',sfa:'',scrub1:'',scrub2:'',scrub3:'',odp:'',hca:'',recovery:'',startTime:''}; }
 function blankRotaDay(date){
-  const d = {date, theatres:0, notes:'', acks:{}, stars:{}, times:{}, t1:blankTheatre(), t2:blankTheatre()};
+  const d = {date, theatres:0, notes:'', acks:{}, stars:{}, times:{}, flags:{}, t1:blankTheatre(), t2:blankTheatre()};
   ROTA_D_ROLES.forEach(([k])=>d[k]='');
   return d;
 }
@@ -6291,6 +6291,7 @@ function rotaDraft(date){
   if(fresh) _rotaDrafts[date] = JSON.parse(JSON.stringify(rotaDayObj(date)));
   const d = _rotaDrafts[date];
   d.acks = d.acks||{}; d.stars = d.stars||{}; d.times = d.times||{};
+  if(!d.flags || typeof d.flags!=='object') d.flags = {};
   [1,2].forEach(t=>{ if(!d['t'+t]) d['t'+t]=blankTheatre(); if(!Array.isArray(d['t'+t].cases)) d['t'+t].cases=[]; });
   if(fresh){ rotaSyncCaseSurgeons(d, 1); rotaSyncCaseSurgeons(d, 2); }   // older saved days catch up on first edit
   return d;
@@ -6339,6 +6340,57 @@ function rotaSetCaseCount(date, t, n){
 // star (provisional) toggle per slot key
 function rotaStar(date, key){ const d=rotaDraft(date); if(d.stars[key]) delete d.stars[key]; else d.stars[key]=1; render(); }
 
+/* ---- day flags (rota_days.flags), so these never have to be typed into a name box:
+     lead: the day's Lead scrub -- one scrub slot key, e.g. 't1.scrub1'
+     both: {slotKey:1} -- that theatre-team person supports BOTH theatres (2-theatre days only);
+           the same slot in the other theatre then counts as covered by them.
+   Mirrored by rota_sms_slots() in the database for the text wording. ---- */
+function rotaFlags(day){
+  const f = (day && day.flags && typeof day.flags==='object') ? day.flags : {};
+  return {lead: typeof f.lead==='string' ? f.lead : '', both: (f.both && typeof f.both==='object') ? f.both : {}};
+}
+function rotaSlotVal(day, key){
+  const p = String(key).split('.');
+  return String(p.length===2 ? (((day||{})[p[0]]||{})[p[1]]||'') : ((day||{})[key]||'')).trim();
+}
+function rotaLeadKey(day){
+  const k = rotaFlags(day).lead;
+  if(!/^t[12]\.scrub[123]$/.test(k)) return '';
+  return (+k[1] <= Math.min(2, Number(day.theatres)||0) && rotaSlotVal(day, k)) ? k : '';
+}
+function rotaIsLead(day, key){ return !!key && rotaLeadKey(day)===key; }
+function rotaIsBoth(day, key){
+  return Number(day && day.theatres)>=2 && /^t[12]\./.test(key) && !!rotaFlags(day).both[key] && !!rotaSlotVal(day, key);
+}
+// For an EMPTY theatre slot: the other theatre's same slot, if that person supports both theatres.
+function rotaSharedFrom(day, key){
+  const m = /^t([12])\.(.+)$/.exec(String(key)); if(!m) return '';
+  const other = 't'+(m[1]==='1'?2:1)+'.'+m[2];
+  return (!rotaSlotVal(day, key) && rotaIsBoth(day, other)) ? other : '';
+}
+function rotaToggleLead(date, key){
+  const d = rotaDraft(date);
+  if(d.flags.lead===key) delete d.flags.lead; else d.flags.lead = key;   // one Lead per day
+  render();
+}
+function rotaToggleBoth(date, key){
+  const d = rotaDraft(date);
+  if(!d.flags.both || typeof d.flags.both!=='object') d.flags.both = {};
+  if(d.flags.both[key]) delete d.flags.both[key]; else d.flags.both[key] = 1;
+  render();
+}
+// A person's name for a theatre-team slot as PDFs show it: start time, " — LEAD",
+// " (both theatres)"; an empty slot covered from the other theatre shows that person too.
+function rotaTeamName(day, t, k, allTimes){
+  const key = 't'+t+'.'+k;
+  const src = rotaSlotVal(day, key) ? key : rotaSharedFrom(day, key);
+  if(!src) return '';
+  let out = rotaNameWithTime(day, src, rotaSlotVal(day, src), allTimes);
+  if(rotaIsLead(day, src)) out += ' — LEAD';
+  if(rotaIsBoth(day, src)) out += ' (both theatres)';
+  return out;
+}
+
 function rotaGaps(day){
   const gaps=[];
   if(!day || !(Number(day.theatres)>0)) return gaps;
@@ -6348,7 +6400,8 @@ function rotaGaps(day){
     ROTA_T_ROLES.forEach(([k,lab,req])=>{
       if(!req) return;
       if(th.type==='LA' && (k==='anaes'||k==='odp'||k==='sfa')) return;
-      if(!String(th[k]||'').trim()) gaps.push({key:'t'+t+'.'+k, label:'Theatre '+t+' — '+lab});
+      // not a gap if the other theatre's person in this role is supporting both theatres
+      if(!String(th[k]||'').trim() && !rotaSharedFrom(day, 't'+t+'.'+k)) gaps.push({key:'t'+t+'.'+k, label:'Theatre '+t+' — '+lab});
     });
   }
   ROTA_D_ROLES.forEach(([k,lab,req])=>{ if(req && !String(day[k]||'').trim()) gaps.push({key:k, label:lab}); });
@@ -6389,7 +6442,8 @@ async function rotaSaveDay(date){
   if(!isSuperadmin()) return;
   const d = rotaDraft(date);
   const f = { Theatres:Number(d.theatres)||0, Notes:d.notes||'',
-    AcksJSON:JSON.stringify(d.acks||{}), StarsJSON:JSON.stringify(d.stars||{}), TimesJSON:JSON.stringify(d.times||{}) };
+    AcksJSON:JSON.stringify(d.acks||{}), StarsJSON:JSON.stringify(d.stars||{}), TimesJSON:JSON.stringify(d.times||{}),
+    FlagsJSON:JSON.stringify(d.flags||{}) };
   const D = {hcaWard:'HCAWard',ward:'WardNurse',nightNurse:'NightNurse',hcaNight:'HCANight',
     rmoDay:'RMODay',rmoNight:'RMONight',housekeepAM:'HousekeepingAM',
     housekeepPM:'HousekeepingPM',receptionAM:'ReceptionAM',receptionPM:'ReceptionPM'};
@@ -6474,7 +6528,7 @@ function rotaStaffShifts(name, fromIso, toIso){
     [1,2].forEach(t=>{ const th=day['t'+t]; if(!th) return;
       check('Surgeon', th.surgeon, t); check('2nd surgeon', th.surgeon2, t); check('3rd surgeon', th.surgeon3, t);
       check('Anaesthetist', th.anaes, t); check('SFA', th.sfa, t);
-      check('Scrub 1', th.scrub1, t); check('Scrub 2', th.scrub2, t); check('Scrub 3', th.scrub3, t);
+      [1,2,3].forEach(n=>check('Scrub '+n+(rotaIsLead(day,'t'+t+'.scrub'+n)?' (Lead)':''), th['scrub'+n], t));
       check('ODP', th.odp, t); check('Theatre HCA', th.hca, t); check('Recovery Nurse', th.recovery, t);
       (th.cases||[]).forEach((c,ci)=>check('Case '+(ci+1)+' surgeon', c.surgeon, t)); });
   });
@@ -6641,7 +6695,9 @@ function rotaStaffSlot(date, day, key, label, req, locked){
   const ack = day.acks && day.acks[key];
   const starred = day.stars && day.stars[key];
   const empty = !val.trim();
-  const cls = empty ? (ack ? 'rack' : (req ? 'rgap' : '')) : (starred?'rprov':'');
+  // an empty theatre slot covered by the other theatre's "both theatres" person is not a gap
+  const sharedFrom = empty ? rotaSharedFrom(day, key) : '';
+  const cls = empty ? (sharedFrom ? '' : (ack ? 'rack' : (req ? 'rgap' : ''))) : (starred?'rprov':'');
   const inputId = 'rst_'+date.replace(/-/g,'')+'_'+key.replace(/\./g,'_');
   window._staffPick[inputId] = staffByName(val);
   window._staffSlotCtx[inputId] = {date, key};
@@ -6649,12 +6705,24 @@ function rotaStaffSlot(date, day, key, label, req, locked){
   const unknown = !empty && !staffByName(val);
   const own = !empty ? rotaSlotOwnTime(day, key) : '';
   const base = rotaSlotBaseTime(day, key);
+  // Lead (scrubs) and "2 theatres" ticks -- flags, so the name itself stays clean
+  const isScrub = /^t[12]\.scrub[123]$/.test(key), isTheatre = p.length===2;
+  const lead = !empty && rotaIsLead(day, key), both = !empty && rotaIsBoth(day, key);
+  const kid = date.replace(/-/g,'')+'_'+key.replace(/\./g,'_');
+  const chip = (on, text, fn, title, id)=>`<button id="${id}" ${dis} onclick="${fn}" title="${title}"
+      style="border:1px solid ${on?'var(--pine)':'var(--line)'};background:${on?'var(--pine)':'var(--card)'};color:${on?'#fff':'var(--ink-soft)'};border-radius:99px;padding:1px 8px;font-size:10.5px;font-weight:700;cursor:pointer;line-height:1.5">${on?'✓ ':''}${text}</button>`;
+  const chips = empty ? '' : [
+    isScrub ? chip(lead, 'Lead', `rotaToggleLead('${date}','${key}')`, lead?'Lead for the day — click to remove':'Make this scrub the Lead for the day', 'rlead_'+kid) : '',
+    (isTheatre && Number(day.theatres)>=2) ? chip(both, '2 theatres', `rotaToggleBoth('${date}','${key}')`, both?'Supporting both theatres — click to remove':'This person supports both theatres', 'rboth_'+kid) : ''
+  ].filter(Boolean).join(' ');
   return `<div class="rslot">
     <label>${label}${req?'':' <span style="font-weight:400">(optional)</span>'}</label>
     ${staffInputHTML(inputId, val, 'Type 3+ letters…', "rotaStaffCommit('"+date+"','"+key+"','"+inputId+"')", cls, locked)}
     <button class="rstar ${starred?'on':''}" ${dis} title="${starred?'Provisional — click to confirm':'Mark provisional (booked, not confirmed)'}"
       onclick="rotaStar('${date}','${key}')">${starred?'★':'☆'}</button>
-    ${empty&&req&&!ack?`<button class="rsil" ${dis} title="Silence this gap with a cover note" onclick="rotaAck('${date}','${key}')">🔕</button>`:''}
+    ${empty&&req&&!ack&&!sharedFrom?`<button class="rsil" ${dis} title="Silence this gap with a cover note" onclick="rotaAck('${date}','${key}')">🔕</button>`:''}
+    ${sharedFrom?`<div style="font-size:11px;margin-top:2px;color:var(--pine);font-weight:600">↔ Covered by ${smsEsc(rotaSlotVal(day, sharedFrom))} (supporting both theatres)</div>`:''}
+    ${chips?`<div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap">${chips}</div>`:''}
     ${!empty?`<button class="rsil" id="rclk_${date.replace(/-/g,'')}_${key.replace(/\./g,'_')}" ${dis} style="${own?'color:var(--pine)':'opacity:.55'}"
       title="${own?'Own start time '+own+' — click to change':'Give this person their own start time'+(base?' (otherwise '+base+')':'')}"
       onclick="rotaSetOwnTime('${date}','${key}')">🕐</button>`:''}
@@ -6676,6 +6744,8 @@ function rotaStaffCommit(date, key, inputId){
   // an own start time belongs to the person, not the box: a different person starts on the
   // normal time until they're given their own
   const dr = rotaDraft(date); if(dr.times) delete dr.times[key];
+  // likewise Lead / "2 theatres": they were ticked for the previous person
+  if(dr.flags){ if(dr.flags.lead===key) delete dr.flags.lead; if(dr.flags.both) delete dr.flags.both[key]; }
   rotaSet(date, key, name);
 }
 /* ---- start times: own time (🕐) > night team time (night roles) > theatre "List starts" /
@@ -6931,8 +7001,11 @@ const SMS_REASON = {provisional:'★ Provisional — confirm them on the rota fi
 // Where to fill in the missing start time for someone who can't be texted yet.
 function smsNoTimeText(p){
   const missing = (p.roles||[]).filter(r=>!r.starred && !r.start);
-  const th = [...new Set(missing.filter(r=>r.theatre>0).map(r=>r.theatre))];
-  const dc = [...new Set(missing.filter(r=>!(r.theatre>0)).map(r=>r.label))];
+  // the theatre comes from the slot key: someone supporting both theatres has theatre 0 in the
+  // server's role list, but their time still comes from their own theatre's "List starts"
+  const tOf = r=>{ const m=/^t([12])\./.exec(String(r.key||'')); return m ? +m[1] : (r.theatre>0 ? r.theatre : 0); };
+  const th = [...new Set(missing.filter(r=>tOf(r)>0).map(tOf))];
+  const dc = [...new Set(missing.filter(r=>!(tOf(r)>0)).map(r=>r.label))];
   const parts = [];
   if(th.length) parts.push('fill in "List starts" for Theatre '+th.join(' and ')+' on the rota');
   if(dc.length) parts.push('set the usual start time for '+dc.join(', ')+' in Staff & mobiles');
@@ -7640,7 +7713,7 @@ function rotaTheatreTableRows(day){
   for(let t=1;t<=Number(day.theatres||0);t++){ const th=day['t'+t]; if(!th) continue;
     // Start times: the theatre's "List starts" goes with the theatre; anyone with their own
     // time gets it next to their name, e.g. "Bob Baker (10:00)".
-    const nt = k=>rotaNameWithTime(day, 't'+t+'.'+k, th[k]||'');
+    const nt = k=>rotaTeamName(day, t, k, false);   // + " — LEAD" / " (both theatres)", incl. a slot covered from the other theatre
     // later surgeons with an expected start: "Mubashir Cheema (from 10:30)"
     const surg=['surgeon','surgeon2','surgeon3'].filter(k=>th[k]).map(k=>{
       const et = k==='surgeon' ? '' : rotaSlotOwnTime(day, 't'+t+'.'+k); return th[k]+(et?' (from '+et+')':''); }).join(' / ');
@@ -7793,7 +7866,7 @@ async function rotaDayPDF(date){
     if(expected.length){ doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(43,97,104);
       const et = doc.splitTextToSize('Expected: '+expected.map(o=>o.n+' from '+o.t).join('   ·   '), panelW-8);
       doc.text(et, x+4, yb); yb += (Array.isArray(et)?et.length:1)*4.2; py = yb; }
-    const nt = k=>rotaNameWithTime(day, 't'+t+'.'+k, th[k]||'', true);   // every team member with their start: "Alice Able (08:00)", "Bob Baker (10:00)"
+    const nt = k=>rotaTeamName(day, t, k, true);   // every team member with their start: "Alice Able (08:00) — LEAD", "Murtaza (08:00) (both theatres)"
     const teamPairs = [['Anaesthetist',th.anaes],['SFA',nt('sfa')],['Scrub 1',nt('scrub1')],['Scrub 2',nt('scrub2')],
       ['Scrub 3',nt('scrub3')],['ODP',nt('odp')],['Theatre HCA',nt('hca')],['Recovery Nurse',nt('recovery')]].filter(([,v])=>v);
     doc.autoTable({ startY:py, margin:{left:x+4, right: W-(x+panelW-4), bottom:4}, tableWidth: panelW-8,
@@ -9350,7 +9423,8 @@ async function api(payload){
           WardNurse: d.ward_nurse, NightNurse: d.night_nurse, HCANight: d.hca_night,
           RMODay: d.rmo_day, RMONight: d.rmo_night, HousekeepingAM: d.housekeeping_am, HousekeepingPM: d.housekeeping_pm,
           ReceptionAM: d.reception_am, ReceptionPM: d.reception_pm, Notes: d.notes,
-          AcksJSON: JSON.stringify(d.acks||{}), StarsJSON: JSON.stringify(d.stars||{}), TimesJSON: JSON.stringify(d.times||{})};
+          AcksJSON: JSON.stringify(d.acks||{}), StarsJSON: JSON.stringify(d.stars||{}), TimesJSON: JSON.stringify(d.times||{}),
+          FlagsJSON: JSON.stringify(d.flags||{})};
         [1,2].forEach(n=>{
           const th = (theatres||[]).find(t=>t.day_id===d.id && t.theatre_number===n) || {};
           out['T'+n+'_Type']=th.type||''; out['T'+n+'_Detail']=th.detail||''; out['T'+n+'_Colour']=th.colour||'';
@@ -9940,10 +10014,11 @@ async function loadAll(){
         rmoDay:S(r.RMODay), rmoNight:S(r.RMONight),
         housekeepAM:S(r.HousekeepingAM), housekeepPM:S(r.HousekeepingPM),
         receptionAM:S(r.ReceptionAM), receptionPM:S(r.ReceptionPM),
-        notes:S(r.Notes), acks:{}, stars:{}, times:{}, t1:{}, t2:{} };
+        notes:S(r.Notes), acks:{}, stars:{}, times:{}, flags:{}, t1:{}, t2:{} };
       try{ day.acks = JSON.parse(r.AcksJSON||'{}')||{}; }catch(e){}
       try{ day.stars = JSON.parse(r.StarsJSON||'{}')||{}; }catch(e){}
       try{ day.times = JSON.parse(r.TimesJSON||'{}')||{}; }catch(e){}
+      try{ day.flags = JSON.parse(r.FlagsJSON||'{}')||{}; }catch(e){}
       [1,2].forEach(t=>{ let cases=[]; try{ cases=rotaCasesNoPat(JSON.parse(r['T'+t+'_CasesJSON']||'[]')||[]); }catch(e){}
         day['t'+t]={ type:S(r['T'+t+'_Type'])||'GA', detail:S(r['T'+t+'_Detail']), colour:S(r['T'+t+'_Colour']), cases:cases,
         surgeon:S(r['T'+t+'_Surgeon']), surgeon2:S(r['T'+t+'_Surgeon2']), surgeon3:S(r['T'+t+'_Surgeon3']),

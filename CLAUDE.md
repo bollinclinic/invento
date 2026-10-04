@@ -232,6 +232,15 @@ report is the **canonical PDF style** (§8).
   shows as "Expected from 10:30" on the rota, as an "Expected: … from 10:30" line under the
   Day PDF ribbon, and as "Name (from 10:30)" in week/month/range PDFs. Surgeons are never
   texted.
+- **Lead scrub and "both theatres"** (`rota_days.flags`; never typed into a name box, because
+  that makes two spellings of one person and breaks the staff-list match):
+  - **Lead:** a tick under each named Scrub. One Lead per day (`flags.lead` = slot key).
+  - **2 theatres:** a tick under theatre-team names on two-theatre days (`flags.both[slotKey]`).
+    The same slot in the other theatre then counts as covered (`rotaSharedFrom`), so it is not a
+    gap, and shows "Covered by …".
+  - Both are cleared when a different person is put in the box.
+  - PDFs show "Name (07:30) — LEAD" and "Name (07:30) (both theatres)", the latter under both
+    theatres (`rotaTeamName`). Texts say "Scrub 1 - Lead" and "Theatre HCA (Theatres 1 and 2)".
 - **Day cover** roles, including HCA night.
 - **Gap detection:** LA lists don't require an anaesthetist, ODP or SFA. Gaps can be silenced
   with per-day cover notes, and every name slot has a ★ provisional flag.
@@ -378,6 +387,9 @@ then `20260930180000_rota_sms_night_team_time.sql`):
 - **`rota_theatres.start_time`** (`time`): the theatre's "List starts".
 - **`rota_days.times`** (`jsonb`): per-person own start times keyed by slot, plus the day's
   `nightTeam` time.
+- **`rota_days.flags`** (`jsonb`, migration `20261004100000_rota_lead_and_both_theatres.sql`):
+  `{lead: slotKey, both: {slotKey: 1}}`. `rota_save_day` saves `FlagsJSON` and keeps the
+  existing flags if an older page doesn't send it.
 - **`rota_save_day`** was re-created identically apart from saving `T1_/T2_StartTime` and
   `TimesJSON`. An older page that sends neither still saves: the list time is left empty and
   the existing own times are **kept**, not wiped.
