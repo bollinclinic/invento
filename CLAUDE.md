@@ -325,10 +325,17 @@ is ever sent automatically; this is a firm rule from Yasar.**
   Settings → Messages → "Delay between messages" (a few seconds) to stay under Android's
   sending limit. The phone can be carried: it only needs to be switched on with signal or
   data. Texts wait while it's offline and expire after 12 h.
-- **Two collapsible panels on the rota page** (`rotaStaffDirPanel` = both):
-  - **👥 Staff database** (`rotaStaffDbPanel`): one row per person (Name, Works as, Mobile,
-    Active yes/no, Texts), with search, a filter by job role and status, and sorting by name or
-    role. It covers everyone except surgeons and anaesthetists.
+- **Staff database and Text settings:**
+  - **👥 Staff database** is its **own page** (view `rotastaff`, `rotaStaffView`), reached from
+    a **collapsible child item under Rota in the sidebar** (`a.navsub#navRotaStaff`; the caret
+    on Rota calls `toggleRotaSub`; state in localStorage `bollin_rota_sub`; `applyRotaSub` opens
+    it on the Rota page unless the user collapsed it, and always on its own page). Yasar asked
+    for this explicitly: it must **not** be an inline section of the rota page. The rota page
+    only shows a one-line notice (`rotaUnlistedNotice`) when names on the rota aren't in the
+    database. Use `navGo(view)` to go to a sidebar page from code.
+    One row per person (Name, Works as, Mobile, Active yes/no, Texts), with search, a filter by
+    job role and status, and sorting by name or role. It covers everyone except surgeons and
+    anaesthetists.
     - People can be **added** here or from a rota box. **Edit and Delete are only here.**
     - It lists names that are on the rota but not in the database, each with an Add button
       (`rotaUnlistedNames`).
@@ -337,7 +344,8 @@ is ever sent automatically; this is a firm rule from Yasar.**
       moves. The page blocks a rename while rota days are unsaved, then reloads.
     - **Delete** (`staff_delete`): the name stays on rota days as typed, waiting texts to them
       are cancelled, and the log keeps past texts.
-  - **✉ Text settings** (`rotaSmsSettingsPanel`): the usual start times for ward and night
+  - **✉ Text settings** (`rotaSmsSettingsPanel`, a collapsible panel that stays on the rota
+    page): the usual start times for ward and night
     roles, the message wording (templates in `settings`, placeholders `{first_name}` `{day}`
     `{roles}` `{start}`, never patient details), a test text, and the recent-texts log.
 

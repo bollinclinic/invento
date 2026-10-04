@@ -87,6 +87,12 @@
       color:#8A7B54;font-weight:700;font-family:'Inter',system-ui,var(--sans)}
   nav .navsec:first-child{padding-top:6px}
   nav a:focus-visible{outline:2px solid #8A7B54;outline-offset:2px}
+  /* nested child item under a parent (Rota > Staff database), shown/hidden by the parent's caret */
+  nav a.navsub{margin:1px 12px 2px 42px;padding:8px 12px;font-size:13.5px;border-left:2px solid rgba(138,123,84,.28);border-radius:0 10px 10px 0}
+  nav a.navsub::before{display:none}
+  nav a.navsub.navsub-hidden{display:none !important}
+  nav .navcaret{margin-left:auto;padding:3px 7px;border-radius:6px;font-size:15px;line-height:1;opacity:.85;cursor:pointer}
+  nav .navcaret:hover{background:rgba(138,123,84,.18);opacity:1}
   /* per-item line icons (mask, so they inherit text colour) */
   nav a[data-view=dashboard]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1.5'/%3E%3C/svg%3E")}
   nav a[data-view=consumables]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 8l-9-5-9 5v8l9 5 9-5z'/%3E%3Cpath d='M3 8l9 5 9-5'/%3E%3Cpath d='M12 13v8'/%3E%3C/svg%3E")}
@@ -491,7 +497,8 @@
     <a href="#assets" data-view="assets">Assets</a>
     <a href="#stickers" data-view="stickers">Sticker printer</a>
     <a href="#users" data-view="users">Users &amp; roles</a>
-    <a href="#rota" data-view="rota">Rota <span id="rotaBadge" style="display:none;background:var(--red);color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:6px"></span></a>
+    <a href="#rota" data-view="rota">Rota <span id="rotaBadge" style="display:none;background:var(--red);color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:6px"></span><span class="navcaret" id="rotaSubCaret" role="button" aria-label="Show or hide Staff database" title="Show / hide Staff database" onclick="toggleRotaSub(event)">▸</span></a>
+    <a href="#rotastaff" data-view="rotastaff" class="navsub navsub-hidden" id="navRotaStaff">Staff database</a>
     <a href="#procedures" data-view="procedures">Procedure costing</a>
     <a href="#samples" data-view="samples">Sample collection</a>
   </nav>
@@ -7332,15 +7339,23 @@ function smsFixPerson(i){
     openStaffDlg(null, p.name, null, date, [...new Set((p.roles||[]).map(r=>rotaSmsRoleForKey(r.key)))]);
     return;
   }
-  // already in the database: editing happens only in the Staff database panel
-  window._rotaDirOpen = true;
+  // already in the database: editing happens only on the Staff database page
   Object.assign(staffDbState(), {q:p.name, role:'', status:''});
-  render();
-  toast('Edit '+p.name+' in the Staff database (opened above the rota)');
+  navGo('rotastaff');
+  toast('Edit '+p.name+' here in the Staff database');
 }
 
-/* ---- rota page: Staff database + Text settings (two collapsible panels, superadmin+) ---- */
-function rotaStaffDirPanel(){ return rotaStaffDbPanel() + rotaSmsSettingsPanel(); }
+/* ---- Rota page: a one-line notice about unlisted names + the collapsible Text settings panel.
+   The Staff database itself is its own page (rotaStaffView), a child of Rota in the sidebar. ---- */
+function rotaStaffDirPanel(){ return rotaUnlistedNotice() + rotaSmsSettingsPanel(); }
+function rotaUnlistedNotice(){
+  if(!isSuperadmin()) return '';
+  const n = rotaUnlistedNames().length;
+  if(!n) return '';
+  return `<div class="note" id="rotaUnlistedNote" style="margin-top:10px;background:var(--red-bg);border-color:var(--red);color:var(--red)">
+    <strong>${n} name${n>1?'s':''} on the rota ${n>1?'are':'is'} not in the Staff database</strong> — they can't be texted until added.
+    <a href="#rotastaff" onclick="navGo('rotastaff');return false" style="font-weight:700;color:inherit">Open Staff database</a></div>`;
+}
 
 /* Staff database: one row per person -- everyone named on the rota EXCEPT surgeons (their own
    list) and anaesthetists. People can be ADDED here or from a rota box; EDIT and DELETE are
@@ -7394,21 +7409,20 @@ function staffDbTableHtml(){
 // search box: refresh just the table so typing keeps its focus
 function staffDbRefresh(){ const el = document.getElementById('staffDbTable'); if(el) el.innerHTML = staffDbTableHtml(); }
 function staffDbSet(k, v, full){ staffDbState()[k] = v; if(full) render(); else staffDbRefresh(); }
-function rotaStaffDbPanel(){
-  if(!isSuperadmin()) return '';
-  const open = !!window._rotaDirOpen;
+// The Staff database PAGE (view 'rotastaff'): a child of Rota in the sidebar, not a section of
+// the rota page.
+function rotaStaffView(){
+  if(!isSuperadmin())
+    return '<h1>Staff database</h1><div class="sub">Only super admins can see the staff database.</div>';
   const staff = state.staff || [];
   const f = staffDbState();
   const unlisted = rotaUnlistedNames();
-  const head = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <strong style="font-size:14px">👥 Staff database</strong>
-      <span class="sub" style="margin:0">${staff.filter(s=>s.active).length} active${staff.some(s=>!s.active)?' · '+staff.filter(s=>!s.active).length+' not active':''}${unlisted.length?` · <span style="color:var(--red);font-weight:700">${unlisted.length} name${unlisted.length>1?'s':''} on the rota not in the database</span>`:''}</span>
-      <button class="btn" id="staffDbToggle" style="margin-left:auto" onclick="window._rotaDirOpen=!window._rotaDirOpen;render()">${open?'▾ Hide':'▸ Show'}</button></div>`;
-  if(!open) return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px">${head}</div>`;
   const sel = 'padding:9px 10px;border:1px solid var(--line);border-radius:8px';
-  return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px">${head}
-    <div class="sub" style="margin:8px 0 0">Everyone named on the rota except surgeons and anaesthetists — one row per person. Add people here or from a name box on the rota; <strong>edit and delete only here</strong>. Correcting a name here corrects it on every rota day. Mobile numbers are visible to super admins only.</div>
-    <div class="toolrow" style="margin-top:8px;align-items:center">
+  return `<h1>Staff database</h1>
+    <div class="sub">Everyone named on the rota except surgeons and anaesthetists — one row per person. Add people here or from a name box on the rota; <strong>edit and delete only here</strong>. Correcting a name here corrects it on every rota day. Mobile numbers are visible to super admins only.</div>
+    <div class="sub" style="margin-top:2px"><strong>${staff.filter(s=>s.active).length} active</strong>${staff.some(s=>!s.active)?' · '+staff.filter(s=>!s.active).length+' not active':''} · <a href="#rota" onclick="navGo('rota');return false" style="color:var(--pine);font-weight:600">← Back to the rota</a></div>
+    <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px">
+    <div class="toolrow" style="align-items:center">
       <button class="btn primary" onclick="openStaffDlg(null,'')">＋ Add staff member</button>
       <input id="staffDbQ" type="search" placeholder="Search name or mobile…" value="${smsEsc(f.q)}" oninput="staffDbSet('q',this.value)" style="flex:1;min-width:160px;${sel}">
       <select id="staffDbRole" onchange="staffDbSet('role',this.value,true)" style="${sel}" title="Filter by job role">
@@ -9300,6 +9314,7 @@ function nav(view){
   if(!viewAllowed(view)) view='dashboard';
   currentView=view; window._q=''; window._store=''; window._cat=''; window._supplier='';
   window._llTracker=''; window._llStore=''; window._llCat='';
+  if(typeof applyRotaSub==='function') applyRotaSub();   // Rota's child item opens while you're in that section
   render(); }
 document.querySelectorAll('nav a').forEach(a=>a.addEventListener('click',e=>{
   e.preventDefault();
@@ -9345,6 +9360,7 @@ function render(){
   else if(v==='theatreward') m.innerHTML = theatreWardView();
   else if(v==='users') m.innerHTML = usersView();
   else if(v==='rota') m.innerHTML = rotaView();
+  else if(v==='rotastaff') m.innerHTML = rotaStaffView();
   else m.innerHTML = trackerView(v);
 }
 
@@ -10375,12 +10391,42 @@ function viewAllowed(v){
   if(v==='theatreward') return true;   // all roles, per explicit request -- matches procedures/samples
   if(v==='users') return isDeveloper();
   if(v==='rota') return isSuperadmin();
+  if(v==='rotastaff') return isSuperadmin();   // Staff database: child of Rota, same gate
   return true;
 }
 function applyNavPerms(){
   document.querySelectorAll('nav a').forEach(a=>{
     a.style.display = viewAllowed(a.dataset.view) ? '' : 'none';
   });
+  applyRotaSub();
+}
+/* Rota > Staff database: a collapsible child item in the sidebar. Open while you're on either
+   page; otherwise as the user last left it (remembered on this device). */
+// (no top-level variable on purpose: these run from nav()/applyNavPerms() at any point of load)
+// '1' = the user expanded it, '0' = the user collapsed it, null = never chosen (opens on Rota)
+function rotaSubPref(){ try{ return localStorage.getItem('bollin_rota_sub'); }catch(e){ return null; } }
+function rotaSubShown(){
+  const p = rotaSubPref();
+  return currentView==='rotastaff' || p==='1' || (p!=='0' && currentView==='rota');
+}
+function applyRotaSub(){
+  const child = document.getElementById('navRotaStaff'), caret = document.getElementById('rotaSubCaret');
+  if(!child || !child.classList) return;
+  const open = rotaSubShown();
+  if(open) child.classList.remove('navsub-hidden'); else child.classList.add('navsub-hidden');
+  if(caret) caret.textContent = open ? '▾' : '▸';
+}
+function toggleRotaSub(ev){
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }   // the caret only expands/collapses; it doesn't open Rota
+  // (while you're on the Staff database page itself the child always stays visible)
+  try{ localStorage.setItem('bollin_rota_sub', rotaSubShown() ? '0' : '1'); }catch(e){}
+  applyRotaSub();
+}
+// Go to a sidebar page from code and highlight it (the click handler does this for real clicks).
+function navGo(view){
+  document.querySelectorAll('nav a').forEach(x=>x.classList.remove('active'));
+  const a = document.querySelector('nav a[data-view='+view+']'); if(a && a.classList) a.classList.add('active');
+  nav(view);
 }
 paintName();
 
