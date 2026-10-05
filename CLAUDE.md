@@ -200,6 +200,35 @@ report is the **canonical PDF style** (§8).
 - Everyone can view and advance status; creating/editing is staff+; deleting is admin+.
 - Search by PAT/initials/surgeon/details. PDF by day/week/month/surgeon/search.
 
+**Clinical monitoring** (all roles; sidebar: Checks; view `monitor`, `monitorView`): the old
+stand-alone "Clinical Monitoring Hub" page (`temperature-checklist.html` in the public repo
+`bollinclinic/bollinclinic`) rebuilt inside the app at Yasar's request, **still saving to the
+same Google Sheet** (his choice over moving it to Supabase).
+- **Tabs:** Temperature (5 rooms), Fridge (5 fridges), Fluid warmer, Hand hygiene audit
+  (observations by staff category and the 5 moments, compliance %, CSV backup), Theatre
+  cleaning (pre/post-surgery checklists per theatre, plus "not in use" date ranges), and
+  Sent today.
+- **Not Supabase.** Each submit is a `no-cors` POST to the Google Apps Script `MON_SHEET_URL`,
+  which writes the Sheet. That URL is not a secret: it has always been in the public old page.
+- **The payloads must stay exactly as the old page built them** (keys, key order, room and
+  reading labels, `OK` / `Warning` / `Out of Range`, `Pre-Surgery` / `Post-Surgery`). The Apps
+  Script only knows those shapes and nobody here can see its code. `MON_TEMP`, `MON_FRIDGE`,
+  `MON_FLUID`, `MON_CLEANING` are copied from the old page; changing a label changes what
+  lands in the Sheet.
+- **What the app can and can't know:** the reply to a `no-cors` request is unreadable. A
+  network failure is caught (form kept, "Not sent"); a refusal by the script is invisible. So
+  the wording is "Sent", never "Saved". The app cannot read the Sheet either: **Sent today**
+  is only what this device sent today (localStorage `bollin_mon_sent`).
+- **Deliberate differences from the old page:** the signed-in person's name is pre-filled; a
+  name and at least one reading are required; a failed send keeps the form; Submit can't
+  double-send; the hand hygiene session clears after sending (its CSV is still offered); and
+  "not in use" ranges include every day (the old page dropped the last day of a range that
+  crossed a clock change).
+- Form state is the top-level `mon` object (like `gas`), so typing survives a re-render.
+  Reading boxes are patched in place (`monReading`), not re-rendered, to keep the cursor.
+- **Staging posts to the REAL Sheet** (as Theatre & Ward does with SharePoint); the page says
+  so on staging. Demo mode never posts (`monCanSend`).
+
 **Theatre & Ward timings** (all roles):
 - **Theatre** form: patient, procedure, surgeon(s), SFA, anaesthetist/type, and the timing
   chain from time sent to discharge.
@@ -352,7 +381,7 @@ is ever sent automatically; this is a firm rule from Yasar.**
 **Users & roles** (developer only): list users, change role, activate/deactivate, create
 accounts (`create-user`), reset password / rename (`manage-user`).
 
-**Sidebar** (`<nav id="nav">`):
+**Sidebar** (`<nav id="nav">`; Checks holds Gas room checks and Clinical monitoring):
 - Eight section headers, in order: Overview, Trackers, Implants, Activity, Checks, **Stock**,
   **Records**, Admin. Each is a button (`.navsec[data-navgrp]`) that expands/collapses the
   `.navgrp#navgrp-<name>` after it, with a ▾ / ▸ chevron. All open by default; closed ones are
@@ -547,7 +576,12 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
   directly (Node 24 runs TypeScript without a build step);
 - sidebar navigation: `tests/nav_browser_tests.js`, which loads a demo-mode copy of the page
   in **headless Chrome** and checks, per role, which links, headers and parents are really
-  visible, plus collapsing, icons and highlighting.
+  visible, plus collapsing, icons and highlighting;
+- clinical monitoring: `tests/monitor_browser_tests.js`, also in headless Chrome. It puts the
+  same entries through a copy of the **old page** (`tests/fixtures/`) and through the new one
+  with `fetch` replaced by a recorder, and requires the requests to be identical (URL, mode,
+  headers, body, key order). Then it checks the new page's behaviour. It never posts to the
+  real Sheet.
 
 Database tests for rota texts: `tests/sql/rota_sms_db_tests.sql`. Run it against **staging**
 with `supabase db query --linked -f …`.

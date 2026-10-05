@@ -108,6 +108,7 @@
   nav a[data-view=requests]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 13h-5l-2 3h-6l-2-3H2'/%3E%3Cpath d='M5 5h14l3 8v6H2v-6z'/%3E%3C/svg%3E")}
   nav a[data-view=alerts]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8'/%3E%3Cpath d='M10 21a2.2 2.2 0 0 0 4 0'/%3E%3C/svg%3E")}
   nav a[data-view=gas]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5V3h6v2'/%3E%3Crect x='7' y='5' width='10' height='17' rx='4'/%3E%3Cpath d='M10 11h4'/%3E%3C/svg%3E")}
+  nav a[data-view=monitor]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z'/%3E%3Cpath d='M12 9v8'/%3E%3C/svg%3E")}
   nav a[data-view=stocktake]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='4' width='14' height='17' rx='2'/%3E%3Cpath d='M9 4a3 3 0 0 1 6 0'/%3E%3Cpath d='M9 13.5l2 2 4-4.5'/%3E%3C/svg%3E")}
   nav a[data-view=labels]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.6 12.6L12.6 20.6a2 2 0 0 1-2.8 0L3 13.8V4h9.8l7.8 7.8a2 2 0 0 1 0 .8z'/%3E%3Cpath d='M7.5 7.5h.01'/%3E%3C/svg%3E")}
   nav a[data-view=values]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='M7 14l4-4 3 3 5-6'/%3E%3C/svg%3E")}
@@ -348,6 +349,38 @@
   .deliv.on{border-style:solid;border-color:var(--pine);background:var(--ok-bg)}
   .gasdone{background:var(--ok-bg);border:1px solid #BFD9D2;color:var(--pine);border-radius:10px;
       padding:11px 15px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:9px}
+  /* ---------- clinical monitoring ---------- */
+  .monrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+  .monlbl{flex:1;min-width:0;font-weight:600;font-size:14.5px}
+  .monlbl small{display:block;font-weight:400;font-size:12px;color:var(--ink-soft);margin-top:3px}
+  .monrange{display:inline-block;padding:1px 7px;border-radius:99px;background:var(--mist);border:1px solid var(--line);font-weight:600}
+  .mondot{width:12px;height:12px;border-radius:50%;background:var(--line);flex-shrink:0}
+  .mondot.ok{background:var(--ok)} .mondot.warn{background:var(--amber)} .mondot.fail{background:var(--red)}
+  .montemp{width:98px;height:46px;padding:0 8px;border:1px solid var(--line);border-radius:10px;font-size:16px;font-weight:600;
+      text-align:center;background:var(--card);color:var(--ink);flex-shrink:0}
+  .montemp.ok{border-color:var(--ok);background:var(--ok-bg)}
+  .montemp.warn{border-color:var(--amber);background:var(--amber-bg)}
+  .montemp.fail{border-color:var(--red);background:var(--red-bg)}
+  .monmeta{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+  .monmeta .fld{flex:1;min-width:150px}
+  .monmeta .fld.wide{flex-basis:100%}
+  .monmeta label,.monfld label{display:block;font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:5px}
+  .monin{width:100%;height:46px;padding:0 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:var(--card);color:var(--ink)}
+  textarea.monin{height:auto;min-height:72px;padding:10px 12px;font-family:inherit;resize:vertical}
+  .monsum{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .monsum span,.monbadge{display:inline-block;padding:4px 11px;border-radius:99px;font-size:12.5px;font-weight:600;white-space:nowrap;
+      background:var(--mist);color:var(--ink-soft)}
+  .monsum .ok,.monbadge.ok{background:var(--ok-bg);color:var(--ok)}
+  .monsum .warn,.monbadge.warn{background:var(--amber-bg);color:var(--amber)}
+  .monsum .fail,.monbadge.fail{background:var(--red-bg);color:var(--red)}
+  .moncheck{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer}
+  .moncheck input{width:22px;height:22px;accent-color:var(--pine);flex-shrink:0;cursor:pointer}
+  .monbar{flex:1;height:8px;background:var(--mist);border-radius:99px;overflow:hidden}
+  .monbar div{height:100%;border-radius:99px;transition:width .3s ease}
+  .monhhcat{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:13.5px}
+  .chip.monout.on.compliant{background:var(--ok);border-color:var(--ok)}
+  .chip.monout.on.non-compliant{background:var(--red);border-color:var(--red)}
+  .chip.monout.on.missed{background:var(--amber);border-color:var(--amber)}
   @media (max-width:760px){
     .manifold{grid-template-columns:1fr;gap:8px}
     .pipeline{flex-direction:row;justify-content:space-between;min-width:0}
@@ -509,6 +542,7 @@
     <div class="navsec" data-navgrp="checks" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-checks" onclick="toggleNavGroup('checks')" onkeydown="navGroupKey(event,'checks')"><span>Checks</span><span class="navchev" aria-hidden="true">▾</span></div>
     <div class="navgrp" id="navgrp-checks">
       <a href="#gas" data-view="gas">Gas room checks</a>
+      <a href="#monitor" data-view="monitor">Clinical monitoring</a>
     </div>
     <div class="navsec" data-navgrp="stock" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-stock" onclick="toggleNavGroup('stock')" onkeydown="navGroupKey(event,'stock')"><span>Stock</span><span class="navchev" aria-hidden="true">▾</span></div>
     <div class="navgrp" id="navgrp-stock">
@@ -9336,6 +9370,540 @@ function theatreWardView(){
     ${twRole==='theatre' ? twTheatreFormHtml() : twWardFormHtml()}`;
 }
 
+/* ---------------- clinical monitoring ----------------
+   Temperature, fridge and fluid-warmer checks, the hand hygiene audit and the theatre cleaning
+   record. Ported from the old stand-alone "Clinical Monitoring Hub" page (temperature-checklist.html).
+
+   These records are NOT in Supabase. Each submit is POSTed to the same Google Apps Script the old
+   page used, which writes the clinic's monitoring Google Sheet. So:
+   - The payload shapes built below are exactly the old page's. The Apps Script depends on every key
+     and on the label / status / phase wording: do not rename or re-word any of them.
+   - The request is 'no-cors', so the app cannot read the reply. A network failure is caught and the
+     form is kept; a rejection by the script itself cannot be seen from here.
+   - The app cannot read the Sheet either. "Sent today" is only what THIS device sent today.
+   - Staging posts to the same real Sheet (as Theatre & Ward does with SharePoint). */
+const MON_SHEET_URL = 'https://script.google.com/macros/s/AKfycbw-1TqRUu6B4MczWkryvMN0LSEsAQ9sj7BE7z7Iya2Peswk7HACm9nCtYjlXII8mYn5/exec';
+const MON_TEMP = {
+  store1:   {label:'Store Room 1', readings:[
+    {id:'am', label:'AM Reading', sub:'08:00 – 09:00', min:15, max:25},
+    {id:'pm', label:'PM Reading', sub:'13:00 – 14:00', min:15, max:25}]},
+  store2:   {label:'Store Room 2', readings:[
+    {id:'am', label:'AM Reading', sub:'08:00 – 09:00', min:15, max:25},
+    {id:'pm', label:'PM Reading', sub:'13:00 – 14:00', min:15, max:25}]},
+  theatre1: {label:'Theatre 1', readings:[
+    {id:'am',  label:'Morning Check', sub:'Before first case', min:18, max:22},
+    {id:'mid', label:'Midday Check',  sub:'Between cases',     min:18, max:22},
+    {id:'pm',  label:'End of List',   sub:'After last case',   min:18, max:22}]},
+  theatre2: {label:'Theatre 2', readings:[
+    {id:'am',  label:'Morning Check', sub:'Before first case', min:18, max:22},
+    {id:'mid', label:'Midday Check',  sub:'Between cases',     min:18, max:22},
+    {id:'pm',  label:'End of List',   sub:'After last case',   min:18, max:22}]},
+  medicines:{label:'Medicines Room', readings:[
+    {id:'am', label:'AM Reading', sub:'08:00 – 09:00', min:15, max:25},
+    {id:'pm', label:'PM Reading', sub:'14:00 – 15:00', min:15, max:25}]}
+};
+const MON_FRIDGE = {
+  fridge_t1:   {label:'Theatre 1 Fridge', readings:[
+    {id:'am', label:'AM Reading', sub:'08:00 – 09:00', min:2, max:8},
+    {id:'pm', label:'PM Reading', sub:'14:00 – 15:00', min:2, max:8}]},
+  fridge_t2:   {label:'Theatre 2 Fridge', readings:[
+    {id:'am', label:'AM Reading', sub:'08:00 – 09:00', min:2, max:8},
+    {id:'pm', label:'PM Reading', sub:'14:00 – 15:00', min:2, max:8}]},
+  fridge_tr1:  {label:'Treatment Room 1 Fridge', readings:[
+    {id:'am', label:'AM Reading', sub:'08:00 – 09:00', min:2, max:8},
+    {id:'pm', label:'PM Reading', sub:'14:00 – 15:00', min:2, max:8}]},
+  fridge_minor:{label:'Minor Op Room Fridge', readings:[
+    {id:'am', label:'AM Reading', sub:'08:00 – 09:00', min:2, max:8},
+    {id:'pm', label:'PM Reading', sub:'14:00 – 15:00', min:2, max:8}]},
+  fridge_staff:{label:'Staff Fridge', readings:[
+    {id:'am', label:'AM Reading', sub:'08:00 – 09:00', min:1, max:5},
+    {id:'pm', label:'PM Reading', sub:'14:00 – 15:00', min:1, max:5}]}
+};
+const MON_FLUID = {label:'Clinic Fluid Warmer', readings:[
+  {id:'set',    label:'Set Temperature',    sub:'Target 38–40°C',     min:38, max:42},
+  {id:'actual', label:'Actual Temperature', sub:'Measured at outlet', min:36, max:42}]};
+const MON_HH_LOCATIONS = ['Theatre 1','Theatre 2','Recovery','Ward','Treatment Room 1','Treatment Room 2','Minor Op Room','Reception / Admin'];
+const MON_HH_SHIFTS = ['Morning','Afternoon','Evening'];
+const MON_HH_CATS = ['Nurse','Doctor','ODP','Support Staff'];
+const MON_HH_MOMENTS = {'1':'Before patient contact','2':'Before aseptic task','3':'After body fluid exposure',
+  '4':'After patient contact','5':'After patient environment'};
+const MON_HH_OUTCOMES = [['compliant','✓ Compliant'],['non-compliant','✗ Non-compliant'],['missed','! Missed']];
+const MON_CLEANING = {
+  pre: [
+    'Theatre surfaces wiped down with approved disinfectant',
+    'Operating table cleaned and disinfected',
+    'Anaesthetic equipment surfaces cleaned',
+    'All equipment checked and in working order',
+    'Floor mopped with approved solution',
+    'Waste bins lined and in place',
+    'Sharps bins checked and in place',
+    'Instrument trolley cleaned and prepared',
+    'Suction equipment checked and cleaned',
+    'Diathermy plate and leads cleaned',
+    'Warm air blanket / Bair Hugger cleaned',
+    'Fluid warmer checked and powered on',
+    'Theatre lights cleaned and positioned',
+    'Hand hygiene products stocked (soap, gel)'],
+  post: [
+    'All used instruments removed and sent for decontamination',
+    'Sharps safely disposed of in sharps bin',
+    'Clinical waste removed and bagged correctly',
+    'Operating table cleaned and disinfected',
+    'All theatre surfaces wiped with approved disinfectant',
+    'Suction canister emptied and cleaned',
+    'Anaesthetic equipment surfaces cleaned',
+    'Floor mopped with approved solution',
+    'Spillages managed per infection control policy',
+    'Single-use items disposed of appropriately',
+    'Reusable equipment cleaned and stored',
+    'Waste bins emptied and relined',
+    'Theatre doors left closed',
+    'Ventilation and temperature returned to normal']
+};
+const MON_NIU_MAX_DAYS = 92;
+
+// Form state lives outside render (like `gas`) so typing survives a re-render.
+// name:null = not touched yet, so the signed-in person's name is used.
+const mon = {
+  tab:'temp', busy:false,
+  temp:   {loc:'', r:{}, name:null, time:'', notes:''},
+  fridge: {loc:'', r:{}, name:null, time:'', notes:''},
+  fluid:  {r:{}, powered:false, name:null, time:'', notes:''},
+  hh:     {auditor:null, location:'', date:'', shift:'', cat:'', moment:'', outcome:'', obs:[], lastSent:null},
+  clean:  {theatre:'', phase:'pre', checks:{pre:{}, post:{}}, date:'', name:null, time:'', notes:'', niuFrom:'', niuTo:''},
+  sentDay:'', sent:[]
+};
+
+function monEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function monNowHM(){ return new Date().toTimeString().slice(0,5); }
+function monDayShort(iso){
+  const d = iso ? new Date(iso) : new Date();
+  return d.toLocaleDateString('en-GB', {weekday:'short'});
+}
+function monDateLong(iso){
+  const d = iso ? new Date(iso) : new Date();
+  return d.toLocaleDateString('en-GB', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+}
+function monName(f, key){ const k = key || 'name'; return f[k]===null ? String(myName||'') : String(f[k]); }
+// same rule as the old page: within range = ok; up to 2 degrees outside = warn; further = fail
+function monStatus(val, min, max){
+  if(val==='' || val===null || val===undefined) return '';
+  const n = parseFloat(val);
+  if(isNaN(n)) return '';
+  if(n < min-2 || n > max+2) return 'fail';
+  if(n < min || n > max) return 'warn';
+  return 'ok';
+}
+function monStatusWord(s){ return s==='ok' ? 'OK' : s==='warn' ? 'Warning' : s==='fail' ? 'Out of Range' : ''; }
+function monNum(val){ const n = parseFloat(val); return isNaN(n) ? null : n; }   // blank -> null, as NaN became in the old JSON
+function monCfg(kind){
+  if(kind==='temp') return MON_TEMP[mon.temp.loc] || null;
+  if(kind==='fridge') return MON_FRIDGE[mon.fridge.loc] || null;
+  return MON_FLUID;
+}
+function monCounts(kind){
+  const cfg = monCfg(kind), c = {ok:0, warn:0, fail:0};
+  if(cfg) cfg.readings.forEach(r=>{ const s = monStatus(mon[kind].r[r.id], r.min, r.max); if(s) c[s]++; });
+  return c;
+}
+
+// ---- "Sent today" (this device only; the Sheet itself can't be read from here) ----
+function monSentRows(){
+  const t = todayISO();
+  if(mon.sentDay!==t){
+    mon.sentDay = t; mon.sent = [];
+    try{ const o = JSON.parse(localStorage.getItem('bollin_mon_sent') || 'null');
+         if(o && o.d===t && Array.isArray(o.rows)) mon.sent = o.rows; }catch(e){}
+  }
+  return mon.sent;
+}
+function monLogSent(row){
+  const rows = monSentRows(); rows.unshift(row);
+  try{ localStorage.setItem('bollin_mon_sent', JSON.stringify({d:mon.sentDay, rows})); }catch(e){}
+}
+
+// ---- sending ----
+function monCanSend(){ return LIVE; }   // demo mode never posts to the real Sheet
+async function monSend(payload){
+  if(mon.busy) return false;
+  if(!monCanSend()){ toast('Demo mode — nothing was sent'); return false; }
+  mon.busy = true; render();
+  let ok = true;
+  try{
+    // identical request to the old page's, so the Apps Script receives exactly what it always has
+    await fetch(MON_SHEET_URL, {method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  }catch(err){ ok = false; }
+  mon.busy = false;
+  if(!ok){ toast('Not sent — check the internet connection and try again. Your entries are still here.'); render(); }
+  return ok;
+}
+
+// ---- small UI pieces ----
+function monTab(t){
+  mon.tab = t;
+  if(t==='fluid' && !Object.keys(mon.fluid.r).some(k=>mon.fluid.r[k]!=='')) mon.fluid.time = monNowHM();
+  render();
+}
+function monSet(kind, field, val){ mon[kind][field] = val; }
+function monPickLoc(kind, loc){
+  const f = mon[kind];
+  f.loc = loc; f.r = {}; f.time = monNowHM();
+  render();
+}
+function monReading(kind, id, val){
+  mon[kind].r[id] = val;
+  const cfg = monCfg(kind), r = cfg && cfg.readings.find(x=>x.id===id);
+  if(!r) return;
+  // patch in place (no re-render) so the cursor stays in the box
+  const s = monStatus(val, r.min, r.max);
+  const el = document.getElementById('mon-'+kind+'-'+id), dot = document.getElementById('mon-'+kind+'-'+id+'-dot');
+  if(el) el.className = 'montemp ' + s;
+  if(dot) dot.className = 'mondot ' + s;
+  const c = monCounts(kind);
+  ['ok','warn','fail'].forEach(k=>{ const e = document.getElementById('mon-'+kind+'-sum-'+k); if(e) e.textContent = c[k]; });
+}
+function monReadingRows(kind){
+  const cfg = monCfg(kind), f = mon[kind];
+  return cfg.readings.map(r=>{
+    const v = f.r[r.id]==null ? '' : f.r[r.id], s = monStatus(v, r.min, r.max);
+    return `<div class="monrow">
+      <div class="monlbl">${r.label}<small>${r.sub} &nbsp;<span class="monrange">${r.min}–${r.max}°C</span></small></div>
+      <span class="mondot ${s}" id="mon-${kind}-${r.id}-dot"></span>
+      <input type="number" inputmode="decimal" step="0.1" placeholder="°C" class="montemp ${s}" id="mon-${kind}-${r.id}"
+        value="${monEsc(v)}" oninput="monReading('${kind}','${r.id}',this.value)" aria-label="${monEsc(r.label)} in degrees C">
+    </div>`;
+  }).join('');
+}
+function monSummary(kind){
+  const c = monCounts(kind);
+  return `<div class="monsum">
+    <span class="ok"><b id="mon-${kind}-sum-ok">${c.ok}</b> In range</span>
+    <span class="warn"><b id="mon-${kind}-sum-warn">${c.warn}</b> Warning</span>
+    <span class="fail"><b id="mon-${kind}-sum-fail">${c.fail}</b> Out of range</span>
+  </div>`;
+}
+function monMeta(kind, nameLabel, extraFirst){
+  const f = mon[kind];
+  return `<div class="monmeta">
+    ${extraFirst||''}
+    <div class="fld"><label>${nameLabel}</label>
+      <input type="text" class="monin" placeholder="Name" value="${monEsc(monName(f))}" oninput="monSet('${kind}','name',this.value)"></div>
+    <div class="fld"><label>Time</label>
+      <input type="time" class="monin" value="${monEsc(f.time)}" oninput="monSet('${kind}','time',this.value)"></div>
+    <div class="fld wide"><label>Actions / notes</label>
+      <textarea class="monin" placeholder="Any corrective actions taken…" oninput="monSet('${kind}','notes',this.value)">${monEsc(f.notes)}</textarea></div>
+  </div>`;
+}
+function monSendBtn(label, onclick){
+  return `<div class="toolrow"><button class="btn primary" style="padding:13px 26px;font-size:15px" ${mon.busy?'disabled':''} onclick="${onclick}">${mon.busy?'Sending…':label}</button></div>`;
+}
+function monSelect(id, placeholder, pairs, value, onchange){
+  return `<select class="monin" id="${id}" onchange="${onchange}">
+    <option value="">${placeholder}</option>
+    ${pairs.map(p=>`<option value="${monEsc(p[0])}" ${String(value)===String(p[0])?'selected':''}>${monEsc(p[1])}</option>`).join('')}
+  </select>`;
+}
+
+// ---- temperature + fridge ----
+function monReadingsTab(kind){
+  const isTemp = kind==='temp', all = isTemp ? MON_TEMP : MON_FRIDGE, f = mon[kind], cfg = monCfg(kind);
+  const picker = `<div class="gaspanel"><div class="fld monfld"><label>${isTemp?'Location':'Fridge'}</label>
+    ${monSelect('mon-'+kind+'-loc', isTemp?'— Choose a location —':'— Choose a fridge —',
+        Object.keys(all).map(k=>[k, all[k].label]), f.loc, `monPickLoc('${kind}',this.value)`)}</div></div>`;
+  if(!cfg) return picker;
+  return picker + `
+    <div class="gaspanel">
+      <h2>${monEsc(cfg.label)}${isTemp?' — temperature readings':''}</h2>
+      ${monSummary(kind)}
+      ${monReadingRows(kind)}
+      ${monMeta(kind, 'Checked by')}
+    </div>
+    ${monSendBtn(isTemp?'✓ Submit temperature record':'✓ Submit fridge record', `monSubmitReadings('${kind}')`)}`;
+}
+async function monSubmitReadings(kind){
+  const f = mon[kind], cfg = monCfg(kind), isTemp = kind==='temp';
+  if(!cfg){ toast(isTemp?'Choose a location first':'Choose a fridge first'); return; }
+  const readings = cfg.readings.map(r=>({label:r.label, value:monNum(f.r[r.id]), min:r.min, max:r.max,
+    status:monStatusWord(monStatus(f.r[r.id], r.min, r.max))}));
+  if(!readings.some(r=>r.value!==null)){ toast('Enter at least one reading'); return; }
+  const checkedBy = monName(f).trim();
+  if(!checkedBy){ toast('Enter who checked it'); return; }
+  const overall = readings.some(r=>r.status==='Out of Range') ? 'fail' : readings.some(r=>r.status==='Warning') ? 'warn' : 'ok';
+  const payload = {type:isTemp?'temperature':'fridge', date:todayISO(), day:monDayShort(),
+    location:cfg.label, time:f.time, checkedBy, notes:f.notes, readings};
+  if(!await monSend(payload)) return;
+  monLogSent({type:isTemp?'Temperature':'Fridge', location:cfg.label, status:overall, time:f.time, date:monDateLong()});
+  f.loc = ''; f.r = {}; f.notes = ''; f.time = '';
+  toast('Sent to the monitoring sheet ✓ — ' + cfg.label);
+  render();
+}
+
+// ---- fluid warmer ----
+function monFluidTab(){
+  const f = mon.fluid;
+  return `
+    <div class="gaspanel">
+      <h2>Clinic fluid warmer</h2>
+      ${monReadingRows('fluid')}
+      <label class="moncheck"><div class="monlbl">Device powered on &amp; plugged in<small>Confirm before use</small></div>
+        <input type="checkbox" ${f.powered?'checked':''} onchange="monSet('fluid','powered',this.checked)"></label>
+      ${monMeta('fluid', 'Recorded by')}
+    </div>
+    ${monSendBtn('✓ Submit fluid warmer record', 'monSubmitFluid()')}`;
+}
+async function monSubmitFluid(){
+  const f = mon.fluid, act = MON_FLUID.readings[1];
+  const actualTemp = monNum(f.r.actual);
+  if(actualTemp===null){ toast('Enter the actual temperature'); return; }
+  const recordedBy = monName(f).trim();
+  if(!recordedBy){ toast('Enter who recorded it'); return; }
+  const s = monStatus(f.r.actual, act.min, act.max);
+  const status = s==='fail' ? 'fail' : s==='warn' ? 'warn' : 'ok';
+  const payload = {type:'fluid', date:todayISO(), day:monDayShort(), time:f.time,
+    setTemp:monNum(f.r.set), actualTemp, status, poweredOn:!!f.powered, recordedBy, notes:f.notes};
+  if(!await monSend(payload)) return;
+  monLogSent({type:'Fluid Warmer', location:MON_FLUID.label, status, time:f.time, date:monDateLong()});
+  f.r = {}; f.powered = false; f.notes = ''; f.time = monNowHM();
+  toast('Sent to the monitoring sheet ✓ — Fluid warmer');
+  render();
+}
+
+// ---- hand hygiene audit ----
+function monHHPct(obs){ return obs.length ? Math.round(obs.filter(o=>o.outcome==='compliant').length / obs.length * 100) : 0; }
+function monPctCol(p){ return p>=80 ? 'var(--ok)' : p>=60 ? 'var(--amber)' : 'var(--red)'; }
+function monHHTab(){
+  const h = mon.hh, obs = h.obs, pct = monHHPct(obs);
+  if(!h.date) h.date = todayISO();
+  const sessionCard = `<div class="gaspanel"><h2>Audit session</h2>
+    <div class="monmeta" style="margin-top:0;padding-top:0;border-top:none">
+      <div class="fld"><label>Auditor name</label>
+        <input type="text" class="monin" placeholder="Name" value="${monEsc(monName(h,'auditor'))}" oninput="monSet('hh','auditor',this.value)"></div>
+      <div class="fld"><label>Location / ward</label>
+        ${monSelect('mon-hh-location', '— Select —', MON_HH_LOCATIONS.map(x=>[x,x]), h.location, "monSet('hh','location',this.value)")}</div>
+      <div class="fld"><label>Date</label>
+        <input type="date" class="monin" value="${monEsc(h.date)}" oninput="monSet('hh','date',this.value)"></div>
+      <div class="fld"><label>Shift</label>
+        ${monSelect('mon-hh-shift', '— Select —', MON_HH_SHIFTS.map(x=>[x,x]), h.shift, "monSet('hh','shift',this.value)")}</div>
+    </div></div>`;
+  const add = `<div class="gaspanel"><h2>Add observation</h2>
+    <div class="monmeta" style="margin-top:0;padding-top:0;border-top:none">
+      <div class="fld"><label>Staff category</label>
+        ${monSelect('mon-hh-cat', '— Select —', MON_HH_CATS.map(x=>[x,x]), h.cat, "monSet('hh','cat',this.value)")}</div>
+      <div class="fld"><label>Moment</label>
+        ${monSelect('mon-hh-moment', '— Select —', Object.keys(MON_HH_MOMENTS).map(k=>[k, k+' — '+MON_HH_MOMENTS[k]]), h.moment, "monSet('hh','moment',this.value)")}</div>
+      <div class="fld wide"><label>Outcome</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${MON_HH_OUTCOMES.map(o=>
+          `<div class="chip monout ${o[0]} ${h.outcome===o[0]?'on':''}" onclick="monSet('hh','outcome','${o[0]}');render()">${o[1]}</div>`).join('')}</div></div>
+    </div>
+    <div class="toolrow" style="margin:14px 0 0"><button class="btn" onclick="monHHAdd()">＋ Add observation</button></div>
+  </div>`;
+  let tally = '';
+  if(obs.length){
+    const cats = MON_HH_CATS.map(cat=>{
+      const o = obs.filter(x=>x.cat===cat); if(!o.length) return '';
+      const comp = o.filter(x=>x.outcome==='compliant').length, p = Math.round(comp/o.length*100);
+      return `<div class="monhhcat"><div style="width:110px;font-weight:600">${cat}</div>
+        <div class="monbar"><div style="width:${p}%;background:${monPctCol(p)}"></div></div>
+        <div style="width:46px;text-align:right;font-weight:700;color:${monPctCol(p)}">${p}%</div>
+        <div style="width:44px;text-align:right;color:var(--ink-soft);font-size:12.5px">${comp}/${o.length}</div></div>`;
+    }).join('');
+    const log = obs.slice().reverse().map((o,i)=>`<div class="monrow" style="padding:8px 0">
+        <div style="width:26px;color:var(--ink-soft);font-size:12.5px">${obs.length-i}</div>
+        <div style="width:110px;font-weight:600">${monEsc(o.cat)}</div>
+        <div class="monlbl" style="font-weight:400;font-size:13.5px">M${monEsc(o.moment)} — ${monEsc(o.momentLabel)}</div>
+        <span class="monbadge ${o.outcome==='compliant'?'ok':o.outcome==='missed'?'warn':'fail'}">${o.outcome==='compliant'?'✓ Compliant':o.outcome==='non-compliant'?'✗ Non-compliant':'! Missed'}</span>
+        <button class="btn" style="padding:4px 10px" title="Remove this observation" onclick="monHHDelete(${o.id})">×</button>
+      </div>`).join('');
+    tally = `<div class="gaspanel"><h2>Session tally</h2>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <span style="font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.6px">Overall compliance</span>
+        <span style="font-size:22px;font-weight:700;color:${monPctCol(pct)}">${pct}%</span></div>
+      <div class="monbar" style="margin-bottom:14px"><div style="width:${pct}%;background:${monPctCol(pct)}"></div></div>
+      ${cats}
+      <div style="margin-top:12px;font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.6px">Observation log</div>
+      ${log}
+    </div>
+    <div class="toolrow">
+      <button class="btn primary" style="padding:13px 26px;font-size:15px" ${mon.busy?'disabled':''} onclick="monSubmitHH()">${mon.busy?'Sending…':'✓ Submit '+obs.length+' observation'+(obs.length===1?'':'s')}</button>
+      <button class="btn" onclick="monHHExportCSV(false)">⬇ Export CSV (local backup)</button>
+    </div>`;
+  }else if(h.lastSent){
+    tally = `<div class="gasdone">${h.lastSent.obs.length} observation${h.lastSent.obs.length===1?'':'s'} sent at ${monEsc(h.lastSent.at)}.
+      <button class="btn" style="margin-left:auto" onclick="monHHExportCSV(true)">⬇ CSV of that session</button></div>`;
+  }
+  return sessionCard + add + tally;
+}
+function monHHAdd(){
+  const h = mon.hh;
+  if(!h.cat){ toast('Select a staff category'); return; }
+  if(!h.moment){ toast('Select a moment'); return; }
+  if(!h.outcome){ toast('Select an outcome'); return; }
+  h.obs.push({id:Date.now(), cat:h.cat, moment:h.moment, momentLabel:MON_HH_MOMENTS[h.moment], outcome:h.outcome,
+    time:new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})});
+  h.cat = ''; h.moment = ''; h.outcome = ''; h.lastSent = null;
+  toast('Observation recorded');
+  render();
+}
+function monHHDelete(id){
+  const h = mon.hh, i = h.obs.findIndex(o=>o.id===id);
+  if(i>-1) h.obs.splice(i,1);
+  render();
+}
+async function monSubmitHH(){
+  const h = mon.hh, auditor = monName(h,'auditor').trim();
+  if(!auditor){ toast('Enter the auditor name'); return; }
+  if(!h.location){ toast('Select a location'); return; }
+  if(!h.date){ toast('Select a date'); return; }
+  if(!h.shift){ toast('Select a shift'); return; }
+  if(!h.obs.length){ toast('No observations to submit'); return; }
+  const observations = h.obs.map(o=>({cat:o.cat, moment:o.moment, momentLabel:o.momentLabel, outcome:o.outcome, time:o.time}));
+  const payload = {type:'hh', date:h.date, shift:h.shift, location:h.location, auditor, observations};
+  if(!await monSend(payload)) return;
+  const pct = monHHPct(h.obs), n = h.obs.length;
+  monLogSent({type:'Hand Hygiene', location:h.location, status:pct>=80?'ok':pct>=60?'warn':'fail', time:monNowHM(),
+    date:monDateLong(h.date), phase:h.shift, completion:n+' observation'+(n===1?'':'s')+' ('+pct+'%)'});
+  // keep a copy for the CSV, then clear: pressing Submit twice must not write the session twice
+  h.lastSent = {obs:h.obs.slice(), auditor, location:h.location, date:h.date, shift:h.shift, at:monNowHM()};
+  h.obs = [];
+  toast(n + ' observation' + (n===1?'':'s') + ' sent to the monitoring sheet ✓');
+  render();
+}
+function monHHCsvText(src){
+  const head = 'Date,Shift,Location,Auditor,Observation#,Staff Category,Moment#,Moment Description,Outcome,Time\n';
+  const q = x => '"' + String(x).replace(/"/g,'""') + '"';
+  return head + src.obs.map((o,i)=>[src.date, src.shift, q(src.location), q(src.auditor), i+1, o.cat, o.moment, q(o.momentLabel), o.outcome, o.time].join(',')).join('\n');
+}
+function monHHExportCSV(last){
+  const h = mon.hh;
+  const src = last ? h.lastSent : {obs:h.obs, auditor:monName(h,'auditor')||'Unknown', location:h.location||'Unknown', date:h.date||todayISO(), shift:h.shift||'Unknown'};
+  if(!src || !src.obs.length){ toast('No observations to export'); return; }
+  const blob = new Blob([monHHCsvText(src)], {type:'text/csv'});
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = 'HH_Audit_' + src.date + '_' + String(src.location).replace(/[^A-Za-z0-9]+/g,'_') + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+  toast('CSV exported');
+}
+
+// ---- theatre cleaning ----
+function monCleanLabel(){ return mon.clean.theatre==='t1' ? 'Theatre 1' : mon.clean.theatre==='t2' ? 'Theatre 2' : ''; }
+function monPickTheatre(t){
+  const c = mon.clean;
+  c.theatre = t; c.phase = 'pre'; c.checks = {pre:{}, post:{}};
+  c.date = todayISO(); c.time = monNowHM(); c.niuFrom = todayISO(); c.niuTo = todayISO();
+  render();
+}
+function monCleanTick(i, on){ mon.clean.checks[mon.clean.phase][i] = !!on;
+  const e = document.getElementById('mon-clean-count'); if(e) e.textContent = monCleanCount(); }
+function monCleanCount(){
+  const c = mon.clean, items = MON_CLEANING[c.phase];
+  return items.filter((_,i)=>c.checks[c.phase][i]).length + ' of ' + items.length + ' ticked';
+}
+function monCleanTab(){
+  const c = mon.clean, label = monCleanLabel();
+  const picker = `<div class="gaspanel"><div class="fld monfld"><label>Theatre</label>
+    ${monSelect('mon-clean-theatre', '— Choose a theatre —', [['t1','Theatre 1'],['t2','Theatre 2']], c.theatre, 'monPickTheatre(this.value)')}</div></div>`;
+  if(!label) return picker;
+  const items = MON_CLEANING[c.phase];
+  return picker + `
+    <div class="gaspanel">
+      <h2>${label} — cleaning checklist</h2>
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <div class="chip ${c.phase==='pre'?'on':''}" onclick="monSet('clean','phase','pre');render()">Pre-surgery</div>
+        <div class="chip ${c.phase==='post'?'on':''}" onclick="monSet('clean','phase','post');render()">Post-surgery</div>
+        <span id="mon-clean-count" style="margin-left:auto;align-self:center;font-size:13px;font-weight:600;color:var(--ink-soft)">${monCleanCount()}</span>
+      </div>
+      ${items.map((it,i)=>`<label class="moncheck"><div class="monlbl" style="font-weight:500">${it}</div>
+        <input type="checkbox" ${c.checks[c.phase][i]?'checked':''} onchange="monCleanTick(${i},this.checked)"></label>`).join('')}
+      ${monMeta('clean', 'Completed by', `<div class="fld"><label>Date of list</label>
+        <input type="date" class="monin" value="${monEsc(c.date)}" oninput="monSet('clean','date',this.value)"></div>`)}
+    </div>
+    ${monSendBtn('✓ Submit cleaning record', 'monSubmitCleaning()')}
+    <div class="gaspanel">
+      <h2>Mark dates as theatre not in use</h2>
+      <div class="monmeta" style="margin-top:0;padding-top:0;border-top:none">
+        <div class="fld"><label>From</label><input type="date" class="monin" value="${monEsc(c.niuFrom)}" oninput="monSet('clean','niuFrom',this.value)"></div>
+        <div class="fld"><label>To</label><input type="date" class="monin" value="${monEsc(c.niuTo)}" oninput="monSet('clean','niuTo',this.value)"></div>
+      </div>
+      <div class="toolrow" style="margin:14px 0 0"><button class="btn" ${mon.busy?'disabled':''} onclick="monSubmitNotInUse()">Mark ${label} as not in use</button></div>
+    </div>`;
+}
+async function monSubmitCleaning(){
+  const c = mon.clean, label = monCleanLabel();
+  if(!label){ toast('Choose a theatre first'); return; }
+  const name = monName(c).trim();
+  if(!name){ toast('Enter who completed it'); return; }
+  const items = MON_CLEANING[c.phase];
+  const checked = items.filter((_,i)=>c.checks[c.phase][i]).length;
+  const pct = Math.round(checked / items.length * 100);
+  const status = pct===100 ? 'ok' : pct>=75 ? 'warn' : 'fail';
+  const phase = c.phase==='pre' ? 'Pre-Surgery' : 'Post-Surgery';
+  const payload = {type:'cleaning', theatre:c.theatre, notInUse:false,
+    date:c.date || todayISO(), day:monDayShort(c.date || ''), phase, status,
+    checkedCount:checked, totalItems:items.length, completionPct:pct, completedBy:name, time:c.time, notes:c.notes};
+  if(!await monSend(payload)) return;
+  monLogSent({type:'Theatre Cleaning', location:label, status, phase, completion:checked+'/'+items.length+' ('+pct+'%)',
+    date:monDateLong(c.date || ''), time:c.time});
+  c.theatre = ''; c.checks = {pre:{}, post:{}}; c.notes = ''; c.phase = 'pre';
+  toast('Sent to the monitoring sheet ✓ — ' + label + ' ' + phase + ' — ' + pct + '% complete');
+  render();
+}
+// every date from..to inclusive, worked out in UTC so a clock change can't skip or repeat a day
+function monDateRange(from, to){
+  const out = [], a = Date.parse(from+'T00:00:00Z'), b = Date.parse(to+'T00:00:00Z');
+  if(isNaN(a) || isNaN(b)) return out;
+  for(let t=a; t<=b; t+=864e5) out.push(new Date(t).toISOString().slice(0,10));
+  return out;
+}
+async function monSubmitNotInUse(){
+  const c = mon.clean, label = monCleanLabel();
+  if(!label){ toast('Choose a theatre first'); return; }
+  if(!c.niuFrom || !c.niuTo){ toast('Select both dates'); return; }
+  if(c.niuTo < c.niuFrom){ toast('"To" date must be on or after "From"'); return; }
+  const dates = monDateRange(c.niuFrom, c.niuTo);
+  if(!dates.length){ toast('Select both dates'); return; }
+  if(dates.length > MON_NIU_MAX_DAYS){ toast('That is ' + dates.length + ' days — the most in one go is ' + MON_NIU_MAX_DAYS); return; }
+  if(dates.length > 7 && !confirm('Mark ' + label + ' as not in use for ' + dates.length + ' days (' + c.niuFrom + ' to ' + c.niuTo + ')?')) return;
+  if(!await monSend({type:'cleaning', theatre:c.theatre, notInUse:true, dates})) return;
+  monLogSent({type:'Theatre Cleaning', location:label, status:'niu', phase:'Not in Use', time:'—',
+    date:dates.length===1 ? monDateLong(dates[0]) : monDateLong(dates[0]) + ' to ' + monDateLong(dates[dates.length-1]),
+    completion:dates.length + ' day' + (dates.length===1?'':'s')});
+  toast('Sent to the monitoring sheet ✓ — ' + dates.length + ' day' + (dates.length===1?'':'s') + ' not in use — ' + label);
+  render();
+}
+
+// ---- sent today ----
+function monSentTab(){
+  const rows = monSentRows();
+  const head = `<div class="note">This list is what was sent <strong>from this device today</strong>. The full record is the clinic's monitoring Google Sheet; the app can't read it, so checks sent from another device don't appear here.</div>`;
+  if(!rows.length) return head + `<div class="gaspanel" style="color:var(--ink-soft)">Nothing sent from this device yet today.</div>`;
+  return head + `<div class="gaspanel">${rows.map(r=>{
+    const word = r.status==='ok' ? 'OK' : r.status==='warn' ? 'Warning' : r.status==='fail' ? 'Out of range / incomplete' : r.status==='niu' ? 'Not in use' : monEsc(r.status);
+    return `<div class="monrow"><div class="monlbl">${monEsc(r.type)} — ${monEsc(r.location)}
+        <small>${monEsc(r.date)} · ${monEsc(r.time)}${r.phase?' · '+monEsc(r.phase):''}${r.completion?' · '+monEsc(r.completion):''}</small></div>
+      <span class="monbadge ${r.status==='niu'?'warn':monEsc(r.status)}">${word}</span></div>`;
+  }).join('')}</div>`;
+}
+
+function monitorView(){
+  const tabs = [['temp','🌡 Temperature'],['fridge','🧊 Fridge'],['fluid','💧 Fluid warmer'],['hh','🖐 Hand hygiene'],['clean','🧹 Theatre cleaning']];
+  const n = monSentRows().length;
+  if(mon.tab==='fluid' && !mon.fluid.time) mon.fluid.time = monNowHM();
+  const t = mon.tab;
+  const body = t==='temp' ? monReadingsTab('temp') : t==='fridge' ? monReadingsTab('fridge') : t==='fluid' ? monFluidTab()
+             : t==='hh' ? monHHTab() : t==='clean' ? monCleanTab() : monSentTab();
+  const isStaging = String(CONFIG.SUPABASE_URL||'').indexOf('ozlskwtbgblfmqjgcrmf') >= 0;
+  return `
+    <h1>Clinical monitoring</h1>
+    <div class="sub">Temperature, fridge and fluid warmer checks · hand hygiene audit · theatre cleaning record. Saved to the clinic's monitoring Google Sheet.</div>
+    ${isStaging ? `<div class="note"><strong>Staging:</strong> anything submitted here goes into the REAL monitoring Google Sheet. Write TEST in the notes and delete the row afterwards.</div>` : ''}
+    ${LIVE ? '' : `<div class="note">Demo mode — nothing is sent from here.</div>`}
+    <div class="toolrow">
+      ${tabs.map(x=>`<div class="chip ${t===x[0]?'on':''}" onclick="monTab('${x[0]}')">${x[1]}</div>`).join('')}
+      <div class="chip ${t==='sent'?'on':''}" onclick="monTab('sent')">📋 Sent today${n?' ('+n+')':''}</div>
+    </div>
+    ${body}`;
+}
+
 /* ---------------- router ---------------- */
 
 
@@ -9396,6 +9964,7 @@ function render(){
   else if(v==='itemusage') m.innerHTML = itemUsageView();
   else if(v==='assets') m.innerHTML = assetsView();
   else if(v==='gas'){ m.innerHTML = gasView(); paintDeliv('o2'); paintDeliv('air'); }
+  else if(v==='monitor') m.innerHTML = monitorView();
   else if(v==='stickers') m.innerHTML = stickersView();
   else if(v==='procedures') m.innerHTML = procView();
   else if(v==='samples') m.innerHTML = samplesView();
