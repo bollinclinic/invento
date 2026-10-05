@@ -73,23 +73,28 @@
   /* ===== premium enterprise navigation ===== */
   nav{background:linear-gradient(180deg,#FFFFFF 0%,#FBFAF6 100%);border-right:1px solid #EAE5DA;
       padding:20px 0 28px;overflow-y:auto;font-family:'Inter',system-ui,var(--sans)}
-  nav a{position:relative;display:flex;align-items:center;gap:12px;margin:2px 12px;padding:11px 14px;
+  nav a,nav .navparent{position:relative;display:flex;align-items:center;gap:12px;margin:2px 12px;padding:11px 14px;
       border-radius:10px;color:#5D5A50;text-decoration:none;font-weight:500;font-size:14.5px;
       letter-spacing:.1px;border-left:none;transition:all .2s ease}
-  nav a::before{content:'';width:18px;height:18px;flex-shrink:0;background-color:currentColor;opacity:.7;
+  nav a::before,nav .navparent::before{content:'';width:18px;height:18px;flex-shrink:0;background-color:currentColor;opacity:.7;
       -webkit-mask:var(--icn) center/contain no-repeat;mask:var(--icn) center/contain no-repeat;
       transition:all .2s ease}
-  nav a:hover{background:rgba(138,123,84,0.08);color:#8A7B54;transform:translateX(1px)}
-  nav a.active{background:rgba(138,123,84,0.13);color:#6E6140;font-weight:600;
+  nav a:hover,nav .navparent:hover{background:rgba(138,123,84,0.08);color:#8A7B54;transform:translateX(1px)}
+  nav a.active,nav .navparent.navgrp-hasactive{background:rgba(138,123,84,0.13);color:#6E6140;font-weight:600;
       box-shadow:inset 0 0 0 1px rgba(138,123,84,.20)}
-  nav a.active::before{opacity:1}
-  nav .navsec{padding:24px 26px 8px;font-size:10.5px;letter-spacing:2.4px;text-transform:uppercase;
-      color:#8A7B54;font-weight:700;font-family:'Inter',system-ui,var(--sans)}
+  nav a.active::before,nav .navparent.navgrp-hasactive::before{opacity:1}
+  nav .navsec{display:flex;align-items:center;gap:8px;padding:24px 26px 8px;font-size:10.5px;letter-spacing:2.4px;text-transform:uppercase;
+      color:#8A7B54;font-weight:700;font-family:'Inter',system-ui,var(--sans);cursor:pointer;user-select:none}
   nav .navsec:first-child{padding-top:6px}
-  nav a:focus-visible{outline:2px solid #8A7B54;outline-offset:2px}
-  /* nested child item under a parent (Rota > Staff database), shown/hidden by the parent's caret */
-  nav a.navsub{margin:1px 12px 2px 42px;padding:8px 12px;font-size:13.5px;border-left:2px solid rgba(138,123,84,.28);border-radius:0 10px 10px 0}
-  nav a.navsub::before{display:none}
+  nav .navsec:hover,nav .navsec.navgrp-hasactive{color:#6E6140}
+  nav a:focus-visible,nav .navsec:focus-visible,nav .navparent:focus-visible{outline:2px solid #8A7B54;outline-offset:2px}
+  /* section headers and the Stock / Records parents expand/collapse the group that follows them */
+  nav .navparent{cursor:pointer;user-select:none}
+  nav .navparent.navparent-first{margin-top:18px}
+  nav .navchev{margin-left:auto;margin-right:7px;font-size:14px;line-height:1;letter-spacing:0;opacity:.85}
+  nav .navgrp.navgrp-closed{display:none}
+  /* nested child items (Stock, Records, Rota > Staff database): slightly indented, same icons */
+  nav a.navsub{margin:1px 12px 1px 28px;padding:8px 12px;font-size:13.5px;border-left:2px solid rgba(138,123,84,.28);border-radius:0 10px 10px 0}
   nav a.navsub.navsub-hidden{display:none !important}
   nav .navcaret{margin-left:auto;padding:3px 7px;border-radius:6px;font-size:15px;line-height:1;opacity:.85;cursor:pointer}
   nav .navcaret:hover{background:rgba(138,123,84,.18);opacity:1}
@@ -112,6 +117,18 @@
   nav a[data-view=obsolete]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='4' rx='1'/%3E%3Cpath d='M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8'/%3E%3Cpath d='M10 12h4'/%3E%3C/svg%3E")}
   nav a[data-view=stickers]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='16' rx='2'/%3E%3Cpath d='M8 8h8M8 12h8M8 16h5'/%3E%3C/svg%3E")}
   nav a[data-view=assets]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='6' y='6' width='12' height='12' rx='1.5'/%3E%3Crect x='10' y='10' width='4' height='4'/%3E%3Cpath d='M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3'/%3E%3C/svg%3E")}
+  nav a[data-view=theatreward]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='13' r='8'/%3E%3Cpath d='M12 9v4l2.5 2.5M9 2h6'/%3E%3C/svg%3E")}
+  nav a[data-view=offsite]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 21V9l9-5 9 5v12'/%3E%3Cpath d='M9 21v-7h6v7'/%3E%3C/svg%3E")}
+  nav a[data-view=services]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='7' width='18' height='13' rx='2'/%3E%3Cpath d='M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18'/%3E%3C/svg%3E")}
+  nav a[data-view=billing]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z'/%3E%3Cpath d='M9 8h6M9 12h6M9 16h4'/%3E%3C/svg%3E")}
+  nav a[data-view=itemusage]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3'/%3E%3C/svg%3E")}
+  nav a[data-view=users]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3.5'/%3E%3Cpath d='M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18.5 20a6 6 0 0 0-2.5-5'/%3E%3C/svg%3E")}
+  nav a[data-view=rota]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E")}
+  nav a[data-view=rotastaff]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Ccircle cx='9' cy='11' r='2.2'/%3E%3Cpath d='M5.8 16a3.4 3.4 0 0 1 6.4 0M14 10h4M14 14h4'/%3E%3C/svg%3E")}
+  nav a[data-view=procedures]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h4l3-8 4 16 3-8h4'/%3E%3C/svg%3E")}
+  nav a[data-view=samples]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8.5 3h7M10 3v14.5a2 2 0 0 0 4 0V3M10 12h4'/%3E%3C/svg%3E")}
+  nav .navparent[data-navgrp=stock]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='12' width='8' height='8' rx='1'/%3E%3Crect x='13' y='12' width='8' height='8' rx='1'/%3E%3Crect x='8' y='3' width='8' height='8' rx='1'/%3E%3C/svg%3E")}
+  nav .navparent[data-navgrp=records]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3C/svg%3E")}
 
   main{overflow-y:auto;padding:22px 26px}
   h1{font-size:20px;font-weight:700;margin-bottom:2px}
@@ -394,7 +411,10 @@
     nav{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid #EAE5DA;
         padding:8px 8px;position:sticky;top:0;z-index:15;-webkit-overflow-scrolling:touch;scrollbar-width:none}
     nav::-webkit-scrollbar{display:none}
-    nav .navsec{display:none}
+    nav .navsec,nav .navparent{display:none !important}
+    nav .navgrp,nav .navgrp.navgrp-closed{display:contents}
+    nav a.navsub{margin:0 3px;padding:9px 13px;font-size:14px;border-left:none;border-radius:10px}
+    nav a.navdup{display:none !important}
     nav a{margin:0 3px;white-space:nowrap;padding:9px 13px;font-size:14px;gap:8px}
     nav a::before{width:16px;height:16px}
     nav a:hover{transform:none}
@@ -468,39 +488,58 @@
   </header>
 
   <nav id="nav" aria-label="Sections">
-    <div class="navsec">Overview</div>
-    <a href="#dashboard" data-view="dashboard" class="active">Dashboard</a>
-    <div class="navsec">Trackers</div>
-    <a href="#consumables" data-view="consumables">Consumables</a>
-    <a href="#meds" data-view="meds">Medicines</a>
-    <a href="#garments" data-view="garments">Garments</a>
-    <a href="#instruments" data-view="instruments">Sterilisation</a>
-    <a href="#linen" data-view="linen">Linen</a>
-    <div class="navsec">Implants</div>
-    <a href="#implants" data-view="implants">Implant orders</a>
-    <div class="navsec">Activity</div>
-    <a href="#log" data-view="log">Transaction log</a>
-    <a href="#requests" data-view="requests">Requests</a>
-    <a href="#alerts" data-view="alerts">Alerts</a>
-    <div class="navsec">Checks</div>
-    <a href="#gas" data-view="gas">Gas room checks</a>
-    <a href="#theatreward" data-view="theatreward">Theatre &amp; Ward</a>
-    <a href="#stocktake" data-view="stocktake">Stocktake</a>
-    <a href="#values" data-view="values">Stock value</a>
-    <div class="navsec">Admin</div>
-    <a href="#stores" data-view="stores">Stores & transfers</a>
-    <a href="#offsite" data-view="offsite">Offsite store</a>
-    <a href="#services" data-view="services">Services</a>
-    <a href="#billing" data-view="billing">Surgeon billing report</a>
-    <a href="#itemusage" data-view="itemusage">Item usage search</a>
-    <a href="#obsolete" data-view="obsolete">Obsolete stock</a>
-    <a href="#assets" data-view="assets">Assets</a>
-    <a href="#stickers" data-view="stickers">Sticker printer</a>
-    <a href="#users" data-view="users">Users &amp; roles</a>
-    <a href="#rota" data-view="rota">Rota <span id="rotaBadge" style="display:none;background:var(--red);color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:6px"></span><span class="navcaret" id="rotaSubCaret" role="button" aria-label="Show or hide Staff database" title="Show / hide Staff database" onclick="toggleRotaSub(event)">▸</span></a>
-    <a href="#rotastaff" data-view="rotastaff" class="navsub navsub-hidden" id="navRotaStaff">Staff database</a>
-    <a href="#procedures" data-view="procedures">Procedure costing</a>
-    <a href="#samples" data-view="samples">Sample collection</a>
+    <div class="navsec" data-navgrp="overview" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-overview" onclick="toggleNavGroup('overview')" onkeydown="navGroupKey(event,'overview')"><span>Overview</span><span class="navchev" aria-hidden="true">▾</span></div>
+    <div class="navgrp" id="navgrp-overview">
+      <a href="#dashboard" data-view="dashboard" class="active">Dashboard</a>
+    </div>
+    <div class="navsec" data-navgrp="trackers" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-trackers" onclick="toggleNavGroup('trackers')" onkeydown="navGroupKey(event,'trackers')"><span>Trackers</span><span class="navchev" aria-hidden="true">▾</span></div>
+    <div class="navgrp" id="navgrp-trackers">
+      <a href="#consumables" data-view="consumables">Consumables</a>
+      <a href="#meds" data-view="meds">Medicines</a>
+      <a href="#garments" data-view="garments">Garments</a>
+      <a href="#instruments" data-view="instruments">Sterilisation</a>
+      <a href="#linen" data-view="linen">Linen</a>
+    </div>
+    <div class="navsec" data-navgrp="implants" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-implants" onclick="toggleNavGroup('implants')" onkeydown="navGroupKey(event,'implants')"><span>Implants</span><span class="navchev" aria-hidden="true">▾</span></div>
+    <div class="navgrp" id="navgrp-implants">
+      <a href="#implants" data-view="implants">Implant orders</a>
+    </div>
+    <div class="navsec" data-navgrp="activity" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-activity" onclick="toggleNavGroup('activity')" onkeydown="navGroupKey(event,'activity')"><span>Activity</span><span class="navchev" aria-hidden="true">▾</span></div>
+    <div class="navgrp" id="navgrp-activity">
+      <a href="#log" data-view="log">Transaction log</a>
+      <a href="#requests" data-view="requests">Requests</a>
+      <a href="#alerts" data-view="alerts">Alerts</a>
+    </div>
+    <div class="navsec" data-navgrp="checks" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-checks" onclick="toggleNavGroup('checks')" onkeydown="navGroupKey(event,'checks')"><span>Checks</span><span class="navchev" aria-hidden="true">▾</span></div>
+    <div class="navgrp" id="navgrp-checks">
+      <a href="#gas" data-view="gas">Gas room checks</a>
+    </div>
+    <div class="navparent navparent-first" data-navgrp="stock" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-stock" onclick="toggleNavGroup('stock')" onkeydown="navGroupKey(event,'stock')"><span>Stock</span><span class="navcaret" aria-hidden="true">▾</span></div>
+    <div class="navgrp" id="navgrp-stock">
+      <a href="#stocktake" data-view="stocktake" class="navsub">Stocktake</a>
+      <a href="#values" data-view="values" class="navsub">Stock value</a>
+      <a href="#itemusage" data-view="itemusage" class="navsub">Item usage search</a>
+      <a href="#obsolete" data-view="obsolete" class="navsub">Obsolete stock</a>
+    </div>
+    <div class="navparent" data-navgrp="records" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-records" onclick="toggleNavGroup('records')" onkeydown="navGroupKey(event,'records')"><span>Records</span><span class="navcaret" aria-hidden="true">▾</span></div>
+    <div class="navgrp" id="navgrp-records">
+      <a href="#procedures" data-view="procedures" class="navsub">Procedure costing</a>
+      <a href="#samples" data-view="samples" class="navsub">Sample collection</a>
+      <a href="#theatreward" data-view="theatreward" class="navsub">Theatre &amp; Ward</a>
+      <a href="#services" data-view="services" class="navsub">Services</a>
+      <a href="#billing" data-view="billing" class="navsub">Surgeon billing report</a>
+      <a href="#itemusage" data-view="itemusage" class="navsub navdup">Item usage search</a>
+    </div>
+    <div class="navsec" data-navgrp="admin" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-admin" onclick="toggleNavGroup('admin')" onkeydown="navGroupKey(event,'admin')"><span>Admin</span><span class="navchev" aria-hidden="true">▾</span></div>
+    <div class="navgrp" id="navgrp-admin">
+      <a href="#stores" data-view="stores">Stores &amp; transfers</a>
+      <a href="#offsite" data-view="offsite">Offsite store</a>
+      <a href="#assets" data-view="assets">Assets</a>
+      <a href="#stickers" data-view="stickers">Sticker printer</a>
+      <a href="#users" data-view="users">Users &amp; roles</a>
+      <a href="#rota" data-view="rota">Rota <span id="rotaBadge" style="display:none;background:var(--red);color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:6px"></span><span class="navcaret" id="rotaSubCaret" role="button" aria-label="Show or hide Staff database" title="Show / hide Staff database" onclick="toggleRotaSub(event)">▸</span></a>
+      <a href="#rotastaff" data-view="rotastaff" class="navsub navsub-hidden" id="navRotaStaff">Staff database</a>
+    </div>
   </nav>
 
   <main id="main"></main>
@@ -9314,12 +9353,19 @@ function nav(view){
   if(!viewAllowed(view)) view='dashboard';
   currentView=view; window._q=''; window._store=''; window._cat=''; window._supplier='';
   window._llTracker=''; window._llStore=''; window._llCat='';
+  navMarkActive(view);   // highlight this page's sidebar link(s), however we got here
   if(typeof applyRotaSub==='function') applyRotaSub();   // Rota's child item opens while you're in that section
+  if(typeof applyNavGroups==='function') applyNavGroups();
   render(); }
+// Item usage search sits under both Stock and Records, so a page can have two links: mark both.
+function navMarkActive(view){
+  document.querySelectorAll('nav a').forEach(x=>{
+    if(!x.classList) return;
+    if(x.dataset && x.dataset.view===view) x.classList.add('active'); else x.classList.remove('active');
+  });
+}
 document.querySelectorAll('nav a').forEach(a=>a.addEventListener('click',e=>{
   e.preventDefault();
-  document.querySelectorAll('nav a').forEach(x=>x.classList.remove('active'));
-  a.classList.add('active');
   nav(a.dataset.view);
 }));
 function updateNavBadges(){
@@ -10399,6 +10445,40 @@ function applyNavPerms(){
     a.style.display = viewAllowed(a.dataset.view) ? '' : 'none';
   });
   applyRotaSub();
+  applyNavGroups();
+}
+/* Sidebar groups: each section header (Overview … Admin) and the Stock / Records parents
+   expand/collapse the items under them. All open by default; what you close is remembered on
+   this device. A header or parent with no item this role may open is hidden altogether, and a
+   closed one is highlighted when the page you're on is inside it. */
+// (no top-level variable on purpose, as for Rota's child item below)
+// localStorage 'bollin_nav_closed' = {"trackers":1, ...}: only the groups the user closed
+function navClosedPref(){
+  try{ const o = JSON.parse(localStorage.getItem('bollin_nav_closed') || '{}'); return (o && typeof o==='object') ? o : {}; }
+  catch(e){ return {}; }
+}
+function applyNavGroups(){
+  const closed = navClosedPref();
+  document.querySelectorAll('nav [data-navgrp]').forEach(h=>{
+    const g = h.getAttribute('data-navgrp'), box = document.getElementById('navgrp-'+g);
+    if(!box || !box.classList) return;
+    const views = Array.from(box.querySelectorAll('a[data-view]')).map(a=>a.dataset.view);
+    h.style.display = views.some(v=>viewAllowed(v)) ? '' : 'none';
+    const open = !closed[g];
+    if(open) box.classList.remove('navgrp-closed'); else box.classList.add('navgrp-closed');
+    if(!open && views.includes(currentView)) h.classList.add('navgrp-hasactive'); else h.classList.remove('navgrp-hasactive');
+    h.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const ch = h.querySelector('.navchev, .navcaret'); if(ch) ch.textContent = open ? '▾' : '▸';
+  });
+}
+function toggleNavGroup(g){
+  const c = navClosedPref();
+  if(c[g]) delete c[g]; else c[g] = 1;
+  try{ localStorage.setItem('bollin_nav_closed', JSON.stringify(c)); }catch(e){}
+  applyNavGroups();
+}
+function navGroupKey(ev, g){
+  if(ev.key==='Enter' || ev.key===' '){ ev.preventDefault(); toggleNavGroup(g); }
 }
 /* Rota > Staff database: a collapsible child item in the sidebar. Open while you're on either
    page; otherwise as the user last left it (remembered on this device). */
@@ -10424,9 +10504,7 @@ function toggleRotaSub(ev){
 }
 // Go to a sidebar page from code and highlight it (the click handler does this for real clicks).
 function navGo(view){
-  document.querySelectorAll('nav a').forEach(x=>x.classList.remove('active'));
-  const a = document.querySelector('nav a[data-view='+view+']'); if(a && a.classList) a.classList.add('active');
-  nav(view);
+  nav(view);   // nav() highlights the link(s)
 }
 paintName();
 

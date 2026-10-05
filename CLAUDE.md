@@ -352,6 +352,24 @@ is ever sent automatically; this is a firm rule from Yasar.**
 **Users & roles** (developer only): list users, change role, activate/deactivate, create
 accounts (`create-user`), reset password / rename (`manage-user`).
 
+**Sidebar** (`<nav id="nav">`):
+- Every section header (Overview, Trackers, Implants, Activity, Checks, Admin) is a button
+  (`.navsec[data-navgrp]`) that expands/collapses the `.navgrp#navgrp-<name>` after it, with a
+  ▾ / ▸ chevron. All open by default; closed ones are remembered per device (localStorage
+  `bollin_nav_closed`, read by `navClosedPref`; no top-level variable, §9 #5).
+- **Stock** and **Records** are top-level parents (`.navparent[data-navgrp]`, not pages) between
+  Checks and Admin. Stock: Stocktake, Stock value, Item usage search, Obsolete stock. Records:
+  Procedure costing, Sample collection, Theatre & Ward, Services, Surgeon billing report, Item
+  usage search. Children are `a.navsub`. **Item usage search is in both on purpose** (Yasar
+  listed it under each), so one page can have two links: `navMarkActive` (called by `nav()`)
+  highlights both; the second has `navdup` and is hidden in the phone layout.
+- `applyNavGroups()` hides a header or parent when `viewAllowed` is false for every link in
+  its group. Role gates are still only `viewAllowed`; moving a link never changes who sees it.
+- Every link and parent has a mask icon (`--icn`, 24px grid, stroke 2, drawn 18px). A new
+  sidebar item needs its own `--icn` rule.
+- Phone layout: headers and parents are hidden and every allowed link sits in one scrolling
+  row, whatever is collapsed.
+
 **Themes / settings**: theme, accent, font, density, corners (cog menu, top-left).
 
 ---
@@ -524,7 +542,10 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
 - rota;
 - rota texts (screens);
 - SMS dispatcher: `tests/sms_dispatch_tests.mjs`, which runs the Edge Function's `core.ts`
-  directly (Node 24 runs TypeScript without a build step).
+  directly (Node 24 runs TypeScript without a build step);
+- sidebar navigation: `tests/nav_browser_tests.js`, which loads a demo-mode copy of the page
+  in **headless Chrome** and checks, per role, which links, headers and parents are really
+  visible, plus collapsing, icons and highlighting.
 
 Database tests for rota texts: `tests/sql/rota_sms_db_tests.sql`. Run it against **staging**
 with `supabase db query --linked -f …`.
