@@ -185,7 +185,10 @@ expiry = dispatch date + 1 year.
 - **Medication labels**: drug + optional diluent, pen blanks, Prepared-by / Checked-by
   boxes. Shared presets are stored in settings.
 - **TTO / discharge**: 13 take-home labels with dotted pen blanks for counts and dosing.
-- **Barcode / QR**.
+- **Barcode / QR**: pick items by tracker, location, category, search and a **barcode filter**
+  ("No barcode yet" / "Has a barcode", meaning the item's own `barcode` field is filled). One
+  function, `stkCodesList()`, feeds the list, the count and "Tick all shown". A sticker encodes
+  `barcode || code`, and a code is generated only when an item has neither.
 
 Text that can overflow auto-shrinks rather than clipping.
 

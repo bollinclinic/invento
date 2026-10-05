@@ -6013,16 +6013,30 @@ function ttoOut(download){
 }
 
 /* --- codes tab (barcode / QR for meds & consumables) --- */
+// "Has a barcode" means the item's own Barcode field is filled. An item without one still prints
+// (its item code is used, or a code is generated if it has neither) -- the filter is for finding
+// the items that have never been given a barcode / QR label.
+function stkHasBarcode(i){ return String(i.barcode==null ? '' : i.barcode).trim() !== ''; }
+// every item the Barcode / QR tab is showing right now (all filters applied)
+function stkCodesList(){
+  const tr = window._skTracker||'meds';
+  const q = String(window._skQ||'').toLowerCase();
+  const cat = window._skCat||'', loc = window._skLoc||'', bc = window._skBc||'';
+  return state.items.filter(i=>i.tracker===tr && !i.obsolete &&
+    (!q || String(i.name||'').toLowerCase().includes(q) || String(i.code||'').toLowerCase().includes(q) || String(i.barcode||'').toLowerCase().includes(q)) &&
+    (!cat || i.cat===cat) && (!loc || i.loc===loc) &&
+    (!bc || (bc==='none' ? !stkHasBarcode(i) : stkHasBarcode(i))));
+}
 function stkCodesTab(){
   const tr = window._skTracker||'meds';
-  const q = (window._skQ||'').toLowerCase();
   const cat = window._skCat||'';
   const loc = window._skLoc||'';
+  const bc = window._skBc||'';
   const pool = state.items.filter(i=>i.tracker===tr && !i.obsolete);
   const cats = [...new Set(pool.map(i=>i.cat).filter(Boolean))].sort();
   const locs = [...new Set(pool.map(i=>i.loc).filter(Boolean))].sort();
-  const list = pool.filter(i=>(!q || i.name.toLowerCase().includes(q) || (i.code||'').toLowerCase().includes(q)) &&
-    (!cat || i.cat===cat) && (!loc || i.loc===loc));
+  const noBc = pool.filter(i=>!stkHasBarcode(i)).length;
+  const list = stkCodesList();
   const allSel = list.length && list.every(i=>stkSel.has(state.items.indexOf(i)));
   const rows = list.slice(0,500).map(i=>{
     const ix = state.items.indexOf(i);
@@ -6030,7 +6044,8 @@ function stkCodesTab(){
       <td data-label="" style="display:flex;gap:10px;align-items:center">
         <input type="checkbox" ${stkSel.has(ix)?'checked':''} onchange="toggleSel(stkSel,${ix})" style="width:18px;height:18px">
         <strong>${i.name}</strong></td>
-      <td class="code" data-label="Code">${i.code||i.barcode||'—'}</td>
+      <td class="code" data-label="Code">${i.code||'—'}</td>
+      <td class="code" data-label="Barcode">${stkHasBarcode(i) ? i.barcode : '<span class="badge" style="background:var(--amber-bg);color:var(--amber)">No barcode yet</span>'}</td>
       <td data-label="Location">${i.loc||'—'}</td>
       <td data-label="Category">${i.cat||'—'}</td></tr>`;
   }).join('');
@@ -6051,11 +6066,12 @@ function stkCodesTab(){
         <option value="">All categories</option>
         ${cats.map(c=>`<option ${c===cat?'selected':''}>${c}</option>`).join('')}
       </select>
-      <select onchange="window._skLoc=this.value;render()">
-        <option value="">All locations</option>
-        ${locs.map(l=>`<option ${l===loc?'selected':''}>${l}</option>`).join('')}
+      <select onchange="window._skBc=this.value;render()" title="Find items that have never been given a barcode / QR label">
+        <option value="">With or without a barcode</option>
+        <option value="none" ${bc==='none'?'selected':''}>No barcode yet (${noBc})</option>
+        <option value="has" ${bc==='has'?'selected':''}>Has a barcode (${pool.length-noBc})</option>
       </select>
-      <input type="search" placeholder="Search name or code…" value="${window._skQ||''}"
+      <input type="search" placeholder="Search name, code or barcode…" value="${String(window._skQ||'').replace(/"/g,'&quot;')}"
              oninput="window._skQ=this.value;refreshStkCodes()">
       <select onchange="stkCodeType=this.value">
         <option value="barcode" ${stkCodeType==='barcode'?'selected':''}>Barcode</option>
@@ -6071,8 +6087,8 @@ function stkCodesTab(){
       <button class="btn primary" style="margin-left:auto" onclick="printCodeStickers()">🖨 Print sheet (21/page)</button>
       <button class="btn" onclick="downloadCodePDF()">Download PDF</button>
     </div>
-    <table><thead><tr><th>Item</th><th>Code</th><th>Location</th><th>Category</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="3" style="color:var(--ink-soft)">Nothing matches.</td></tr>'}</tbody></table>
+    <table><thead><tr><th>Item</th><th>Code</th><th>Barcode</th><th>Location</th><th>Category</th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="5" style="color:var(--ink-soft)">${bc==='none' && !window._skQ && !cat && !loc ? 'Every item here has a barcode.' : 'Nothing matches.'}</td></tr>`}</tbody></table>
     </div>`;
 }
 function refreshStkCodes(){
@@ -6085,9 +6101,7 @@ function refreshStkCodes(){
   if(fresh) el.innerHTML = fresh.innerHTML;
 }
 function stkSelAll(on){
-  const tr = window._skTracker||'meds', q=(window._skQ||'').toLowerCase(), cat=window._skCat||'', loc=window._skLoc||'';
-  if(on) state.items.forEach((i,ix)=>{ if(i.tracker===tr && !i.obsolete &&
-    (!q||i.name.toLowerCase().includes(q)||(i.code||'').toLowerCase().includes(q)) && (!cat||i.cat===cat) && (!loc||i.loc===loc)) stkSel.add(ix); });
+  if(on) stkCodesList().forEach(i=>stkSel.add(state.items.indexOf(i)));
   else stkSel.clear();
   render();
 }
