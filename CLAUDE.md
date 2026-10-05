@@ -360,7 +360,7 @@ accounts (`create-user`), reset password / rename (`manage-user`).
   top-level variable, §9 #5).
 - **Stock and Records are section headers like the rest** (Yasar's explicit choice: not
   tab-style parents with indented children). Stock: Stocktake, Stock value, Item usage search,
-  Obsolete stock. Records: Procedure costing, Sample collection, Theatre & Ward, Services,
+  Obsolete stock, Stores & transfers (moved from Admin on request). Records: Procedure costing, Sample collection, Theatre & Ward, Services,
   Surgeon billing report, Item usage search. **Item usage search is in both on purpose**
   (Yasar listed it under each), so one page can have two links: `navMarkActive` (called by
   `nav()`) highlights both; the second has `navdup` and is hidden in the phone layout.
