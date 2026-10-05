@@ -353,22 +353,24 @@ is ever sent automatically; this is a firm rule from Yasar.**
 accounts (`create-user`), reset password / rename (`manage-user`).
 
 **Sidebar** (`<nav id="nav">`):
-- Every section header (Overview, Trackers, Implants, Activity, Checks, Admin) is a button
-  (`.navsec[data-navgrp]`) that expands/collapses the `.navgrp#navgrp-<name>` after it, with a
-  ▾ / ▸ chevron. All open by default; closed ones are remembered per device (localStorage
-  `bollin_nav_closed`, read by `navClosedPref`; no top-level variable, §9 #5).
-- **Stock** and **Records** are top-level parents (`.navparent[data-navgrp]`, not pages) between
-  Checks and Admin. Stock: Stocktake, Stock value, Item usage search, Obsolete stock. Records:
-  Procedure costing, Sample collection, Theatre & Ward, Services, Surgeon billing report, Item
-  usage search. Children are `a.navsub`. **Item usage search is in both on purpose** (Yasar
-  listed it under each), so one page can have two links: `navMarkActive` (called by `nav()`)
-  highlights both; the second has `navdup` and is hidden in the phone layout.
-- `applyNavGroups()` hides a header or parent when `viewAllowed` is false for every link in
-  its group. Role gates are still only `viewAllowed`; moving a link never changes who sees it.
-- Every link and parent has a mask icon (`--icn`, 24px grid, stroke 2, drawn 18px). A new
-  sidebar item needs its own `--icn` rule.
-- Phone layout: headers and parents are hidden and every allowed link sits in one scrolling
-  row, whatever is collapsed.
+- Eight section headers, in order: Overview, Trackers, Implants, Activity, Checks, **Stock**,
+  **Records**, Admin. Each is a button (`.navsec[data-navgrp]`) that expands/collapses the
+  `.navgrp#navgrp-<name>` after it, with a ▾ / ▸ chevron. All open by default; closed ones are
+  remembered per device (localStorage `bollin_nav_closed`, read by `navClosedPref`; no
+  top-level variable, §9 #5).
+- **Stock and Records are section headers like the rest** (Yasar's explicit choice: not
+  tab-style parents with indented children). Stock: Stocktake, Stock value, Item usage search,
+  Obsolete stock. Records: Procedure costing, Sample collection, Theatre & Ward, Services,
+  Surgeon billing report, Item usage search. **Item usage search is in both on purpose**
+  (Yasar listed it under each), so one page can have two links: `navMarkActive` (called by
+  `nav()`) highlights both; the second has `navdup` and is hidden in the phone layout.
+- The only indented child item is Rota > Staff database (`a.navsub`).
+- `applyNavGroups()` hides a header when `viewAllowed` is false for every link in its group.
+  Role gates are still only `viewAllowed`; moving a link never changes who sees it.
+- Every link has a mask icon (`--icn`, 24px grid, stroke 2, drawn 18px). A new sidebar item
+  needs its own `--icn` rule.
+- Phone layout: headers are hidden and every allowed link sits in one scrolling row, whatever
+  is collapsed.
 
 **Themes / settings**: theme, accent, font, density, corners (cog menu, top-left).
 

@@ -73,27 +73,25 @@
   /* ===== premium enterprise navigation ===== */
   nav{background:linear-gradient(180deg,#FFFFFF 0%,#FBFAF6 100%);border-right:1px solid #EAE5DA;
       padding:20px 0 28px;overflow-y:auto;font-family:'Inter',system-ui,var(--sans)}
-  nav a,nav .navparent{position:relative;display:flex;align-items:center;gap:12px;margin:2px 12px;padding:11px 14px;
+  nav a{position:relative;display:flex;align-items:center;gap:12px;margin:2px 12px;padding:11px 14px;
       border-radius:10px;color:#5D5A50;text-decoration:none;font-weight:500;font-size:14.5px;
       letter-spacing:.1px;border-left:none;transition:all .2s ease}
-  nav a::before,nav .navparent::before{content:'';width:18px;height:18px;flex-shrink:0;background-color:currentColor;opacity:.7;
+  nav a::before{content:'';width:18px;height:18px;flex-shrink:0;background-color:currentColor;opacity:.7;
       -webkit-mask:var(--icn) center/contain no-repeat;mask:var(--icn) center/contain no-repeat;
       transition:all .2s ease}
-  nav a:hover,nav .navparent:hover{background:rgba(138,123,84,0.08);color:#8A7B54;transform:translateX(1px)}
-  nav a.active,nav .navparent.navgrp-hasactive{background:rgba(138,123,84,0.13);color:#6E6140;font-weight:600;
+  nav a:hover{background:rgba(138,123,84,0.08);color:#8A7B54;transform:translateX(1px)}
+  nav a.active{background:rgba(138,123,84,0.13);color:#6E6140;font-weight:600;
       box-shadow:inset 0 0 0 1px rgba(138,123,84,.20)}
-  nav a.active::before,nav .navparent.navgrp-hasactive::before{opacity:1}
+  nav a.active::before{opacity:1}
   nav .navsec{display:flex;align-items:center;gap:8px;padding:24px 26px 8px;font-size:10.5px;letter-spacing:2.4px;text-transform:uppercase;
       color:#8A7B54;font-weight:700;font-family:'Inter',system-ui,var(--sans);cursor:pointer;user-select:none}
   nav .navsec:first-child{padding-top:6px}
   nav .navsec:hover,nav .navsec.navgrp-hasactive{color:#6E6140}
-  nav a:focus-visible,nav .navsec:focus-visible,nav .navparent:focus-visible{outline:2px solid #8A7B54;outline-offset:2px}
-  /* section headers and the Stock / Records parents expand/collapse the group that follows them */
-  nav .navparent{cursor:pointer;user-select:none}
-  nav .navparent.navparent-first{margin-top:18px}
+  nav a:focus-visible,nav .navsec:focus-visible{outline:2px solid #8A7B54;outline-offset:2px}
+  /* every section header expands/collapses the group that follows it */
   nav .navchev{margin-left:auto;margin-right:7px;font-size:14px;line-height:1;letter-spacing:0;opacity:.85}
   nav .navgrp.navgrp-closed{display:none}
-  /* nested child items (Stock, Records, Rota > Staff database): slightly indented, same icons */
+  /* nested child item (Rota > Staff database): slightly indented, same icons */
   nav a.navsub{margin:1px 12px 1px 28px;padding:8px 12px;font-size:13.5px;border-left:2px solid rgba(138,123,84,.28);border-radius:0 10px 10px 0}
   nav a.navsub.navsub-hidden{display:none !important}
   nav .navcaret{margin-left:auto;padding:3px 7px;border-radius:6px;font-size:15px;line-height:1;opacity:.85;cursor:pointer}
@@ -127,8 +125,6 @@
   nav a[data-view=rotastaff]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Ccircle cx='9' cy='11' r='2.2'/%3E%3Cpath d='M5.8 16a3.4 3.4 0 0 1 6.4 0M14 10h4M14 14h4'/%3E%3C/svg%3E")}
   nav a[data-view=procedures]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h4l3-8 4 16 3-8h4'/%3E%3C/svg%3E")}
   nav a[data-view=samples]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8.5 3h7M10 3v14.5a2 2 0 0 0 4 0V3M10 12h4'/%3E%3C/svg%3E")}
-  nav .navparent[data-navgrp=stock]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='12' width='8' height='8' rx='1'/%3E%3Crect x='13' y='12' width='8' height='8' rx='1'/%3E%3Crect x='8' y='3' width='8' height='8' rx='1'/%3E%3C/svg%3E")}
-  nav .navparent[data-navgrp=records]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3C/svg%3E")}
 
   main{overflow-y:auto;padding:22px 26px}
   h1{font-size:20px;font-weight:700;margin-bottom:2px}
@@ -411,7 +407,7 @@
     nav{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid #EAE5DA;
         padding:8px 8px;position:sticky;top:0;z-index:15;-webkit-overflow-scrolling:touch;scrollbar-width:none}
     nav::-webkit-scrollbar{display:none}
-    nav .navsec,nav .navparent{display:none !important}
+    nav .navsec{display:none !important}
     nav .navgrp,nav .navgrp.navgrp-closed{display:contents}
     nav a.navsub{margin:0 3px;padding:9px 13px;font-size:14px;border-left:none;border-radius:10px}
     nav a.navdup{display:none !important}
@@ -514,21 +510,21 @@
     <div class="navgrp" id="navgrp-checks">
       <a href="#gas" data-view="gas">Gas room checks</a>
     </div>
-    <div class="navparent navparent-first" data-navgrp="stock" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-stock" onclick="toggleNavGroup('stock')" onkeydown="navGroupKey(event,'stock')"><span>Stock</span><span class="navcaret" aria-hidden="true">▾</span></div>
+    <div class="navsec" data-navgrp="stock" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-stock" onclick="toggleNavGroup('stock')" onkeydown="navGroupKey(event,'stock')"><span>Stock</span><span class="navchev" aria-hidden="true">▾</span></div>
     <div class="navgrp" id="navgrp-stock">
-      <a href="#stocktake" data-view="stocktake" class="navsub">Stocktake</a>
-      <a href="#values" data-view="values" class="navsub">Stock value</a>
-      <a href="#itemusage" data-view="itemusage" class="navsub">Item usage search</a>
-      <a href="#obsolete" data-view="obsolete" class="navsub">Obsolete stock</a>
+      <a href="#stocktake" data-view="stocktake">Stocktake</a>
+      <a href="#values" data-view="values">Stock value</a>
+      <a href="#itemusage" data-view="itemusage">Item usage search</a>
+      <a href="#obsolete" data-view="obsolete">Obsolete stock</a>
     </div>
-    <div class="navparent" data-navgrp="records" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-records" onclick="toggleNavGroup('records')" onkeydown="navGroupKey(event,'records')"><span>Records</span><span class="navcaret" aria-hidden="true">▾</span></div>
+    <div class="navsec" data-navgrp="records" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-records" onclick="toggleNavGroup('records')" onkeydown="navGroupKey(event,'records')"><span>Records</span><span class="navchev" aria-hidden="true">▾</span></div>
     <div class="navgrp" id="navgrp-records">
-      <a href="#procedures" data-view="procedures" class="navsub">Procedure costing</a>
-      <a href="#samples" data-view="samples" class="navsub">Sample collection</a>
-      <a href="#theatreward" data-view="theatreward" class="navsub">Theatre &amp; Ward</a>
-      <a href="#services" data-view="services" class="navsub">Services</a>
-      <a href="#billing" data-view="billing" class="navsub">Surgeon billing report</a>
-      <a href="#itemusage" data-view="itemusage" class="navsub navdup">Item usage search</a>
+      <a href="#procedures" data-view="procedures">Procedure costing</a>
+      <a href="#samples" data-view="samples">Sample collection</a>
+      <a href="#theatreward" data-view="theatreward">Theatre &amp; Ward</a>
+      <a href="#services" data-view="services">Services</a>
+      <a href="#billing" data-view="billing">Surgeon billing report</a>
+      <a href="#itemusage" data-view="itemusage" class="navdup">Item usage search</a>
     </div>
     <div class="navsec" data-navgrp="admin" role="button" tabindex="0" aria-expanded="true" aria-controls="navgrp-admin" onclick="toggleNavGroup('admin')" onkeydown="navGroupKey(event,'admin')"><span>Admin</span><span class="navchev" aria-hidden="true">▾</span></div>
     <div class="navgrp" id="navgrp-admin">
@@ -10447,10 +10443,10 @@ function applyNavPerms(){
   applyRotaSub();
   applyNavGroups();
 }
-/* Sidebar groups: each section header (Overview … Admin) and the Stock / Records parents
-   expand/collapse the items under them. All open by default; what you close is remembered on
-   this device. A header or parent with no item this role may open is hidden altogether, and a
-   closed one is highlighted when the page you're on is inside it. */
+/* Sidebar groups: each section header (Overview … Admin, including Stock and Records)
+   expands/collapses the items under it. All open by default; what you close is remembered on
+   this device. A header with no item this role may open is hidden altogether, and a closed
+   one is darker when the page you're on is inside it. */
 // (no top-level variable on purpose, as for Rota's child item below)
 // localStorage 'bollin_nav_closed' = {"trackers":1, ...}: only the groups the user closed
 function navClosedPref(){
@@ -10468,7 +10464,7 @@ function applyNavGroups(){
     if(open) box.classList.remove('navgrp-closed'); else box.classList.add('navgrp-closed');
     if(!open && views.includes(currentView)) h.classList.add('navgrp-hasactive'); else h.classList.remove('navgrp-hasactive');
     h.setAttribute('aria-expanded', open ? 'true' : 'false');
-    const ch = h.querySelector('.navchev, .navcaret'); if(ch) ch.textContent = open ? '▾' : '▸';
+    const ch = h.querySelector('.navchev'); if(ch) ch.textContent = open ? '▾' : '▸';
   });
 }
 function toggleNavGroup(g){
