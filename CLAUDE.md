@@ -100,7 +100,8 @@ theatre lists depend on it. The working mantra throughout the build has been:
   - Staging "invento-staging", ref `ozlskwtbgblfmqjgcrmf`.
 - **Scanning:** a Netum USB barcode scanner acting as a **keyboard wedge** (HID keyboard
   input, NOT a camera). A global keydown handler buffers fast keystrokes ending in Enter.
-  Netum 1D scanners can't read QR codes.
+  The clinic's Netum reads **both barcodes and QR codes** (confirmed by Yasar, 2026-10-06; an
+  earlier note here said 1D only, which was wrong for their unit).
 
 ### Deploy flow
 
@@ -148,6 +149,26 @@ bill price, expiry, batch, status, notes, obsolete flag. Instruments also have q
 cycles-to-date. Scanning an item opens a stock-movement dialog; unknown barcodes can be
 linked to an item. Superadmin+ can bulk-edit category/location/supplier, bulk-generate
 barcodes (13-digit, collision-checked) and bulk-obsolete.
+
+**More than one scan code per item** (migration `20261006100000_item_extra_barcodes.sql`), so
+staff can scan either the maker's barcode on the product or the clinic's printed code:
+- `items.barcode` is the **main** code (what a sticker prints). Further codes live in
+  `item_barcodes` (item_id, barcode; one code → one item across all trackers; max 10 per item).
+- A scan matches the main barcode or item code first, then extras (`scanExtraIx`). Extras are
+  held on each item as `extraCodes`, **not** as item indexes, which go stale on delete/reload.
+- **Linking adds, never replaces** (`itemLinkCode` → RPC `link_barcode`, any active user). The
+  server answers `primary` (item had no barcode), `extra` or `same`, and refuses a code that
+  already belongs to another item as its barcode, item code or extra. Not optimistic.
+- The item edit box has **Other codes**: add (scan or type) and remove (admin+,
+  `item_barcode_remove`), saved at once, not with "Save changes".
+- **Sterilisation items keep a single code**: that workflow is keyed on the tray code.
+- A trigger on `items` stops a barcode/code being set to another item's extra, and drops an
+  item's own extra if it becomes its main barcode.
+- `item_barcodes` has RLS on and **no policies**: it is reached only through
+  `get_item_barcodes()` (one jsonb value, so the 1000-row cap can't truncate it) and the RPCs.
+- **One-click codes** (superadmin+): Sticker printer → Barcode / QR shows "＋ Give the N
+  without a barcode a code" (`stkAssignMissing` → `item_assign_missing_barcodes`). It never
+  replaces an existing barcode, unlike the tracker's "Generate new barcodes".
 
 **Stores / offsite** (admin+): stores list and transfers (whole item or a quantity).
 Stock moved to `MS Offsite Store` is **invisible everywhere in active inventory** (trackers,
@@ -437,7 +458,7 @@ gate, add it on **both** sides (§9 #6).
 
 ## 6. Data model (Supabase tables)
 
-`profiles`, `items` (all trackers; `tracker` enum incl. `services`), `barcode_link_events`,
+`profiles`, `items` (all trackers; `tracker` enum incl. `services`), `item_barcodes` (extra scan codes), `barcode_link_events`,
 `dispatch_log`, `procedures` (`cart` jsonb, `room`, `surgeon_id`), `procedure_lines` (cost +
 bill snapshots), `surgeons`, `rota_days`, `rota_theatres` (`cases` jsonb of {surgeon, procedure,
 stay}; no PAT), 
@@ -564,6 +585,12 @@ Sheets-era notes and may be out of date; this file is the current reference.
     after the match (duplicating half a file). When scripting edits to SQL, use
     `s.split(a).join(b)` or a replacer function, or use the editor. Check that dollar-quote
     pairs balance before running.
+14. **Barcode links silently never saved (Aug–Oct 2026):** the `link` action sent
+    `payload.row || payload.code`, but the caller never passed `row`, so the item's *code text*
+    went where the RPC wanted a uuid and every link failed with only a toast. Nobody noticed
+    for six weeks; the evidence was `barcode_link_events` having no row newer than the import.
+    When moving a call from "match by code" to "match by id", check every caller passes the
+    id, and look at the table for proof that writes are landing.
 
 ---
 
@@ -573,6 +600,8 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
 - Theatre & Ward;
 - Theatre & Ward room tabs;
 - stock/procedures (7-feature batch);
+- item scan codes (`item_codes_tests.js`: extra codes, linking, one-click codes; database side
+  in `tests/sql/item_barcodes_db_tests.sql`, staging only);
 - rota;
 - rota texts (screens);
 - SMS dispatcher: `tests/sms_dispatch_tests.mjs`, which runs the Edge Function's `core.ts`

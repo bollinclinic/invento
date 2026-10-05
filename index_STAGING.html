@@ -620,7 +620,7 @@
   <div class="m-body">
     <div class="itcode" id="linkCode" style="margin-bottom:12px"></div>
     <p style="font-size:13.5px;color:var(--ink-soft);margin-bottom:12px">
-      This barcode isn't linked to an item yet. Choose the item it belongs to and the link is saved for every future scan.</p>
+      This code isn't linked to an item yet. Choose the item it belongs to and the link is saved for every future scan. If that item already has a barcode, this one is added as well, so both scan.</p>
     <div class="m-row"><label for="linkSearch">Item</label><input id="linkSearch" type="search" placeholder="Type to search all trackers…" oninput="renderLinkList()"></div>
     <div id="linkList" style="max-height:200px;overflow-y:auto;border:1px solid var(--line);border-radius:8px"></div>
   </div>
@@ -682,6 +682,15 @@
     <div class="m-row"><label for="adBar">Barcode</label>
       <input id="adBar" type="text" placeholder="Scanned or generated">
       <button class="btn" style="padding:8px 10px" onclick="$('#adBar').value=genCode($('#adTracker').value)" title="Generate a Bollin code">Generate</button></div>
+    <div class="m-row" id="adExtraRow" style="display:none;align-items:flex-start"><label for="adExtraNew" style="padding-top:9px">Other codes</label>
+      <div style="flex:1;min-width:0">
+        <div id="adExtraList" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px"></div>
+        <div style="display:flex;gap:10px">
+          <input id="adExtraNew" type="text" placeholder="Scan or type another code" style="min-width:0"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addExtraCode();}">
+          <button class="btn" type="button" style="padding:8px 10px" onclick="addExtraCode()">Add</button></div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.45">For example the barcode printed on the product. Scanning any of this item's codes opens it. Added and removed straight away, without pressing Save.</div>
+      </div></div>
     <div class="m-row"><label for="adUnit">Unit</label><input id="adUnit" type="text" value="Each"></div>
     <div class="m-row"><label for="adQty">Initial qty</label><input id="adQty" type="number" min="0" value="0"></div>
     <div class="m-row"><label for="adRo">Reorder level</label><input id="adRo" type="number" min="0" value="1"></div>
@@ -1105,6 +1114,12 @@ document.getElementById('scanInput').addEventListener('keydown', e => {
     if(code.length >= 2) handleScan(code);
   }
 });
+// Index of the item that has this as one of its EXTRA codes (-1 if none). An item's main barcode
+// and its item code are matched first, directly; this is the "second code" lookup.
+function scanExtraIx(code){
+  const c = String(code);
+  return state.items.findIndex(it => Array.isArray(it.extraCodes) && it.extraCodes.includes(c));
+}
 function handleScan(code){
   $('#scanEcho').textContent = 'Scanned: ' + code;
   // a procedure is running AND you are on the Procedure costing screen: add the scan to the case.
@@ -1112,9 +1127,10 @@ function handleScan(code){
   // so an open procedure never swallows tray or stock scans done elsewhere.
   if(procActive() && currentView==='procedures'){
     let pIdx = state.items.findIndex(it => (it.barcode===code || it.code===code) && it.loc!==OFFSITE_STORE);
-    if(pIdx<0 && code in state.barcodeLinks && state.items[state.barcodeLinks[code]] && state.items[state.barcodeLinks[code]].loc!==OFFSITE_STORE) pIdx = state.barcodeLinks[code];
+    const xIdx = pIdx<0 ? scanExtraIx(code) : -1;     // one of an item's extra codes?
+    if(xIdx>=0 && state.items[xIdx].loc!==OFFSITE_STORE) pIdx = xIdx;
     if(pIdx>=0){ procConsumeScan(state.items[pIdx]); return; }
-    if(state.items.some(it => (it.barcode===code || it.code===code) && it.loc===OFFSITE_STORE)){
+    if(xIdx>=0 || state.items.some(it => (it.barcode===code || it.code===code) && it.loc===OFFSITE_STORE)){
       toast('That item is at '+OFFSITE_STORE+' — bring it back to an active store first'); return;
     }
     toast('Unknown barcode — link it first from a tracker, then scan again'); return;
@@ -1125,8 +1141,8 @@ function handleScan(code){
   if(currentView==='instruments'){ sterilScan(code); return; }
   // 1. direct match on barcode or code
   let idx = state.items.findIndex(it => it.barcode===code || it.code===code);
-  // 2. learned link
-  if(idx<0 && code in state.barcodeLinks) idx = state.barcodeLinks[code];
+  // 2. one of an item's extra codes (e.g. the maker's barcode on the product)
+  if(idx<0) idx = scanExtraIx(code);
   if(idx>=0){
     const it = state.items[idx];
     // during a stocktake, a scan counts the item instead of moving stock (offsite stock isn't
@@ -1156,15 +1172,44 @@ function renderLinkList(){
     .join('');
   $('#linkList').innerHTML = rows || '<div style="padding:12px;color:var(--ink-soft)">No matches.</div>';
 }
-function linkBarcode(i){
-  const code = linkDlg.dataset.code;
-  state.barcodeLinks[code] = i;
-  state.items[i].barcode = state.items[i].barcode || code;
+// Give an item another scan code. The server decides what happens (RPC link_barcode):
+//   'primary' = the item had no barcode, so this is now its main one
+//   'extra'   = added alongside its existing barcode -- both scan
+//   'same'    = it was already one of this item's codes
+// Returns that word, or '' if nothing was linked (the reason has been shown).
+// Not optimistic on purpose: the item only gains the code once the server has accepted it.
+async function itemLinkCode(it, code){
+  let kind;
+  if(LIVE){
+    if(!it._row){ toast('Syncing this item first — try again in a moment'); loadAll(); return ''; }
+    try{ kind = (await api({action:'link', row:it._row, barcode:code})).kind || 'primary'; }
+    catch(e){ toast('Not linked — '+e.message); return ''; }
+  } else {                                        // demo mode: the same rules, locally
+    const has = o => o.barcode===code || o.code===code || (o.extraCodes||[]).includes(code);
+    const other = state.items.find(o=>o!==it && has(o));
+    if(has(it)) kind = 'same';
+    else if(other){ toast('That code already belongs to "'+other.name+'"'); return ''; }
+    else if(!it.barcode) kind = 'primary';
+    else if(it.tracker==='instruments'){ toast('Sterilisation items keep a single code. Edit the item to change it.'); return ''; }
+    else kind = 'extra';
+  }
+  if(kind==='primary') it.barcode = code;
+  else if(kind==='extra'){
+    if(!Array.isArray(it.extraCodes)) it.extraCodes = [];
+    if(!it.extraCodes.includes(code)) it.extraCodes.push(code);
+  }
+  toast(kind==='extra' ? 'Added as another code for '+it.name+' — both now scan'
+      : kind==='primary' ? 'Barcode linked to '+it.name
+      : 'That is already a code for '+it.name);
+  return kind;
+}
+async function linkBarcode(i){
+  const code = String(linkDlg.dataset.code||'').trim(), it = state.items[i];
+  if(!it || !code) return;
   linkDlg.close();
-  toast('Barcode linked to ' + state.items[i].name);
-  if(LIVE) api({action:'link', barcode:code, tracker:TRACKER_TAB[state.items[i].tracker],
-                code: state.items[i].code || code}).catch(e=>toast('Link not saved — '+e.message));
-  openMove(state.items[i]);
+  if(!await itemLinkCode(it, code)) return;
+  render();
+  openMove(it);
 }
 
 /* ---------------- stock movement ---------------- */
@@ -3055,6 +3100,7 @@ function openAdd(scannedCode){
     $('#adLoc').value==='__new'?'':$('#adLoc').value);
   $('#addDlgTitle').textContent='Add new item'; $('#addDlgSave').textContent='Add item';
   $('#addDlgDeleteWrap').innerHTML = '';
+  paintExtraCodes();   // hidden for a new item: extra codes are added once it exists
   addDlg.showModal();
   $('#adName').focus();
 }
@@ -3080,7 +3126,47 @@ function openEdit(i){
   const showDelete = isDeveloper() && (it.tracker==='consumables' || it.tracker==='meds');
   $('#addDlgDeleteWrap').innerHTML = showDelete
     ? '<button class="btn" style="color:var(--red)" onclick="deleteItemFromEdit()">Delete</button>' : '';
+  paintExtraCodes();
   addDlg.showModal();
+}
+/* "Other codes" in the edit box: an item's extra scan codes. Each add / remove is saved at once
+   (they are not part of "Save changes"). Sterilisation items keep a single code. */
+function paintExtraCodes(){
+  const row = $('#adExtraRow'), it = editItem;
+  if(!row || !row.style) return;
+  const show = !!it && it.tracker!=='instruments' && (!LIVE || !!it._row);
+  row.style.display = show ? '' : 'none';
+  if(!show) return;
+  const codes = Array.isArray(it.extraCodes) ? it.extraCodes : [];
+  $('#adExtraList').innerHTML = codes.length
+    ? codes.map((c,n)=>`<span class="badge" style="background:var(--mist);border:1px solid var(--line);color:var(--ink);font-family:var(--mono);font-size:12px;padding:4px 6px 4px 10px;display:inline-flex;align-items:center;gap:6px">${escapeAttr(c)}${can('edit')
+        ? `<button type="button" title="Remove this code" aria-label="Remove code ${escapeAttr(c).replace(/"/g,'&quot;')}" onclick="removeExtraCode(${n})" style="border:none;background:none;cursor:pointer;color:var(--red);font-size:15px;line-height:1;padding:0 3px">×</button>` : ''}</span>`).join('')
+    : '<span style="font-size:12.5px;color:var(--ink-soft)">None yet</span>';
+  $('#adExtraNew').value = '';
+}
+async function addExtraCode(){
+  const it = editItem, code = String($('#adExtraNew').value||'').trim();
+  if(!it || !code) return;
+  const kind = await itemLinkCode(it, code);
+  if(!kind) return;
+  // an item with no barcode takes the code as its main one: show it, or "Save changes" would blank it again
+  if(kind==='primary') $('#adBar').value = it.barcode;
+  paintExtraCodes();
+  render();
+}
+async function removeExtraCode(n){
+  const it = editItem;
+  if(!it || !can('edit')) return;
+  const code = (it.extraCodes||[])[n];
+  if(code===undefined) return;
+  if(!confirm('Remove the code '+code+' from "'+it.name+'"?\n\nScanning it will no longer open this item.')) return;
+  if(LIVE){
+    try{ await api({action:'itemBarcodeRemove', row:it._row, barcode:code}); }
+    catch(e){ toast('Not removed — '+e.message); return; }
+  }
+  it.extraCodes = it.extraCodes.filter(c=>c!==code);
+  paintExtraCodes();
+  toast('Code removed');
 }
 async function deleteItemFromEdit(){
   if(!editItem || !isDeveloper()) return;
@@ -6037,6 +6123,7 @@ function stkCodesTab(){
   const locs = [...new Set(pool.map(i=>i.loc).filter(Boolean))].sort();
   const noBc = pool.filter(i=>!stkHasBarcode(i)).length;
   const list = stkCodesList();
+  const shownNoBc = list.filter(i=>!stkHasBarcode(i)).length;
   const allSel = list.length && list.every(i=>stkSel.has(state.items.indexOf(i)));
   const rows = list.slice(0,500).map(i=>{
     const ix = state.items.indexOf(i);
@@ -6084,6 +6171,7 @@ function stkCodesTab(){
         <input type="checkbox" ${allSel?'checked':''} onchange="stkSelAll(this.checked)" style="width:18px;height:18px">
         Tick all shown (${list.length})</label>
       <span style="color:var(--ink-soft);font-size:13px">${stkSel.size} selected</span>
+      ${isSuperadmin() && shownNoBc ? `<button class="btn" onclick="stkAssignMissing()" title="Creates a new, unused code for each item shown that has no barcode. Items that already have one are not touched.">＋ Give the ${shownNoBc} without a barcode a code</button>` : ''}
       <button class="btn primary" style="margin-left:auto" onclick="printCodeStickers()">🖨 Print sheet (21/page)</button>
       <button class="btn" onclick="downloadCodePDF()">Download PDF</button>
     </div>
@@ -6099,6 +6187,30 @@ function refreshStkCodes(){
   tmp.innerHTML = stkCodesTab();
   const fresh = tmp.querySelector('#stkCodesWrap');
   if(fresh) el.innerHTML = fresh.innerHTML;
+}
+// Superadmin+: one click gives every item SHOWN that has no barcode a new, unused one (server:
+// item_assign_missing_barcodes, which never replaces an existing barcode). The same code prints
+// as a barcode or as a QR code. Afterwards those items are ticked, ready to print.
+async function stkAssignMissing(){
+  if(!isSuperadmin()) return;
+  const items = stkCodesList().filter(i=>!stkHasBarcode(i));
+  if(!items.length){ toast('Every item shown already has a barcode'); return; }
+  if(!LIVE){ toast('Demo mode — cannot create live barcodes'); return; }
+  const ready = items.filter(i=>i._row);
+  if(!ready.length){ toast('Still syncing — try again in a moment'); loadAll(); return; }
+  const n = ready.length;
+  if(!confirm('Give a new code to the '+n+' item'+(n===1?'':'s')+' shown that '+(n===1?'has':'have')+' no barcode?\n\nItems that already have a barcode are not touched. The same code prints as a barcode or a QR code.')) return;
+  try{
+    const res = await api({action:'itemAssignMissingBarcodes', rows:ready.map(i=>i._row)});
+    const map = res.barcodes||{};
+    let done = 0;
+    stkSel.clear();
+    ready.forEach(it=>{ if(map[it._row]){ it.barcode = String(map[it._row]); stkSel.add(state.items.indexOf(it)); done++; } });
+    window._skBc = '';        // they now have a barcode, so show the full list with the new ones ticked
+    render();
+    toast(done ? done+' item'+(done===1?'':'s')+' given a code and ticked — ready to print'
+               : 'Nothing changed — those items already have a barcode');
+  }catch(err){ toast('Not saved — '+err.message); }
 }
 function stkSelAll(on){
   if(on) stkCodesList().forEach(i=>stkSel.add(state.items.indexOf(i)));
@@ -10162,6 +10274,9 @@ async function api(payload){
   if(a==='getAll'){
     const { data: userData } = await sb.auth.getUser();
     if(!userData || !userData.user) throw new Error('NOT_SIGNED_IN');
+    // extra scan codes per item. Tolerated if it fails, so the page still loads against a
+    // database that hasn't had the item_barcodes migration yet (extra codes just don't scan).
+    const xcP = (async()=>sb.rpc('get_item_barcodes'))().then(r=>r, ()=>null);
     const [itemsRes, txRes, reqRes, alertRes, impRes, dispRes, storesRes, gasRes, setRes,
            profRes, sampRes, surgRes] = await Promise.all([
       sb.rpc('get_items'),
@@ -10271,7 +10386,8 @@ async function api(payload){
       alerts: (alertRes.data||[]).map(alertToSheetRow),
       implants: (impRes.data||[]).map(implantToSheetRow),
       dispatch: (dispRes.data||[]).map(dispatchToSheetRow),
-      barcodeLinks: [],
+      barcodeLinks: await xcP.then(r => (r && !r.error && Array.isArray(r.data) ? r.data : [])
+        .map(b=>({ItemId:b.item_id, Barcode:String(b.barcode)}))),
       stores: (storesRes.data||[]).map(s=>({_row:s.id, Tracker:s.tracker, Store:s.store})),
       assets, gasChecks: (gasRes.data||[]).map(gasToSheetRow),
       settings: (setRes.data||[]).map(s=>({Key:s.key, Value:s.value, Description:s.description})),
@@ -10295,9 +10411,21 @@ async function api(payload){
     return {ok:true, newQty: data.newQty, name: data.name};
   }
   if(a==='link'){
-    const {error} = await sb.rpc('link_barcode', {p_item_id: payload.row || payload.code, p_barcode: payload.barcode});
+    // p_item_id is the item's uuid (payload.row). It used to fall back to the item's code text,
+    // which is not a uuid, so every link failed to save.
+    const {data, error} = await sb.rpc('link_barcode', {p_item_id: payload.row, p_barcode: payload.barcode});
+    if(error) throw new Error(error.message);
+    return {ok:true, kind: data && data.kind};
+  }
+  if(a==='itemBarcodeRemove'){
+    const {error} = await sb.rpc('item_barcode_remove', {p_item_id: payload.row, p_barcode: payload.barcode});
     if(error) throw new Error(error.message);
     return {ok:true};
+  }
+  if(a==='itemAssignMissingBarcodes'){
+    const {data, error} = await sb.rpc('item_assign_missing_barcodes', {p_item_ids: payload.rows});
+    if(error) throw new Error(error.message);
+    return {ok:true, barcodes: (data && data.barcodes) || {}, skipped: (data && data.skipped) || 0};
   }
   // items has no SELECT policy (masks unit_cost) — PostgREST cannot reliably perform a
   // client-issued INSERT/UPDATE/DELETE against a table shaped like that (confirmed: UPDATE
@@ -10758,7 +10886,8 @@ function mapItem(tab, r){
     remarks: S(r.Notes),
     qtyTray: r.QtyInTray!=null && r.QtyInTray!=='' ? Number(r.QtyInTray) : null,
     cycles: Number(r.CyclesToDate)||0,
-    billPrice: r.BillPrice!=null && r.BillPrice!=='' ? Number(r.BillPrice) : null};
+    billPrice: r.BillPrice!=null && r.BillPrice!=='' ? Number(r.BillPrice) : null,
+    extraCodes: []};   // further scan codes for this item (table item_barcodes), filled in loadAll
 }
 
 async function loadAll(){
@@ -10892,10 +11021,13 @@ async function loadAll(){
       by:String(s.By||''), notes:String(s.Notes||'') }));
     state.stores = (data.stores||[]).filter(s=>s.Store)
       .map(s=>({_row:s._row, tracker:String(s.Tracker||'').toLowerCase(), store:String(s.Store)}));
-    data.barcodeLinks.forEach(b=>{
-      const i = state.items.findIndex(it=>it.code===String(b.Code) &&
-                                          it.tracker===String(b.Tracker).toLowerCase());
-      if(i>=0) state.barcodeLinks[String(b.Barcode)] = i;
+    // extra scan codes: hung on the item itself (scanExtraIx looks them up), not kept as item
+    // indexes -- an index goes stale as soon as a row is deleted or the list reloads
+    state.barcodeLinks = {};
+    const itemById = {}; state.items.forEach(it=>{ if(it._row) itemById[it._row] = it; });
+    (data.barcodeLinks||[]).forEach(b=>{
+      const it = itemById[b.ItemId];
+      if(it && !it.extraCodes.includes(String(b.Barcode))) it.extraCodes.push(String(b.Barcode));
     });
     if(session && data.role){ session.role = data.role; session.displayName = data.displayName || session.displayName;
       myName = session.displayName;
