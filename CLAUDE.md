@@ -292,55 +292,99 @@ same Google Sheet** (his choice over moving it to Supabase).
   may add a row, after a lag-tolerant recheck (§9 #9).
 - Details: `bollin-clinic-project-notes.md` (git-ignored, local only).
 
-**Theatre rota** (superadmin+): replaces Ruby's transposed spreadsheet.
-- **Views:** weekly, monthly (calendar grid with gap badges and ★ provisional counts) and
-  custom range.
-- **Theatres:** 0–2 per day. Per theatre: GA/LA type, colour, **"List starts" time**, detail
-  line, up to 3 surgeons, anaesthetist/SFA/scrub 1–3/ODP, **per-theatre HCA and recovery
-  nurse/ODP**, and a case list (surgeon / procedure / stay -- **no PAT numbers**: removed on request
-  2026-09-30; migration `20260930220000_rota_remove_pat.sql` deleted stored ones and a trigger on
-  `rota_theatres` strips any `pat` key, and the page drops it on load and save).
-- **Which theatre on a one-list day:** the day dropdown is "No lists / 1 theatre — Theatre 1 /
-  1 theatre — Theatre 2 / 2 theatres". `rota_days.theatres` is still the count;
-  `flags.only = 2` means the single list runs in Theatre 2, and its data lives in `t2`.
-  **Always loop over `rotaRunning(day)`** (`[]`, `[1]`, `[2]` or `[1,2]`), never `1..theatres`.
-  Switching a one-list day between theatres moves the whole list, with its ★, own times, Lead
-  tick and cover notes (`rotaSwapTheatres`). `rota_sms_slots()` applies the same rule.
-- **Case surgeons follow the list** (`rotaSyncCaseSurgeons`, `rotaCaseSurgeonField`):
-  - With one surgeon on the list, every case that is empty or names someone off the list gets
-    that surgeon automatically (new cases, a swapped surgeon, and older days on first edit).
-  - With 2–3 surgeons, each case's surgeon is a dropdown of just those surgeons; nothing is
-    guessed.
-  - With no surgeon yet, the normal surgeon search is used.
+**Theatre rota** (superadmin+): replaces Ruby's transposed spreadsheet. Since the October 2026
+redesign (migrations `20261016100000_rota_people_model.sql` and
+`20261016110000_rota_sms_labels.sql`), the rota has **two views of the same data**. More than one
+surgeon group now uses the theatres (Aftab Siddiqui's lists, Transform, private surgeons), so two
+theatres and the minor op room can run on the same day.
+- **Rota** (view `rota`, `rotaGridView`) is an Excel-style grid. Dates run across the top
+  (week / 2 weeks / month, with Today and ‹ ›) and roles run down a sticky first column, in Ruby's
+  order (`ROTA_GRID_ROWS`): Operating surgeons, Anaesthetists, Info (GA / LA / Overnight), SFAs,
+  ODPs, Scrubs, Recovery, Ward nurses, Theatre HCAs, Ward HCAs, Reception, RMO, Housekeeping.
+  - A cell holds any number of name chips, each tagged with its rooms ("T1", "T1+T2",
+    "Minor op") or shift ("Day", "Night", "AM", "PM"). Missing people show as red hints ("T2 needs
+    one").
+  - The date header shows the running rooms with their start times and the open-gap count.
+    Clicking it opens the day pop-up (`rotaDayDlgOpen`): rooms on/off, List starts, colour,
+    detail, night team time, notes, gaps with cover notes, ✉ Message staff, Day PDF, copy last
+    week, and "Open in Allocation".
+  - Clicking a cell opens the cell editor (`rotaCellOpen`). For each name it offers rooms
+    (several allowed), shift, ★, 🕐 own time, Lead (scrubs), Edit (swap the person) and Delete,
+    plus "Add names". Add names (`rotaPickOpen`) is a multi-select with search and an optional
+    theatre: surgeons come from the surgeon list, anaesthetists from names used before (or
+    typed), and everyone else from the Staff database filtered by "Works as", with "show everyone"
+    and "＋ add new person".
+  - **The grid saves every change at once** (ctx `'grid'` → `rotaSaveDay(date,{fromGrid:true})`).
+    A day with unsaved Allocation edits on this screen can't be edited in the grid until those are
+    saved or discarded, and a locked day stays locked.
+- **Allocation** (view `rotaalloc`, `rotaAllocView`): the old rota page, rebuilt on the new model
+  and moved under Rota in the sidebar. It shows a panel per running room (Theatre 1, Theatre 2,
+  Minor op) with its tags, List starts, colour, detail, team and case list. It also has a "No
+  theatre yet" strip and Day cover. It keeps the weekly / monthly / custom-range views, **Edit day
+  / Save day** (a draft in `_rotaDrafts`), ✉ Message staff, staff search and the PDFs.
+- **One model, one set of edit functions:** both views go through `rotaEdit(date, ctx, fn)` and
+  the helpers built on it (`rotaAddPeople`, `rotaPersonPatch`, `rotaPersonToggleRoom`,
+  `rotaRoomToggleTag`, …). So the two views can't disagree.
+- **People** (`rota_days.people`): `{id, role, name, rooms, shift, star, time, lead}`.
+  - **Roles** (`ROTA_ROLE`): surgeon, anaesthetist, sfa, odp, scrub, recovery, theatre_hca,
+    ward_nurse, ward_hca, rmo, reception, housekeeping.
+  - **rooms** ⊂ {1, 2, 3} (3 = Minor op). `[]` means "no theatre yet": the name can go in before
+    the room is known, and counts as a gap until it is placed. Several rooms replaces the old "2
+    theatres" tick.
+  - **shift** is `day`/`night` for ward nurse, ward HCA and RMO, and `am`/`pm` for reception and
+    housekeeping. A night ward nurse is a "Night nurse".
+  - `star` is ★ provisional, `time` is the 🕐 own start time, and `lead` is the Lead scrub (one
+    per day).
+  - **Never key anything on slot positions again**: stars, times and Lead live on the person.
+- **Rooms** (`rota_theatres` rows 1–3) have `running`, `tags` (text[]), `la_no_anaesthetist`,
+  start time, detail, colour and cases.
+  - **A room runs** when it is switched on, or when a surgeon is allocated to it.
+  - **Always loop over `rotaRoomsRunning(day)`**, never `1..theatres`. `rota_days.theatres` is
+    kept as the count of running rooms for older readers.
+  - **Tags** are per room. The options are GA / LA / Overnight plus any added with "＋ Add option",
+    which stay (setting `rota_tag_options`, `rotaTagOptions`).
+- **Gaps** (`rotaGaps`, keys like `r2.anaesthetist`, `unplaced`, `ward_nurse.day`):
+  - **Theatre 1 / 2** need a surgeon, an anaesthetist (unless the room is LA-only or ticked
+    "LA — no anaesthetist"), SFA and ODP (not on LA-only), a scrub, a theatre HCA and recovery.
+  - **Minor op** is a lighter team: a surgeon plus a scrub or nurse.
+  - **Day cover** needs ward HCA (day), ward nurse (day) and RMO (day).
+  - **Scrub numbers** are advice only, never a gap (`rotaScrubAdvice`: 1 room 1–2, 2 rooms 2–4,
+    3 rooms 3–5).
+  - Cover notes (`acks`) silence a gap.
+- **Case surgeons follow the room** (`rotaSyncCaseSurgeons`, `rotaCaseSurgeonField`):
+  - With one surgeon in the room, every case that is empty or names someone else gets that
+    surgeon.
+  - With 2+ surgeons, each case picks from a dropdown of the room's surgeons.
   - A case naming someone not on the list is kept and flagged "(not on this list)".
-- **Expected start for the 2nd / 3rd surgeon:** 🕐 on those boxes (the same clock picker),
-  stored in `rota_days.times` (`t1.surgeon2` …). The 1st surgeon starts at the list start. It
-  shows as "Expected from 10:30" on the rota, as an "Expected: … from 10:30" line under the
-  Day PDF ribbon, and as "Name (from 10:30)" in week/month/range PDFs. Surgeons are never
-  texted.
-- **Lead scrub and "both theatres"** (`rota_days.flags`; never typed into a name box, because
-  that makes two spellings of one person and breaks the staff-list match):
-  - **Lead:** a tick under each named Scrub. One Lead per day (`flags.lead` = slot key).
-  - **2 theatres:** a tick under theatre-team names on two-theatre days (`flags.both[slotKey]`).
-    The same slot in the other theatre then counts as covered (`rotaSharedFrom`), so it is not a
-    gap, and shows "Covered by …".
-  - Both are cleared when a different person is put in the box.
-  - PDFs show "Name (07:30) — LEAD" and "Name (07:30) (both theatres)", the latter under both
-    theatres (`rotaTeamName`). Texts say "Scrub 1 - Lead" and "Theatre HCA (Theatres 1 and 2)".
-- **Day cover** roles, including HCA night.
-- **Gap detection:** LA lists don't require an anaesthetist, ODP or SFA. Gaps can be silenced
-  with per-day cover notes, and every name slot has a ★ provisional flag.
-- **Staff search** and **PDFs** (week/month/range/staff/day). ⧉ copies last week's weekday.
-- **Saving** is one atomic, version-checked RPC, `rota_save_day`: a stale save is refused,
-  never silently applied (§9 #8).
+- **Case lists** are surgeon / procedure / stay -- **no PAT numbers** (removed on request
+  2026-09-30). Migration `20260930220000_rota_remove_pat.sql` deleted stored ones, a trigger on
+  `rota_theatres` strips any `pat` key, and the page drops it on load and save.
+- **Expected start for later surgeons:** a surgeon's 🕐 time shows as "from 10:30". Surgeons are
+  never texted.
+- **PDFs** (Day with 1–3 room panels, week, month, range, staff) show "Name (07:30) — LEAD",
+  multi-room names under each of their rooms, and a "No theatre yet" row when someone is
+  unplaced.
+- **Saving** is one atomic, version-checked RPC, `rota_save_day_v2(date, expected_updated_at,
+  day)`: a stale save is refused, never silently applied (§9 #8). It validates roles, rooms,
+  shifts and the single Lead.
+  - **The old `rota_save_day` now refuses** ("The rota has been upgraded. Please refresh…"), so a
+    device still on the old page can never write the old columns.
+  - The old slot columns (`rota_theatres.surgeon`/`scrub1…`/`type`, `rota_days.ward_nurse…`,
+    `stars`, `flags`)
+    are **kept untouched as history**. Live data is `people` + the room columns.
 
 **Rota texts (SMS)** (superadmin+): texts rota staff from the clinic's own phone. **Nothing
 is ever sent automatically; this is a firm rule from Yasar.**
-- **Textable slots** (`ROTA_SMS_T_KEYS` / `ROTA_SMS_D_KEYS` in `index.html`, which must match
-  `rota_sms_slots()` in the database):
-  - per running theatre: Scrub 1–3, ODP, SFA / practitioner, Theatre HCA, Recovery nurse /
-    ODP;
-  - day cover: Ward nurse, HCA — ward, Night nurse, HCA night, RMO — day, RMO on site — night.
+- **Who is textable** (`ROTA_ROLE[role].textable` and `rotaIsTextable` in `index.html`, which
+  must match `rota_sms_slots()` in the database; since the redesign that function reads
+  `rota_days.people`, with the same output columns, so preview, send, cancellation and the
+  safety net are unchanged):
+  - theatre team, **once placed in a running room**: Scrub, ODP, SFA / practitioner, Theatre
+    HCA, Recovery nurse / ODP. Nobody with "no theatre yet" can be texted.
+  - day cover: Ward nurse, Night nurse, Ward HCA, Night HCA, RMO on site (day / night).
+  - Labels: "Scrub (Theatre 2) - Lead" for one theatre, and "Theatre HCA (Theatres 1 and 2)" or
+    "Scrub (Minor op)" for several rooms or the minor op (theatre column 0, the rooms in the
+    label; `rota_room_words`).
   - **Not textable (Yasar's choice):** surgeons (they keep the surgeon picker), anaesthetist,
     housekeeping AM/PM and reception AM/PM.
   - Role names in texts are plain ASCII ("Ward HCA", "RMO on site (night)"), because one
@@ -352,20 +396,21 @@ is ever sent automatically; this is a firm rule from Yasar.**
   - **Own time per person:** the 🕐 button next to a textable name's ★ opens a **clock
     picker** (`timePickerOpen`, `#timeDlg`). It has one-tap "list +30 min … +3 h" buttons,
     common times, an exact time box, and "Use normal time". The chosen time is that person's
-    own start for the day (e.g. Recovery starting later than the list). It is stored in
-    `rota_days.times` (keyed by slot, like `stars`), shows under their name, and is dropped
-    when a different person is put in that box.
+    own start for the day (e.g. Recovery starting later than the list). It is stored on the
+    person (`people[].time`), shows next to their name, and is dropped when the person is
+    swapped for someone else.
   - **Night team time:** "🌙 Night team starts" (Day cover heading, same picker) sets Night
-    nurse, HCA night and RMO night at once. It is stored as `rota_days.times.nightTeam`, so
-    `rota_save_day` is unchanged by it.
+    nurse, HCA night and RMO night (everyone on a night shift) at once. It is stored as
+    `rota_days.times.nightTeam`.
   - **Precedence:** own time > night team time (night roles only) > theatre "List starts" /
-    usual time. Frontend helpers are `rotaSlotOwnTime` / `rotaSlotBaseTime` / `rotaSlotTime`;
-    they mirror `rota_sms_slots()`.
-  - **PDFs:** Day, week, month and range PDFs show "Starts HH:MM" per theatre and times for
-    ward, night and RMO names (`rotaNameWithTime`). The **Day PDF** shows every theatre-team
-    member's start time next to their name (`allTimes`: SFA, Scrub 1–3, ODP, Theatre HCA,
-    Recovery). Week, month and range PDFs add a time there only for own times. Anaesthetist,
-    surgeons, housekeeping and reception never show a time.
+    usual time. A person in several rooms takes the first running room's List starts. Frontend
+    helpers are `rotaPersonOwnTime` / `rotaPersonBaseTime` / `rotaPersonTime`; they mirror
+    `rota_sms_slots()`.
+  - **PDFs:** Day, week, month and range PDFs show "Starts HH:MM" per room and times for
+    ward, night and RMO names (`rotaPdfName`). The **Day PDF** shows every textable
+    theatre-team member's start time next to their name (`allTimes`). Week, month and range
+    PDFs add a time there only for own times. Anaesthetist, housekeeping and reception never
+    show a time, and surgeons show only "(from 10:30)".
   - No time means the person can't be ticked (`no_start_time`), and the dialog says where to
     fill it in.
   - If a start time changes after someone was texted, the post-save prompt **offers** an
@@ -385,11 +430,11 @@ is ever sent automatically; this is a firm rule from Yasar.**
 - **Safety net:** at send time the server **holds** (never sends) a confirmation for someone
   no longer confirmed, a cancellation for someone confirmed again, or any text to someone
   deactivated or opted out.
-- **Staff picker:** every rota name box except surgeons and anaesthetist uses a staff picker
-  (`rotaStaffSlot`, modelled on the surgeon picker, which is untouched). That includes
-  housekeeping and reception, which are in the staff database but never texted and have no
-  time controls. Typing a new name opens the add form straight away. If that is cancelled, the
-  name is saved as typed and flagged "Not in the staff list · Add".
+- **Staff picker:** every role except surgeons and anaesthetists is chosen from the Staff
+  database ("Add names", `rotaPickOpen`), filtered by "Works as", including housekeeping and
+  reception (in the staff database but never texted, with no time controls). A new person is
+  added with the staff form (`openStaffDlg` with `ctx.add`). Names on the rota that aren't in
+  the database are listed by `rotaUnlistedNames` and can't be texted until added.
 - **Who:** only superadmin+ can see or use any of this, in the UI (`isSuperadmin()`) and on the
   server (RLS and RPCs at `app_role_rank() >= 3`).
 - **Text log keep period:** 30 days after the shift by default (setting `sms_log_keep_days`,
@@ -407,12 +452,16 @@ is ever sent automatically; this is a firm rule from Yasar.**
   data. Texts wait while it's offline and expire after 12 h.
 - **Staff database and Text settings:**
   - **👥 Staff database** is its **own page** (view `rotastaff`, `rotaStaffView`), reached from
-    a **collapsible child item under Rota in the sidebar** (`a.navsub#navRotaStaff`; the caret
-    on Rota calls `toggleRotaSub`; state in localStorage `bollin_rota_sub`; `applyRotaSub` opens
-    it on the Rota page unless the user collapsed it, and always on its own page). Yasar asked
-    for this explicitly: it must **not** be an inline section of the rota page. The rota page
-    only shows a one-line notice (`rotaUnlistedNotice`) when names on the rota aren't in the
-    database. Use `navGo(view)` to go to a sidebar page from code.
+    a **collapsible child item under Rota in the sidebar**.
+    - Rota has two children, in this order: **Allocation** (`a.navsub#navRotaAlloc`) and
+      **Staff database** (`a.navsub#navRotaStaff`).
+    - The caret on Rota calls `toggleRotaSub`, with state in localStorage `bollin_rota_sub`.
+      `applyRotaSub` shows both children on the Rota page unless the user collapsed them, and
+      always on either child's own page.
+    - Yasar asked for this explicitly: these must **not** be inline sections of the rota page.
+      The Rota grid and Allocation only show a one-line notice (`rotaUnlistedNotice`) when names
+      on the rota aren't in the database.
+    - Use `navGo(view)` to go to a sidebar page from code.
     One row per person (Name, Works as, Mobile, Active yes/no, Texts), with search, a filter by
     job role and status, and sorting by name or role. It covers everyone except surgeons and
     anaesthetists.
@@ -424,8 +473,8 @@ is ever sent automatically; this is a firm rule from Yasar.**
       moves. The page blocks a rename while rota days are unsaved, then reloads.
     - **Delete** (`staff_delete`): the name stays on rota days as typed, waiting texts to them
       are cancelled, and the log keeps past texts.
-  - **✉ Text settings** (`rotaSmsSettingsPanel`, a collapsible panel that stays on the rota
-    page): the usual start times for ward and night
+  - **✉ Text settings** (`rotaSmsSettingsPanel`, a collapsible panel at the bottom of the Rota
+    grid page): the usual start times for ward and night
     roles, the message wording (templates in `settings`, placeholders `{first_name}` `{day}`
     `{roles}` `{start}`, never patient details), a test text, and the recent-texts log.
 
@@ -444,7 +493,7 @@ accounts (`create-user`), reset password / rename (`manage-user`).
   Surgeon billing report, Item usage search. **Item usage search is in both on purpose**
   (Yasar listed it under each), so one page can have two links: `navMarkActive` (called by
   `nav()`) highlights both; the second has `navdup` and is hidden in the phone layout.
-- The only indented child item is Rota > Staff database (`a.navsub`).
+- The only indented child items are Rota > Allocation and Rota > Staff database (`a.navsub`).
 - `applyNavGroups()` hides a header when `viewAllowed` is false for every link in its group.
   Role gates are still only `viewAllowed`; moving a link never changes who sees it.
 - Every link has a mask icon (`--icn`, 24px grid, stroke 2, drawn 18px). A new sidebar item
@@ -499,8 +548,16 @@ Rules:
 - `unit_cost` (the clinic's purchase price) and `bill_price` (the surgeon-group invoice rate)
   are **different numbers**. Never conflate them. Both are snapshotted onto
   `procedure_lines` at consumption time.
-- Old `rota_days.hca_theatre` / `recovery_nurse` columns are kept for history; live data is
-  per-theatre.
+- **Rota data since October 2026** lives in `rota_days.people` (jsonb, one entry per person;
+  see §4 Theatre rota) and the room columns on `rota_theatres` rows 1–3 (`running`, `tags`,
+  `la_no_anaesthetist`, `start_time`, `detail`, `colour`, `cases`). `theatre_number` is checked
+  to be 1–3. `rota_valid_people()` validates the array, `rota_save_day_v2` is the only writer
+  from the page, and `rota_rename_person` renames inside `people` (never surgeons or
+  anaesthetists).
+- **Old rota columns are kept as history only:** the slot columns, `stars`, `flags`, and the
+  older `rota_days.hca_theatre` / `recovery_nurse`. The conversion copied them into `people`,
+  then moved the cover-note keys (`acks`) to the new keys, e.g. `t2.scrub1` → `r2.scrub` and
+  `ward` → `ward_nurse.day`.
 
 Rota texts (migrations `20260930100000_rota_sms.sql`, then
 `20260930120000_rota_sms_more_roles.sql`, which added the extra textable roles, then
@@ -512,18 +569,24 @@ then `20260930180000_rota_sms_night_team_time.sql`):
   sending → sent/delivered, or failed/held/cancelled/dry_run. Superadmin-read only, written
   only by RPCs and the dispatcher.
 - **`rota_theatres.start_time`** (`time`): the theatre's "List starts".
-- **`rota_days.times`** (`jsonb`): per-person own start times keyed by slot, plus the day's
-  `nightTeam` time.
+- **`rota_days.times`** (`jsonb`): the day's `nightTeam` time. Since the people model,
+  per-person own times live on `people[].time`; before it, they were keyed by slot here.
 - **`rota_days.flags`** (`jsonb`, migration `20261004100000_rota_lead_and_both_theatres.sql`):
-  `{lead: slotKey, both: {slotKey: 1}}`. `rota_save_day` saves `FlagsJSON` and keeps the
-  existing flags if an older page doesn't send it.
-- **`rota_save_day`** was re-created identically apart from saving `T1_/T2_StartTime` and
-  `TimesJSON`. An older page that sends neither still saves: the list time is left empty and
-  the existing own times are **kept**, not wiped.
-- **Slots still hold names as text,** and the server matches them to `staff.name`
+  the old `{lead, both}` ticks. **History only now**: Lead is `people[].lead`, and "both
+  theatres" is `people[].rooms`.
+- **Names are text** in `people[].name`, and the server matches them to `staff.name`
   case-insensitively.
-- **Tests:** `tests/sql/rota_sms_db_tests.sql` runs against staging and cleans up after
-  itself.
+- **`rota_sms_slots()`** (rebuilt in `20261016100000`, labels in `20261016110000`) reads
+  `people`.
+  - `theatre` is the room when the person is in exactly one of Theatre 1 / 2. It is 0 for the
+    minor op, several rooms and day cover, and the room words go in the label instead.
+    **Never put the theatre in the label when `theatre` is 1 or 2:** `sms_roles_text` already
+    adds " (Theatre N)", which would give "Scrub (Theatre 1) (Theatre 1)". This was caught on
+    staging.
+  - Change detection (`rota_sms_affected_core`) compares start times, not labels, so the
+    conversion didn't flag anyone already texted.
+- **Tests:** `tests/sql/rota_sms_db_tests.sql` and `tests/sql/rota_people_db_tests.sql` run
+  against staging and clean up after themselves.
 
 The SharePoint Theatre Records Excel is **not** in Supabase (see §3).
 
@@ -642,8 +705,11 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
   `tests/sql/proc_room_db_tests.sql`, staging only, needs no running cases on staging);
 - dashboard samples tile and inventory requests (`dash_requests_tests.js`; database side in
   `tests/sql/request_item_db_tests.sql`, staging only);
-- rota;
-- rota texts (screens);
+- rota (`rota_tests.js`: the people model, Allocation, gaps, saving, PDFs);
+- rota texts (screens; `rota_sms_tests.js`);
+- rota grid (`rota_grid_tests.js` run by `rota_grid_run_tests.js`: the grid, cell editor, Add
+  names picker, rooms and shifts, two-way sync with Allocation, immediate save and conflicts,
+  role gates);
 - SMS dispatcher: `tests/sms_dispatch_tests.mjs`, which runs the Edge Function's `core.ts`
   directly (Node 24 runs TypeScript without a build step);
 - sidebar navigation: `tests/nav_browser_tests.js`, which loads a demo-mode copy of the page
@@ -655,8 +721,10 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
   headers, body, key order). Then it checks the new page's behaviour. It never posts to the
   real Sheet.
 
-Database tests for rota texts: `tests/sql/rota_sms_db_tests.sql`. Run it against **staging**
-with `supabase db query --linked -f …`.
+Database tests for the rota: `tests/sql/rota_people_db_tests.sql` (conversion, save, conflict,
+role gates, the old save refused, texting slots) and `tests/sql/rota_sms_db_tests.sql`. The
+latter writes days through a `pg_temp.zz_save` shim that turns the old slot format into
+`people`. Run both against **staging** with `supabase db query --linked -f …`.
 
 `tests/extract.js` pulls the last `<script>` block from the current `index.html`. Each suite
 runs the **whole app script** in a `vm` context with stubbed `document`/`window`/

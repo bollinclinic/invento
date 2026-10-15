@@ -124,6 +124,7 @@
   nav a[data-view=users]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3.5'/%3E%3Cpath d='M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18.5 20a6 6 0 0 0-2.5-5'/%3E%3C/svg%3E")}
   nav a[data-view=rota]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E")}
   nav a[data-view=rotastaff]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Ccircle cx='9' cy='11' r='2.2'/%3E%3Cpath d='M5.8 16a3.4 3.4 0 0 1 6.4 0M14 10h4M14 14h4'/%3E%3C/svg%3E")}
+  nav a[data-view=rotaalloc]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M9 10v10M15 10v10'/%3E%3C/svg%3E")}
   nav a[data-view=procedures]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h4l3-8 4 16 3-8h4'/%3E%3C/svg%3E")}
   nav a[data-view=samples]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8.5 3h7M10 3v14.5a2 2 0 0 0 4 0V3M10 12h4'/%3E%3C/svg%3E")}
 
@@ -280,6 +281,52 @@
   .rstar.on{color:#E0A800}
   .rsil{position:absolute;right:26px;top:20px;border:none;background:none;cursor:pointer;font-size:13px;padding:4px}
   .racknote{font-size:11px;color:var(--ink-soft);margin-top:3px;background:var(--mist);border-radius:6px;padding:3px 7px}
+  /* ---------- rota: chips, Allocation rooms, the Rota grid ---------- */
+  .rchip{display:inline-flex;align-items:center;gap:4px;margin:2px 3px 2px 0;padding:3px 9px;border-radius:99px;border:1px solid var(--line);
+      background:var(--card);color:var(--ink);font-size:12.5px;font-weight:600;cursor:pointer;line-height:1.35;font-family:inherit}
+  .rchip:hover{border-color:var(--pine)}
+  .rchip small{font-weight:600;color:var(--ink-soft);font-size:11px}
+  .rchip.prov{border-color:#E0CC97;background:#FFFBF0}
+  .rchip.warn{border-color:var(--red);background:var(--red-bg)}
+  .rchip.la{background:var(--mist);color:var(--ink-soft);cursor:default}
+  .rchip.radd{color:var(--pine);border-style:dashed}
+  .rtag{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;font-family:inherit}
+  .rtag.on{background:var(--pine);border-color:var(--pine);color:#fff}
+  .rtag:disabled,.rchip:disabled{cursor:default;opacity:.6}
+  .rcheck{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+  .rcheck input{width:auto;flex:none}
+  .rroomblk{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px}
+  .rrole{display:grid;grid-template-columns:170px 1fr;gap:8px;padding:5px 0;border-top:1px solid var(--line);align-items:start}
+  .rrolelab{font-size:12px;font-weight:700;color:var(--ink-soft);padding-top:5px}
+  .rghint{display:inline-block;margin:2px 4px 2px 0;font-size:11.5px;font-weight:700;color:var(--red)}
+  .rgmuted{color:var(--ink-soft);font-size:11.5px}
+  .rgwrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);max-height:calc(100vh - 230px)}
+  .rgt{border-collapse:separate;border-spacing:0;min-width:100%;font-size:13px}
+  .rgt th,.rgt td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);vertical-align:top;padding:6px 7px;text-align:left}
+  .rgt thead th{position:sticky;top:0;z-index:2;background:var(--mist);cursor:pointer;min-width:150px}
+  .rgt thead th.rgtoday{background:var(--ok-bg)}
+  .rgt th.rgrole{position:sticky;left:0;z-index:1;background:var(--card);font-weight:700;color:var(--ink-soft);font-size:12px;min-width:120px;max-width:140px;cursor:default}
+  .rgt thead th.rgcorner{z-index:3;background:var(--mist)}
+  .rgt td.rgcell{cursor:pointer;min-width:150px}
+  .rgt td.rgcell:hover{background:var(--mist)}
+  .rgt .rchip{white-space:nowrap}
+  .rgdow{font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.5px}
+  .rgdate{font-size:14px;font-weight:700}
+  .rgpills{display:flex;gap:3px;flex-wrap:wrap;margin:4px 0 2px}
+  .rgpill{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700}
+  .rgbadge{display:inline-block;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:700;margin:2px 3px 0 0;background:var(--mist);color:var(--ink-soft)}
+  .rgbadge.bad{background:var(--red-bg);color:var(--red)}
+  .rgbadge.ok{background:var(--ok-bg);color:var(--ok)}
+  .rgbadge.warn{background:#FFF3D6;color:#7A5A14}
+  .rgtagline{font-size:12px;margin:1px 0}
+  .rpersonrow{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:8px}
+  .rpersonrow.focus{border-color:var(--pine);box-shadow:0 0 0 2px var(--ok-bg)}
+  .rgaprow{font-size:12.5px;padding:5px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .rgaprow.open{color:var(--red);font-weight:600}
+  .rpickrow{display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px}
+  .rpickrow input{width:auto;flex:none}
+  .rpickrow.taken{opacity:.55;cursor:default}
+  @media (max-width:760px){ .rrole{grid-template-columns:1fr} }
   /* month grid */
   .rmgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:10px}
   .rmhd{font-size:11px;font-weight:700;color:var(--ink-soft);text-align:center;padding:4px 0}
@@ -568,7 +615,8 @@
       <a href="#assets" data-view="assets">Assets</a>
       <a href="#stickers" data-view="stickers">Sticker printer</a>
       <a href="#users" data-view="users">Users &amp; roles</a>
-      <a href="#rota" data-view="rota">Rota <span id="rotaBadge" style="display:none;background:var(--red);color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:6px"></span><span class="navcaret" id="rotaSubCaret" role="button" aria-label="Show or hide Staff database" title="Show / hide Staff database" onclick="toggleRotaSub(event)">▸</span></a>
+      <a href="#rota" data-view="rota">Rota <span id="rotaBadge" style="display:none;background:var(--red);color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:6px"></span><span class="navcaret" id="rotaSubCaret" role="button" aria-label="Show or hide Allocation and Staff database" title="Show / hide Allocation and Staff database" onclick="toggleRotaSub(event)">▸</span></a>
+      <a href="#rotaalloc" data-view="rotaalloc" class="navsub navsub-hidden" id="navRotaAlloc">Allocation</a>
       <a href="#rotastaff" data-view="rotastaff" class="navsub navsub-hidden" id="navRotaStaff">Staff database</a>
     </div>
   </nav>
@@ -932,6 +980,18 @@
   <div class="m-head" id="timeDlgTitle">Start time</div>
   <div class="m-body" id="timeDlgBody"></div>
   <div class="m-actions" id="timeDlgActions"></div>
+</dialog>
+
+<dialog id="rotaCellDlg" style="max-width:640px;width:calc(100% - 24px)">
+  <div class="m-head" id="rotaCellTitle">Rota</div>
+  <div class="m-body" id="rotaCellBody" style="max-height:70vh;overflow-y:auto"></div>
+  <div class="m-actions" id="rotaCellActions"></div>
+</dialog>
+
+<dialog id="rotaPickDlg" style="max-width:520px;width:calc(100% - 24px)">
+  <div class="m-head" id="rotaPickTitle">Add names</div>
+  <div class="m-body" id="rotaPickBody"></div>
+  <div class="m-actions" id="rotaPickActions"></div>
 </dialog>
 
 <dialog id="smsDlg" style="max-width:680px">
@@ -6551,40 +6611,57 @@ async function resetUserPassword(i){
 }
 
 /* ---------------- theatre rota (superadmin only) ---------------- */
-let _rotaMode = 'week';             // 'week' | 'month' | 'custom'
+let _rotaMode = 'week';             // Allocation: 'week' | 'month' | 'custom'
 let _rotaWk = 0;                    // week offset
 let _rotaMonth = null;              // {y, m} for month view; null = current
 let _rotaCustom = { from:'', to:'' };
 let _rotaOpenDay = null;            // date expanded inline in month view
-const _rotaDrafts = {};             // unsaved edits, keyed by date
-let _rotaExpandedDays = {};         // Weekly view only: date -> true once a user has explicitly
-                                     // expanded that day's card (every day starts collapsed)
-let _rotaUnlockedDays = {};         // date -> true: an authorized user clicked "Edit day" to
-                                     // override an otherwise-locked (saved + fully covered) day,
-                                     // for this session -- cleared again on the next Save (see
-                                     // rotaSaveDay), so a fresh save with no gaps always re-locks
+const _rotaDrafts = {};             // unsaved Allocation edits, keyed by date
+let _rotaExpandedDays = {};         // Allocation weekly view: date -> true once expanded
+let _rotaUnlockedDays = {};         // date -> true: "Edit day" lifted the lock (until the next save)
+let _rotaGrid = {span:'week', off:0};   // the Rota grid: 'week' | '2weeks' | 'month', off = spans from now
 
-// per-theatre staff roles (key, label, required). Surgeons handled separately (up to 3).
-// hca/recovery moved here from day-level Day Cover (were hcaTheatre/recovery day-wide) so each
-// active theatre gets its own Theatre HCA / Dual Role and Recovery Nurse / ODP.
-const ROTA_T_ROLES = [['anaes','Anaesthetist',1],['sfa','SFA / practitioner',1],
-  ['scrub1','Scrub 1',1],['scrub2','Scrub 2',1],['scrub3','Scrub 3',0],['odp','ODP',1],
-  ['hca','Theatre HCA / Dual Role',1],['recovery','Recovery Nurse / ODP',1]];
-// day-level cover (key, label, required-when-running)
-const ROTA_D_ROLES = [['hcaWard','HCA — ward',1],
-  ['ward','Ward nurse',1],['nightNurse','Night nurse',0],['hcaNight','HCA night',0],
-  ['rmoDay','RMO — day',1],['rmoNight','RMO on site — night',0],
-  ['housekeepAM','Housekeeping AM',0],['housekeepPM','Housekeeping PM',0],
-  ['receptionAM','Reception AM',0],['receptionPM','Reception PM',0]];
-// Rota slots whose person can be texted -- must match rota_sms_slots() in the database
-// (migrations 20260930100000_rota_sms.sql + 20260930120000_rota_sms_more_roles.sql):
-// per running theatre Scrub 1-3, ODP, SFA / practitioner, Recovery nurse / ODP; day cover
-// Ward nurse, HCA - ward, Night nurse, HCA night, RMO on site - night.
-// (+ 20260930160000_rota_sms_hca_rmo_own_times.sql: Theatre HCA and RMO day, and own times.)
-// Not textable: surgeons (own picker), anaesthetist, housekeeping AM/PM, reception AM/PM.
-const ROTA_SMS_T_KEYS = ['scrub1','scrub2','scrub3','odp','sfa','hca','recovery'];
+/* ---- the rota's people model (migration 20261016100000_rota_people_model.sql) ----
+   A day = {date, updatedAt, theatres, notes, acks, times:{nightTeam}, people:[...], rooms:{1,2,3}}.
+     person  {id, role, name, rooms:[1|2|3], shift, star, time, lead}
+             rooms [] = not given a theatre yet; the FIRST running room's "List starts" is their
+             normal start; several rooms = working across them (replaces the old "2 theatres" tick).
+     room    {running, tags:['GA','Overnight',...], laNoAnaes, startTime, detail, colour, cases}
+             1 = Theatre 1, 2 = Theatre 2, 3 = Minor op. A room runs when switched on, or when a
+             surgeon is allocated to it.
+   The Rota grid and Allocation are two views of the same days. Mirrors rota_save_day_v2 and
+   rota_sms_slots() in the database. ---- */
+const ROTA_ROOMS = [1,2,3];
+const ROTA_ROOM_NAME = {1:'Theatre 1', 2:'Theatre 2', 3:'Minor op'};
+const ROTA_ROOM_SHORT = {1:'T1', 2:'T2', 3:'Minor op'};
+// role -> label, grid row title, the staff database "works as" roles offered in its picker,
+// shifts (cover roles), textable (can get rota texts), theatre (belongs to a room)
+const ROTA_ROLE = {
+  surgeon:     {label:'Surgeon',              grid:'Operating surgeons', theatre:true},
+  anaesthetist:{label:'Anaesthetist',         grid:'Anaesthetists',      theatre:true},
+  sfa:         {label:'SFA / practitioner',   grid:'SFAs',               theatre:true, staff:['sfa'],       textable:true},
+  odp:         {label:'ODP',                  grid:'ODPs',               theatre:true, staff:['odp'],       textable:true},
+  scrub:       {label:'Scrub',                grid:'Scrubs',             theatre:true, staff:['scrub'],     textable:true},
+  recovery:    {label:'Recovery nurse / ODP', grid:'Recovery',           theatre:true, staff:['recovery'],  textable:true},
+  theatre_hca: {label:'Theatre HCA',          grid:'Theatre HCAs',       theatre:true, staff:['hca'],       textable:true},
+  ward_nurse:  {label:'Ward nurse',           grid:'Ward nurses',        staff:['ward_nurse','night_nurse'], shifts:['day','night'], textable:true},
+  ward_hca:    {label:'Ward HCA',             grid:'Ward HCAs',          staff:['hca'],          shifts:['day','night'], textable:true},
+  reception:   {label:'Reception',            grid:'Reception',          staff:['reception'],    shifts:['am','pm']},
+  rmo:         {label:'RMO',                  grid:'RMO',                staff:['rmo'],          shifts:['day','night'], textable:true},
+  housekeeping:{label:'Housekeeping',         grid:'Housekeeping',       staff:['housekeeping'], shifts:['am','pm']}
+};
+const ROTA_TEAM_ROLES = ['surgeon','anaesthetist','sfa','odp','scrub','recovery','theatre_hca'];
+const ROTA_COVER_ROLES = ['ward_nurse','ward_hca','reception','rmo','housekeeping'];
+// The Rota grid's rows, in Ruby's order. 'tags' is the per-theatre GA / LA / Overnight row.
+const ROTA_GRID_ROWS = ['surgeon','anaesthetist','tags','sfa','odp','scrub','recovery','ward_nurse','theatre_hca','ward_hca','reception','rmo','housekeeping'];
+const ROTA_SHIFT_LABEL = {day:'Day', night:'Night', am:'AM', pm:'PM'};
+const ROTA_TAG_DEFAULTS = ['GA','LA','Overnight'];
+// Usual start times (Text settings, setting sms_default_times) -- keys unchanged from before.
 const ROTA_SMS_D_KEYS = ['ward','hcaWard','nightNurse','hcaNight','rmoDay','rmoNight'];
-// "Works as" options in the staff list (information only -- the picker offers every active person).
+const ROTA_DEFAULT_TIME_LABEL = {ward:'Ward nurse (day)', nightNurse:'Night nurse', hcaWard:'Ward HCA (day)',
+  hcaNight:'Night HCA', rmoDay:'RMO (day)', rmoNight:'RMO (night)'};
+const ROTA_NIGHT_KEYS = ['nightNurse','hcaNight','rmoNight'];
+// "Works as" options in the staff list.
 const STAFF_ROLES = [['scrub','Scrub'],['odp','ODP'],['sfa','SFA / practitioner'],['recovery','Recovery nurse / ODP'],
   ['ward_nurse','Ward nurse'],['night_nurse','Night nurse'],['hca','HCA'],['rmo','RMO'],
   ['housekeeping','Housekeeping'],['reception','Reception']];
@@ -6608,188 +6685,296 @@ function rotaMonday(off){
 }
 function rotaISO(d){ return d.toISOString().slice(0,10); }
 function rotaNice(date, opt){ return new Date(date+'T12:00').toLocaleDateString('en-GB', opt||{weekday:'long',day:'numeric',month:'short'}); }
-function blankTheatre(){ return {type:'GA',detail:'',colour:'',cases:[],
-  surgeon:'',surgeon2:'',surgeon3:'',anaes:'',sfa:'',scrub1:'',scrub2:'',scrub3:'',odp:'',hca:'',recovery:'',startTime:''}; }
+function rotaEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function rotaBlankRoom(){ return {running:false, tags:[], laNoAnaes:false, startTime:'', detail:'', colour:'', cases:[]}; }
 function blankRotaDay(date){
-  const d = {date, theatres:0, notes:'', acks:{}, stars:{}, times:{}, flags:{}, t1:blankTheatre(), t2:blankTheatre()};
-  ROTA_D_ROLES.forEach(([k])=>d[k]='');
+  return {date, updatedAt:null, theatres:0, notes:'', acks:{}, times:{}, people:[],
+          rooms:{1:rotaBlankRoom(), 2:rotaBlankRoom(), 3:rotaBlankRoom()}};
+}
+// Make any loaded or copied day safe to read and edit (numbers from JSON, missing parts).
+function rotaNormDay(d){
+  d.people = Array.isArray(d.people) ? d.people : [];
+  d.acks = (d.acks && typeof d.acks==='object') ? d.acks : {};
+  d.times = (d.times && typeof d.times==='object') ? d.times : {};
+  d.notes = d.notes==null ? '' : String(d.notes);
+  d.rooms = (d.rooms && typeof d.rooms==='object') ? d.rooms : {};
+  ROTA_ROOMS.forEach(n=>{
+    const r = Object.assign(rotaBlankRoom(), d.rooms[n]||{});
+    r.tags = Array.isArray(r.tags) ? r.tags.map(String) : [];
+    r.cases = rotaCasesNoPat(r.cases);
+    r.startTime = smsTimeOk(r.startTime) ? r.startTime : '';
+    d.rooms[n] = r;
+  });
+  d.people = d.people.filter(p=>p && ROTA_ROLE[p.role]).map(p=>({
+    id: String(p.id||rotaNewId()), role: p.role, name: String(p.name==null?'':p.name),
+    rooms: (Array.isArray(p.rooms)?p.rooms:[]).map(Number).filter((n,i,a)=>n>=1 && n<=3 && a.indexOf(n)===i),
+    shift: ROTA_ROLE[p.role].shifts ? (ROTA_ROLE[p.role].shifts.includes(p.shift) ? p.shift : ROTA_ROLE[p.role].shifts[0]) : null,
+    star: !!p.star, time: smsTimeOk(p.time) ? p.time : '', lead: p.role==='scrub' && !!p.lead }));
   return d;
 }
+function rotaNewId(){ return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,9); }
 function rotaSaved(date){ return (state.rota||[]).find(r=>r.date===date); }
 function rotaDayObj(date){ return _rotaDrafts[date] || rotaSaved(date) || blankRotaDay(date); }
 function rotaDraft(date){
   const fresh = !_rotaDrafts[date];
-  if(fresh) _rotaDrafts[date] = JSON.parse(JSON.stringify(rotaDayObj(date)));
-  const d = _rotaDrafts[date];
-  d.acks = d.acks||{}; d.stars = d.stars||{}; d.times = d.times||{};
-  if(!d.flags || typeof d.flags!=='object') d.flags = {};
-  [1,2].forEach(t=>{ if(!d['t'+t]) d['t'+t]=blankTheatre(); if(!Array.isArray(d['t'+t].cases)) d['t'+t].cases=[]; });
-  if(fresh){ rotaSyncCaseSurgeons(d, 1); rotaSyncCaseSurgeons(d, 2); }   // older saved days catch up on first edit
-  return d;
+  if(fresh){
+    _rotaDrafts[date] = rotaNormDay(JSON.parse(JSON.stringify(rotaDayObj(date))));
+    ROTA_ROOMS.forEach(n=>rotaSyncCaseSurgeons(_rotaDrafts[date], n));   // older saved days catch up on first edit
+  }
+  return _rotaDrafts[date];
 }
-// The rota holds no PAT numbers (removed on request): case = {surgeon, procedure, stay}. Any
-// 'pat' from an older day is dropped when loaded and when saved (the database strips it too).
+// The rota holds no PAT numbers (removed on request): case = {surgeon, procedure, stay}.
 function rotaCasesNoPat(cases){
   return (Array.isArray(cases)?cases:[]).map(c=>{ if(!c || typeof c!=='object') return c; const o={...c}; delete o.pat; return o; });
 }
-// The surgeons on a theatre's list (Surgeon, 2nd, 3rd), in order, no blanks or repeats.
-function rotaListSurgeons(th){
-  return [...new Set([th&&th.surgeon, th&&th.surgeon2, th&&th.surgeon3].map(s=>String(s||'').trim()).filter(Boolean))];
+
+/* ---- rooms ---- */
+function rotaRoomRunning(day, n){
+  const r = day && day.rooms && day.rooms[n];
+  return !!((r && r.running) || ((day && day.people)||[]).some(p=>p.role==='surgeon' && (p.rooms||[]).includes(n) && String(p.name||'').trim()));
 }
-// Case surgeons follow the list: with exactly ONE surgeon on the list, every case that's empty
-// or names someone no longer on the list gets that surgeon. With 2+ surgeons nothing is filled
-// in automatically -- each case is chosen from a dropdown of the list's surgeons. Cases naming
-// someone not on the list are never silently cleared (they show as "not on this list").
-function rotaSyncCaseSurgeons(d, t){
-  const th = d && d['t'+t]; if(!th || !Array.isArray(th.cases)) return;
-  const list = rotaListSurgeons(th);
+function rotaRoomsRunning(day){ return ROTA_ROOMS.filter(n=>rotaRoomRunning(day, n)); }
+function rotaIsRunning(day){ return rotaRoomsRunning(day).length>0; }
+// An LA list (tagged LA and not GA) doesn't need an anaesthetist, ODP or SFA.
+function rotaLaOnly(room){ const t = (room && room.tags) || []; return t.includes('LA') && !t.includes('GA'); }
+function rotaRoomWords(rooms){
+  const th = rooms.filter(n=>n===1||n===2).sort(), mo = rooms.includes(3);
+  if(!th.length) return mo ? 'Minor op' : '';
+  return (th.length===1 ? 'Theatre '+th[0] : 'Theatres '+th.join(' and '))+(mo?' and Minor op':'');
+}
+function rotaRoomsShort(rooms){ return rooms.map(n=>ROTA_ROOM_SHORT[n]).join('+'); }
+
+/* ---- people ---- */
+function rotaPeople(day, role, room){
+  return ((day && day.people)||[]).filter(p=>p.role===role && (room==null || (p.rooms||[]).includes(room)));
+}
+function rotaPerson(day, id){ return ((day && day.people)||[]).find(p=>p.id===id) || null; }
+// the rooms a person is in that are actually running today
+function rotaPersonRooms(day, p){ const run = rotaRoomsRunning(day); return (p.rooms||[]).filter(n=>run.includes(n)); }
+// theatre-team people not in any running room yet ("Not allocated")
+function rotaUnplaced(day){
+  return ((day && day.people)||[]).filter(p=>ROTA_ROLE[p.role].theatre && String(p.name||'').trim() && !rotaPersonRooms(day, p).length);
+}
+function rotaRoleLabel(p){
+  const R = ROTA_ROLE[p.role];
+  if(p.role==='ward_nurse' && p.shift==='night') return 'Night nurse';
+  if(p.role==='ward_hca' && p.shift==='night') return 'Night HCA';
+  if(R.shifts) return R.label+' ('+ROTA_SHIFT_LABEL[p.shift]+')';
+  return R.label+(p.lead?' — Lead':'');
+}
+function rotaListSurgeons(day, n){
+  return [...new Set(rotaPeople(day, 'surgeon', n).map(p=>String(p.name||'').trim()).filter(Boolean))];
+}
+// Case surgeons follow the list: with exactly ONE surgeon in a room, every case there that's empty
+// or names someone not in that room gets that surgeon. With 2+ nothing is filled in automatically
+// (each case picks from a dropdown of the room's surgeons); off-list names are never cleared.
+function rotaSyncCaseSurgeons(d, n){
+  const r = d && d.rooms && d.rooms[n]; if(!r || !Array.isArray(r.cases)) return;
+  const list = rotaListSurgeons(d, n);
   if(list.length!==1) return;
-  th.cases.forEach(c=>{ const cur = String(c.surgeon||'').trim(); if(!cur || !list.includes(cur)) c.surgeon = list[0]; });
+  r.cases.forEach(c=>{ const cur = String(c.surgeon||'').trim(); if(!cur || !list.includes(cur)) c.surgeon = list[0]; });
 }
-function rotaSet(date, path, val){
-  const d = rotaDraft(date);
-  const p = path.split('.');
-  if(p.length===1) d[p[0]] = val;
-  else if(p.length===2) d[p[0]][p[1]] = val;
-  else if(p.length===4 && p[1]==='cases'){ // t1.cases.0.surgeon
-    const arr = d[p[0]].cases; const ix=+p[2];
-    while(arr.length<=ix) arr.push({surgeon:'',procedure:'',stay:'Day case'});
-    arr[ix][p[3]] = val;
+
+/* ---- start times: own (🕐) > night team (night shift) > room "List starts" / usual time.
+   Mirrors rota_sms_slots() in the database. ---- */
+function rotaDefaultTimeKey(p){
+  if(p.role==='ward_nurse') return p.shift==='night' ? 'nightNurse' : 'ward';
+  if(p.role==='ward_hca') return p.shift==='night' ? 'hcaNight' : 'hcaWard';
+  if(p.role==='rmo') return p.shift==='night' ? 'rmoNight' : 'rmoDay';
+  return '';
+}
+function rotaNightTeamTime(day){ return day && day.times && smsTimeOk(day.times.nightTeam) ? day.times.nightTeam : ''; }
+function rotaPersonOwnTime(p){ return p && smsTimeOk(p.time) ? p.time : ''; }
+function rotaPersonBaseTime(day, p){
+  if(ROTA_ROLE[p.role].theatre){
+    const rr = rotaPersonRooms(day, p), r = rr.length ? day.rooms[rr[0]] : null;
+    return r && smsTimeOk(r.startTime) ? r.startTime : '';
   }
-  // a change to a list's surgeons re-applies the one-surgeon auto-fill to its cases
-  if(p.length===2 && /^t[12]$/.test(p[0]) && /^surgeon[23]?$/.test(p[1])) rotaSyncCaseSurgeons(d, +p[0].slice(1));
-  render();
+  const k = rotaDefaultTimeKey(p); if(!k) return '';
+  if(p.shift==='night'){ const n = rotaNightTeamTime(day); if(n) return n; }
+  const d = smsDefaultTimes(); return smsTimeOk(d[k]) ? d[k] : '';
 }
-function rotaSetCaseCount(date, t, n){
-  const d = rotaDraft(date); const arr = d['t'+t].cases;
-  n = Math.max(0, Math.min(20, n|0));
-  while(arr.length<n) arr.push({surgeon:'',procedure:'',stay:'Day case'});
-  arr.length = n;
-  rotaSyncCaseSurgeons(d, t);   // new cases on a one-surgeon list get that surgeon straight away
-  render();
-}
-// star (provisional) toggle per slot key
-function rotaStar(date, key){ const d=rotaDraft(date); if(d.stars[key]) delete d.stars[key]; else d.stars[key]=1; render(); }
-
-/* ---- day flags (rota_days.flags), so these never have to be typed into a name box:
-     lead: the day's Lead scrub -- one scrub slot key, e.g. 't1.scrub1'
-     both: {slotKey:1} -- that theatre-team person supports BOTH theatres (2-theatre days only);
-           the same slot in the other theatre then counts as covered by them.
-   Mirrored by rota_sms_slots() in the database for the text wording. ---- */
-function rotaFlags(day){
-  const f = (day && day.flags && typeof day.flags==='object') ? day.flags : {};
-  return {lead: typeof f.lead==='string' ? f.lead : '', both: (f.both && typeof f.both==='object') ? f.both : {},
-    only: String(f.only)==='2' ? 2 : 1};
-}
-// Which theatres run on a day: [] / [1] / [2] / [1,2]. On a one-theatre day the list can be in
-// Theatre 1 or Theatre 2 (flags.only = 2). Mirrors rota_sms_slots() in the database.
-function rotaRunning(day){
-  const n = Number(day && day.theatres) || 0;
-  if(n >= 2) return [1, 2];
-  if(n === 1) return [rotaFlags(day).only];
-  return [];
-}
-// Header dropdown value: '0' | '1' (Theatre 1 only) | '1b' (Theatre 2 only) | '2'
-function rotaTheatreChoice(day){
-  const n = Number(day && day.theatres) || 0;
-  return n >= 2 ? '2' : (n === 1 ? (rotaFlags(day).only===2 ? '1b' : '1') : '0');
-}
-// Swap everything between Theatre 1 and Theatre 2 (lists, and every per-slot note keyed t1./t2.)
-function rotaSwapTheatres(d){
-  const a = d.t1; d.t1 = d.t2 || blankTheatre(); d.t2 = a || blankTheatre();
-  const sw = k => /^t1\./.test(k) ? 't2.'+k.slice(3) : (/^t2\./.test(k) ? 't1.'+k.slice(3) : k);
-  const remap = o => { const out = {}; Object.keys(o||{}).forEach(k=>{ out[sw(k)] = o[k]; }); return out; };
-  d.stars = remap(d.stars); d.acks = remap(d.acks); d.times = remap(d.times);
-  if(d.flags){ if(typeof d.flags.lead==='string') d.flags.lead = sw(d.flags.lead); if(d.flags.both && typeof d.flags.both==='object') d.flags.both = remap(d.flags.both); }
-}
-function rotaSetTheatres(date, choice){
-  const d = rotaDraft(date);
-  const was = rotaTheatreChoice(d);
-  if(choice === was) return;
-  // Moving a one-theatre list to the other theatre takes the whole list with it.
-  if((was==='1' && choice==='1b') || (was==='1b' && choice==='1')) rotaSwapTheatres(d);
-  d.theatres = choice==='2' ? 2 : (choice==='0' ? 0 : 1);
-  if(choice==='1b') d.flags.only = 2; else delete d.flags.only;
-  render();
-}
-function rotaSlotVal(day, key){
-  const p = String(key).split('.');
-  return String(p.length===2 ? (((day||{})[p[0]]||{})[p[1]]||'') : ((day||{})[key]||'')).trim();
-}
-function rotaLeadKey(day){
-  const k = rotaFlags(day).lead;
-  if(!/^t[12]\.scrub[123]$/.test(k)) return '';
-  return (rotaRunning(day).includes(+k[1]) && rotaSlotVal(day, k)) ? k : '';
-}
-function rotaIsLead(day, key){ return !!key && rotaLeadKey(day)===key; }
-function rotaIsBoth(day, key){
-  return Number(day && day.theatres)>=2 && /^t[12]\./.test(key) && !!rotaFlags(day).both[key] && !!rotaSlotVal(day, key);
-}
-// For an EMPTY theatre slot: the other theatre's same slot, if that person supports both theatres.
-function rotaSharedFrom(day, key){
-  const m = /^t([12])\.(.+)$/.exec(String(key)); if(!m) return '';
-  const other = 't'+(m[1]==='1'?2:1)+'.'+m[2];
-  return (!rotaSlotVal(day, key) && rotaIsBoth(day, other)) ? other : '';
-}
-function rotaToggleLead(date, key){
-  const d = rotaDraft(date);
-  if(d.flags.lead===key) delete d.flags.lead; else d.flags.lead = key;   // one Lead per day
-  render();
-}
-function rotaToggleBoth(date, key){
-  const d = rotaDraft(date);
-  if(!d.flags.both || typeof d.flags.both!=='object') d.flags.both = {};
-  if(d.flags.both[key]) delete d.flags.both[key]; else d.flags.both[key] = 1;
-  render();
-}
-// A person's name for a theatre-team slot as PDFs show it: start time, " — LEAD",
-// " (both theatres)"; an empty slot covered from the other theatre shows that person too.
-function rotaTeamName(day, t, k, allTimes){
-  const key = 't'+t+'.'+k;
-  const src = rotaSlotVal(day, key) ? key : rotaSharedFrom(day, key);
-  if(!src) return '';
-  let out = rotaNameWithTime(day, src, rotaSlotVal(day, src), allTimes);
-  if(rotaIsLead(day, src)) out += ' — LEAD';
-  if(rotaIsBoth(day, src)) out += ' (both theatres)';
-  return out;
+function rotaPersonTime(day, p){ return rotaPersonOwnTime(p) || rotaPersonBaseTime(day, p); }
+// Who can get rota texts: textable roles, and for theatre roles only once in a running room.
+function rotaIsTextable(day, p){
+  const R = ROTA_ROLE[p.role]; if(!R || !R.textable || !String(p.name||'').trim()) return false;
+  return R.theatre ? rotaPersonRooms(day, p).length>0 : true;
 }
 
+/* ---- gaps ---- */
 function rotaGaps(day){
-  const gaps=[];
-  if(!day || !(Number(day.theatres)>0)) return gaps;
-  for(const t of rotaRunning(day)){
-    const th = day['t'+t]||{};
-    if(!String(th.surgeon||'').trim()) gaps.push({key:'t'+t+'.surgeon', label:'Theatre '+t+' — Surgeon'});
-    ROTA_T_ROLES.forEach(([k,lab,req])=>{
-      if(!req) return;
-      if(th.type==='LA' && (k==='anaes'||k==='odp'||k==='sfa')) return;
-      // not a gap if the other theatre's person in this role is supporting both theatres
-      if(!String(th[k]||'').trim() && !rotaSharedFrom(day, 't'+t+'.'+k)) gaps.push({key:'t'+t+'.'+k, label:'Theatre '+t+' — '+lab});
-    });
-  }
-  ROTA_D_ROLES.forEach(([k,lab,req])=>{ if(req && !String(day[k]||'').trim()) gaps.push({key:k, label:lab}); });
+  const gaps = [];
+  if(!day) return gaps;
+  const run = rotaRoomsRunning(day);
+  if(!run.length) return gaps;
+  const has = (role, n)=>rotaPeople(day, role, n).some(p=>String(p.name||'').trim());
+  run.forEach(n=>{
+    const room = day.rooms[n], nm = ROTA_ROOM_NAME[n], la = rotaLaOnly(room);
+    const add = (role, label)=>gaps.push({key:'r'+n+'.'+role, room:n, role, label:nm+' — '+label});
+    if(!has('surgeon', n)) add('surgeon', 'Surgeon');
+    if(n===3){   // minor op: a lighter team -- a surgeon plus a scrub or nurse
+      if(!['scrub','recovery','theatre_hca','sfa','odp'].some(r=>has(r, 3))) add('scrub', 'Scrub / nurse');
+      return;
+    }
+    if(!la && !room.laNoAnaes && !has('anaesthetist', n)) add('anaesthetist', 'Anaesthetist');
+    if(!la && !has('sfa', n)) add('sfa', 'SFA / practitioner');
+    if(!has('scrub', n)) add('scrub', 'Scrub');
+    if(!la && !has('odp', n)) add('odp', 'ODP');
+    if(!has('theatre_hca', n)) add('theatre_hca', 'Theatre HCA');
+    if(!has('recovery', n)) add('recovery', 'Recovery nurse / ODP');
+  });
+  const un = rotaUnplaced(day).length;
+  if(un) gaps.push({key:'unplaced', room:0, role:'', label:un+' '+(un===1?'person has':'people have')+' no theatre yet'});
+  const cover = (role, shift, label)=>{
+    if(!((day.people)||[]).some(p=>p.role===role && p.shift===shift && String(p.name||'').trim()))
+      gaps.push({key:role+'.'+shift, room:0, role, label});
+  };
+  cover('ward_hca', 'day', 'Ward HCA (day)');
+  cover('ward_nurse', 'day', 'Ward nurse (day)');
+  cover('rmo', 'day', 'RMO (day)');
   return gaps;
 }
 function rotaOpenGaps(day){ return rotaGaps(day).filter(g=>!(day.acks && day.acks[g.key])); }
-function rotaAck(date, key){
-  const note = prompt('Cover note for this gap — why is it OK to run without it?\n(e.g. "Second scrub arranged — agency", "Not needed for this list")');
-  if(note===null || !note.trim()) return;
-  const d = rotaDraft(date);
-  d.acks[key] = note.trim()+' — '+(myName||'')+', '+new Date().toLocaleDateString('en-GB');
-  render(); toast('Gap silenced — remember to Save the day');
+// Scrubs: your guide is 1-2 for one room, 2-4 for two, 3-5 for three. Advice only, never a gap.
+function rotaScrubAdvice(day){
+  const run = rotaRoomsRunning(day); if(!run.length) return '';
+  const n = rotaPeople(day, 'scrub').filter(p=>rotaPersonRooms(day, p).length).length;
+  const lo = run.length, hi = run.length===1 ? 2 : run.length+2;
+  if(n>=lo && n<=hi) return '';
+  return n+' scrub'+(n===1?'':'s')+' — usual for '+run.length+' room'+(run.length===1?'':'s')+' is '+lo+'–'+hi;
 }
-function rotaUnack(date, key){ const d=rotaDraft(date); delete d.acks[key]; render(); }
 
-// Weekly view: each day's card starts collapsed, showing only its always-visible header row.
+/* ---- editing. Allocation edits a draft (Save day); the Rota grid saves each change at once
+   (ctx 'grid'). Both go through these, so the two views can never disagree. ---- */
+function rotaCommit(date, ctx){
+  if(ctx==='grid') return rotaSaveDay(date, {fromGrid:true});
+  render();
+  return Promise.resolve(true);
+}
+function rotaEdit(date, ctx, fn){
+  const d = rotaDraft(date);
+  fn(d);
+  ROTA_ROOMS.forEach(n=>rotaSyncCaseSurgeons(d, n));
+  return rotaCommit(date, ctx);
+}
+function rotaAddPeople(date, role, names, rooms, shift, ctx){
+  const R = ROTA_ROLE[role]; if(!R) return Promise.resolve(false);
+  const list = [...new Set((names||[]).map(s=>String(s||'').trim().replace(/\s+/g,' ')).filter(Boolean))];
+  if(!list.length) return Promise.resolve(false);
+  return rotaEdit(date, ctx, d=>{
+    list.forEach(name=>{
+      const sh = R.shifts ? (R.shifts.includes(shift) ? shift : R.shifts[0]) : null;
+      // the same person already in this role (and shift) that day: just add the rooms
+      const same = d.people.find(p=>p.role===role && p.name.toLowerCase()===name.toLowerCase() && (!R.shifts || p.shift===sh));
+      if(same){ (rooms||[]).forEach(n=>{ if(!same.rooms.includes(n)) same.rooms.push(n); }); return; }
+      d.people.push({id:rotaNewId(), role, name, rooms: R.theatre ? [...new Set((rooms||[]).map(Number))] : [],
+                     shift: sh, star:false, time:'', lead:false});
+      if(role==='surgeon') (rooms||[]).forEach(n=>{ d.rooms[n].running = true; });
+    });
+  });
+}
+function rotaPersonPatch(date, id, ctx, fn){
+  return rotaEdit(date, ctx, d=>{ const p = rotaPerson(d, id); if(p) fn(p, d); });
+}
+function rotaPersonRemove(date, id, ctx){
+  return rotaEdit(date, ctx, d=>{ d.people = d.people.filter(p=>p.id!==id); });
+}
+function rotaPersonToggleRoom(date, id, n, ctx){
+  return rotaPersonPatch(date, id, ctx, (p, d)=>{
+    if(p.rooms.includes(n)) p.rooms = p.rooms.filter(x=>x!==n);
+    else { p.rooms.push(n); if(p.role==='surgeon') d.rooms[n].running = true; }
+  });
+}
+function rotaPersonSetShift(date, id, shift, ctx){
+  return rotaPersonPatch(date, id, ctx, p=>{ if((ROTA_ROLE[p.role].shifts||[]).includes(shift)) p.shift = shift; });
+}
+function rotaPersonToggleStar(date, id, ctx){ return rotaPersonPatch(date, id, ctx, p=>{ p.star = !p.star; }); }
+// One Lead scrub per day.
+function rotaPersonToggleLead(date, id, ctx){
+  return rotaEdit(date, ctx, d=>{
+    const p = rotaPerson(d, id); if(!p || p.role!=='scrub') return;
+    const on = !p.lead;
+    d.people.forEach(x=>{ x.lead = false; });
+    p.lead = on;
+  });
+}
+// A different person in the same place: their own start time, ★ and Lead belonged to the old one.
+function rotaPersonReplace(date, id, name, ctx){
+  name = String(name||'').trim().replace(/\s+/g,' ');
+  if(!name) return Promise.resolve(false);
+  return rotaPersonPatch(date, id, ctx, p=>{
+    if(p.name===name) return;
+    p.name = name; p.star = false; p.time = ''; p.lead = false;
+  });
+}
+function rotaRoomPatch(date, n, ctx, fn){ return rotaEdit(date, ctx, d=>fn(d.rooms[n], d)); }
+// Switching a room off takes everyone out of it (they show as "not allocated" if it was their only room).
+function rotaRoomToggleRunning(date, n, ctx){
+  const day = rotaDayObj(date);
+  if(rotaRoomRunning(day, n)){
+    const inIt = ((day.people)||[]).filter(p=>(p.rooms||[]).includes(n) && String(p.name||'').trim());
+    if(inIt.length && !confirm(ROTA_ROOM_NAME[n]+' has '+inIt.length+' '+(inIt.length===1?'person':'people')+' allocated. Stop using '+ROTA_ROOM_NAME[n]+' this day?\n\nThey stay on the day, without a theatre, until you place them.')) return Promise.resolve(false);
+    return rotaEdit(date, ctx, d=>{ d.rooms[n].running = false; d.people.forEach(p=>{ p.rooms = p.rooms.filter(x=>x!==n); }); });
+  }
+  return rotaRoomPatch(date, n, ctx, r=>{ r.running = true; });
+}
+function rotaRoomToggleTag(date, n, tag, ctx){
+  return rotaRoomPatch(date, n, ctx, r=>{ r.tags = r.tags.includes(tag) ? r.tags.filter(t=>t!==tag) : r.tags.concat([tag]); });
+}
+// GA / LA / Overnight plus any option added here (setting rota_tag_options, kept for every day).
+function rotaTagOptions(){
+  let extra = [];
+  try{ const s=(state.settings||[]).find(x=>x.Key==='rota_tag_options'); const v = s ? JSON.parse(s.Value||'[]') : []; if(Array.isArray(v)) extra = v.map(String); }catch(e){}
+  return [...new Set(ROTA_TAG_DEFAULTS.concat(extra).map(t=>t.trim()).filter(Boolean))];
+}
+async function rotaAddTagOption(date, n, ctx){
+  const name = String(prompt('New option for the info row (e.g. "Sedation", "Transform"):')||'').trim().replace(/\s+/g,' ');
+  if(!name) return;
+  if(name.length>30){ toast('Keep it short (30 characters or fewer)'); return; }
+  const opts = rotaTagOptions();
+  if(!opts.some(o=>o.toLowerCase()===name.toLowerCase())){
+    const extra = opts.filter(o=>!ROTA_TAG_DEFAULTS.includes(o)).concat([name]);
+    const value = JSON.stringify(extra);
+    try{
+      if(LIVE) await api({action:'setSetting', key:'rota_tag_options', value});
+      state.settings = state.settings || [];
+      const s = state.settings.find(z=>z.Key==='rota_tag_options'); if(s) s.Value = value; else state.settings.push({Key:'rota_tag_options', Value:value});
+    }catch(err){ toast('Option not saved — '+err.message); return; }
+  }
+  const tag = rotaTagOptions().find(o=>o.toLowerCase()===name.toLowerCase());
+  const r = rotaDayObj(date).rooms[n];
+  if(!(r && r.tags.includes(tag))) await rotaRoomToggleTag(date, n, tag, ctx);
+  rotaCellPaint();
+}
+function rotaSetCase(date, n, ci, field, val){
+  return rotaRoomPatch(date, n, 'alloc', r=>{
+    while(r.cases.length<=ci) r.cases.push({surgeon:'', procedure:'', stay:'Day case'});
+    r.cases[ci][field] = val;
+  });
+}
+function rotaSetCaseCount(date, n, count){
+  return rotaRoomPatch(date, n, 'alloc', r=>{
+    count = Math.max(0, Math.min(20, count|0));
+    while(r.cases.length<count) r.cases.push({surgeon:'', procedure:'', stay:'Day case'});
+    r.cases.length = count;
+  });
+}
+function rotaSetNotes(date, v){ return rotaEdit(date, 'alloc', d=>{ d.notes = String(v||''); }); }
+function rotaAck(date, key, ctx){
+  const note = prompt('Cover note for this gap — why is it OK to run without it?\n(e.g. "Second scrub arranged — agency", "Not needed for this list")');
+  if(note===null || !note.trim()) return Promise.resolve(false);
+  const p = rotaEdit(date, ctx, d=>{ d.acks[key] = note.trim()+' — '+(myName||'')+', '+new Date().toLocaleDateString('en-GB'); });
+  if(ctx!=='grid') toast('Gap silenced — remember to Save the day');
+  return p;
+}
+function rotaUnack(date, key, ctx){ return rotaEdit(date, ctx, d=>{ delete d.acks[key]; }); }
+
+// Allocation weekly view: each day's card starts collapsed, showing only its header row.
 function rotaToggleDayCollapse(date){ _rotaExpandedDays[date] = !_rotaExpandedDays[date]; render(); }
-
-// A day is locked once it's actually SAVED (no pending draft) and fully covered (no open
-// gaps) -- derived from real data rather than a separate stored flag, so it stays correctly
-// locked across a reload without needing any backend change. _rotaUnlockedDays is the one
-// session-local override: clicking "Edit day" lifts the lock for that date until the next
-// successful save re-evaluates it fresh (see rotaSaveDay).
+// A day is locked once SAVED (no draft) and fully covered (no open gaps); "Edit day" lifts it for
+// this session until the next save re-evaluates it.
 function rotaIsLocked(date, day){
-  if(!(Number(day.theatres)>0)) return false;
+  if(!rotaIsRunning(day)) return false;
   if(_rotaDrafts[date]) return false;
   if(!rotaSaved(date)) return false;
   if(rotaOpenGaps(day).length>0) return false;
@@ -6798,75 +6983,81 @@ function rotaIsLocked(date, day){
 function rotaUnlockDay(date){
   if(!isSuperadmin()) return;
   _rotaUnlockedDays[date] = true;
-  render();
+  render(); rotaCellPaint();
 }
 
-async function rotaSaveDay(date){
-  if(!isSuperadmin()) return;
+// What is sent to rota_save_day_v2: blank names dropped, only nightTeam kept in times.
+function rotaDayPayload(d){
+  return {
+    notes: d.notes||'', acks: d.acks||{},
+    times: smsTimeOk(d.times && d.times.nightTeam) ? {nightTeam: d.times.nightTeam} : {},
+    people: (d.people||[]).filter(p=>String(p.name||'').trim()).map(p=>({id:p.id, role:p.role, name:String(p.name).trim(),
+      rooms:p.rooms||[], shift:p.shift||null, star:!!p.star, time:smsTimeOk(p.time)?p.time:null, lead:!!p.lead})),
+    rooms: Object.fromEntries(ROTA_ROOMS.map(n=>{ const r = d.rooms[n];
+      return [n, {running:!!r.running, tags:r.tags||[], laNoAnaesthetist:!!r.laNoAnaes, startTime: smsTimeOk(r.startTime)?r.startTime:'',
+        detail:r.detail||'', colour:r.colour||'', cases:rotaCasesNoPat(r.cases)}]; }))
+  };
+}
+async function rotaSaveDay(date, opts){
+  opts = opts || {};
+  if(!isSuperadmin()) return false;
   const d = rotaDraft(date);
-  const f = { Theatres:Number(d.theatres)||0, Notes:d.notes||'',
-    AcksJSON:JSON.stringify(d.acks||{}), StarsJSON:JSON.stringify(d.stars||{}), TimesJSON:JSON.stringify(d.times||{}),
-    FlagsJSON:JSON.stringify(d.flags||{}) };
-  const D = {hcaWard:'HCAWard',ward:'WardNurse',nightNurse:'NightNurse',hcaNight:'HCANight',
-    rmoDay:'RMODay',rmoNight:'RMONight',housekeepAM:'HousekeepingAM',
-    housekeepPM:'HousekeepingPM',receptionAM:'ReceptionAM',receptionPM:'ReceptionPM'};
-  Object.keys(D).forEach(k=>f[D[k]] = d[k]||'');
-  [1,2].forEach(t=>{ const th=d['t'+t]||{};
-    f['T'+t+'_Type']=th.type||''; f['T'+t+'_Detail']=th.detail||''; f['T'+t+'_Colour']=th.colour||'';
-    f['T'+t+'_CasesJSON']=JSON.stringify(rotaCasesNoPat(th.cases));
-    f['T'+t+'_Surgeon']=th.surgeon||''; f['T'+t+'_Surgeon2']=th.surgeon2||''; f['T'+t+'_Surgeon3']=th.surgeon3||'';
-    f['T'+t+'_Anaesthetist']=th.anaes||''; f['T'+t+'_SFA']=th.sfa||'';
-    f['T'+t+'_Scrub1']=th.scrub1||''; f['T'+t+'_Scrub2']=th.scrub2||'';
-    f['T'+t+'_Scrub3']=th.scrub3||''; f['T'+t+'_ODP']=th.odp||'';
-    f['T'+t+'_HCA']=th.hca||''; f['T'+t+'_Recovery']=th.recovery||'';
-    f['T'+t+'_StartTime']=th.startTime||''; });
-
-  if(!LIVE){
-    const obj = JSON.parse(JSON.stringify(d));
+  const nice = rotaNice(date,{day:'numeric',month:'short'});
+  const done = obj=>{
+    obj.theatres = rotaRoomsRunning(obj).length;
     const ix = (state.rota||[]).findIndex(r=>r.date===date);
-    if(ix>=0) state.rota[ix]=obj; else state.rota.push(obj);
+    state.rota = state.rota || [];
+    if(ix>=0) state.rota[ix] = obj; else state.rota.push(obj);
     delete _rotaDrafts[date];
-    delete _rotaUnlockedDays[date];   // re-evaluate lock fresh: fully covered -> locks again
-    render(); updateRotaBadge();
-    toast('Rota saved — '+rotaNice(date,{day:'numeric',month:'short'}));
-    return;
+    delete _rotaUnlockedDays[date];   // re-evaluate the lock fresh
+    updateRotaBadge();
+  };
+  if(!LIVE){
+    done(rotaNormDay(JSON.parse(JSON.stringify(d))));
+    if(!opts.fromGrid) toast('Rota saved — '+nice);
+    render(); rotaCellPaint();
+    return true;
   }
-  // Not optimistic (unlike the demo-mode branch above) -- the save can now be refused
-  // (ROTA_CONFLICT) if someone else changed this day since it was loaded, so the local draft
-  // is only cleared once the backend has actually confirmed the write went through.
+  // Not optimistic: the save can be refused (ROTA_CONFLICT) if someone else changed the day, so
+  // the draft is only cleared once the server has confirmed the write.
   const btn = document.getElementById('rotaSaveBtn_'+date);
   if(btn) btn.disabled = true;
+  window._rotaSaving = date; rotaCellPaint();
   const existing = rotaSaved(date);
+  let ok = false;
   try{
-    const res = await api({action:'rotaSaveDay', date, expectedUpdatedAt: existing?existing.updatedAt:null, fields:f, by:myName||''});
-    const obj = JSON.parse(JSON.stringify(d));
+    const res = await api({action:'rotaSaveDay', date, expectedUpdatedAt: existing ? existing.updatedAt : null, day: rotaDayPayload(d)});
+    const obj = rotaNormDay(JSON.parse(JSON.stringify(d)));
+    if(Array.isArray(res.people)) obj.people = rotaNormDay({people:res.people}).people;   // ids as the server stored them
     obj.updatedAt = res.updatedAt;
-    const ix = (state.rota||[]).findIndex(r=>r.date===date);
-    if(ix>=0) state.rota[ix]=obj; else state.rota.push(obj);
-    delete _rotaDrafts[date];
-    delete _rotaUnlockedDays[date];   // re-evaluate lock fresh: fully covered -> locks again
-    updateRotaBadge();
-    toast('Rota saved — '+rotaNice(date,{day:'numeric',month:'short'}));
-    // Only ASKS the user about anyone already texted who is no longer confirmed -- never sends
-    // anything itself. Runs after the save has fully succeeded and can't affect it.
+    done(obj);
+    ok = true;
+    toast(opts.fromGrid ? 'Saved — '+nice : 'Rota saved — '+nice);
+    // Only ASKS about anyone already texted who is no longer confirmed -- never sends anything.
     rotaSmsAfterSave(date);
   }catch(err){
     if(err.message==='ROTA_CONFLICT'){
       delete _rotaDrafts[date];
-      toast('⚠ This day was changed elsewhere since you started editing — reloaded the latest version. Please re-check and re-apply your changes.');
+      toast('⚠ This day was changed elsewhere since you opened it — reloaded the latest version. Please check it and make your change again.');
       await loadAll();
     } else {
+      if(opts.fromGrid) delete _rotaDrafts[date];   // the grid never keeps half-saved edits
       toast('Not saved — '+err.message);
     }
   }
-  render();
+  window._rotaSaving = null;
+  render(); rotaCellPaint();
+  return ok;
 }
+// ⧉ Copy the same weekday last week (new ids, no cover notes).
 function rotaCopyPrev(date){
   const prevIso = rotaISO(new Date(new Date(date+'T12:00').getTime()-7*864e5));
   const prev = rotaSaved(prevIso);
   if(!prev){ toast('Nothing saved on the same day last week'); return; }
-  const cp = JSON.parse(JSON.stringify(prev)); cp.date=date; cp.acks={};
-  _rotaDrafts[date]=cp; render();
+  const cp = rotaNormDay(JSON.parse(JSON.stringify(prev)));
+  cp.date = date; cp.acks = {}; cp.updatedAt = (rotaSaved(date)||{}).updatedAt || null;
+  cp.people.forEach(p=>{ p.id = rotaNewId(); });
+  _rotaDrafts[date] = cp; render();
   toast('Copied from last week — adjust, then Save day');
 }
 function updateRotaBadge(){
@@ -6878,105 +7069,32 @@ function updateRotaBadge(){
   el.style.display = n ? '' : 'none';
 }
 
-// ---- staff search (#6): find every shift for a person across a date range ----
+// ---- staff search: every shift for a person across a date range ----
 function rotaStaffShifts(name, fromIso, toIso){
   const q = String(name||'').toLowerCase().trim();
   if(!q) return [];
   const hits=[];
   (state.rota||[]).forEach(day=>{
     if(day.date < fromIso || day.date > toIso) return;
-    const check = (role, val, theatre)=>{ if(val && String(val).toLowerCase().includes(q))
-      hits.push({date:day.date, role, who:val, theatre, colour: theatre?day['t'+theatre].colour:'' }); };
-    ROTA_D_ROLES.forEach(([k,lab])=>check(lab, day[k], 0));
-    rotaRunning(day).forEach(t=>{ const th=day['t'+t]; if(!th) return;
-      check('Surgeon', th.surgeon, t); check('2nd surgeon', th.surgeon2, t); check('3rd surgeon', th.surgeon3, t);
-      check('Anaesthetist', th.anaes, t); check('SFA', th.sfa, t);
-      [1,2,3].forEach(n=>check('Scrub '+n+(rotaIsLead(day,'t'+t+'.scrub'+n)?' (Lead)':''), th['scrub'+n], t));
-      check('ODP', th.odp, t); check('Theatre HCA', th.hca, t); check('Recovery Nurse', th.recovery, t);
-      (th.cases||[]).forEach((c,ci)=>check('Case '+(ci+1)+' surgeon', c.surgeon, t)); });
+    (day.people||[]).forEach(p=>{
+      if(!String(p.name||'').toLowerCase().includes(q)) return;
+      const rr = ROTA_ROLE[p.role].theatre ? rotaPersonRooms(day, p) : [];
+      if(ROTA_ROLE[p.role].theatre && !rr.length && !rotaIsRunning(day)) return;
+      hits.push({date:day.date, role:rotaRoleLabel(p), who:p.name, theatre: rr.length ? rotaRoomWords(rr) : (ROTA_ROLE[p.role].theatre ? 'not allocated' : ''),
+                 colour: rr.length ? (day.rooms[rr[0]].colour||'') : ''});
+    });
+    rotaRoomsRunning(day).forEach(n=>(day.rooms[n].cases||[]).forEach((c,ci)=>{
+      if(c && String(c.surgeon||'').toLowerCase().includes(q))
+        hits.push({date:day.date, role:'Case '+(ci+1)+' surgeon', who:c.surgeon, theatre:ROTA_ROOM_NAME[n], colour:day.rooms[n].colour||''});
+    }));
   });
   hits.sort((a,b)=>a.date.localeCompare(b.date));
   return hits;
 }
-
-function rotaNamesList(){
-  return [...new Set((state.rota||[]).flatMap(r=>{
-    const v=ROTA_D_ROLES.map(([k])=>r[k]);
-    [r.t1,r.t2].forEach(t=>{ if(t){ v.push(t.anaes,t.sfa,t.scrub1,t.scrub2,t.scrub3,t.odp,t.hca,t.recovery); } });
-    return v; }).filter(x=>x&&String(x).trim()).map(x=>String(x).trim()))].sort();
-}
-
-// ---- one editable name slot (with star + gap highlight + silence) ----
-function rotaSlot(date, day, key, label, req, locked){
-  const p = key.split('.');
-  const val = p.length===2 ? String((day[p[0]]||{})[p[1]]||'') : String(day[key]||'');
-  const ack = day.acks && day.acks[key];
-  const starred = day.stars && day.stars[key];
-  const empty = !val.trim();
-  const cls = empty ? (ack ? 'rack' : (req ? 'rgap' : '')) : (starred?'rprov':'');
-  const dis = locked ? 'disabled' : '';
-  return `<div class="rslot">
-    <label>${label}${req?'':' <span style="font-weight:400">(optional)</span>'}</label>
-    <input list="rotaNames" value="${val.replace(/"/g,'&quot;')}" class="${cls}" ${dis}
-      onchange="rotaSet('${date}','${key}',this.value)">
-    <button class="rstar ${starred?'on':''}" ${dis} title="${starred?'Provisional — click to confirm':'Mark provisional (booked, not confirmed)'}"
-      onclick="rotaStar('${date}','${key}')">${starred?'★':'☆'}</button>
-    ${empty&&req&&!ack?`<button class="rsil" ${dis} title="Silence this gap with a cover note" onclick="rotaAck('${date}','${key}')">🔕</button>`:''}
-    ${empty&&ack?`<div class="racknote">🔕 ${String(ack).replace(/</g,'&lt;')} <span ${locked?'':`onclick="rotaUnack('${date}','${key}')"`} style="cursor:${locked?'default':'pointer'};color:var(--red);font-weight:700">✕</span></div>`:''}
-  </div>`;
-}
-
-// ---- surgeon slot: same star/gap/ack wrapper as rotaSlot, but the canonical type-ahead
-// picker (matching Procedure Costing) instead of a free-text field with a browser datalist --
-// avoids the exact "23 raw strings for 19 real surgeons" fragmentation problem that
-// state.surgeons/surgeonInputHTML already exists to solve elsewhere. Every OTHER rota role
-// (anaesthetist, SFA, scrubs, ODP, HCA, day cover...) has no canonical roster of its own, so
-// those deliberately keep the plain datalist suggestion (rotaSlot), unchanged. ----
-function rotaSurgeonSlot(date, day, key, label, req, locked){
-  const p = key.split('.');
-  const val = p.length===2 ? String((day[p[0]]||{})[p[1]]||'') : String(day[key]||'');
-  const ack = day.acks && day.acks[key];
-  const starred = day.stars && day.stars[key];
-  const empty = !val.trim();
-  const cls = empty ? (ack ? 'rack' : (req ? 'rgap' : '')) : (starred?'rprov':'');
-  const inputId = 'rsg_'+date.replace(/-/g,'')+'_'+key.replace(/\./g,'_');
-  window._surgeonPick = window._surgeonPick||{};
-  window._surgeonPick[inputId] = (state.surgeons||[]).find(s=>s.name===val) || null;
-  const dis = locked ? 'disabled' : '';
-  // 2nd / 3rd surgeon sharing a list: an expected start (the 1st surgeon starts at the list
-  // start), kept in day.times like own start times -- shown to theatre staff and on the PDFs.
-  const later = /\.surgeon[23]$/.test(key) && !empty;
-  const exp = later ? rotaSlotOwnTime(day, key) : '';
-  const listStart = rotaSlotBaseTime(day, key);
-  return `<div class="rslot">
-    <label>${label}${req?'':' <span style="font-weight:400">(optional)</span>'}</label>
-    ${surgeonInputHTML(inputId, val, 'Type 3+ letters…', "rotaSurgeonCommit('"+date+"','"+key+"','"+inputId+"')", cls, locked)}
-    <button class="rstar ${starred?'on':''}" ${dis} title="${starred?'Provisional — click to confirm':'Mark provisional (booked, not confirmed)'}"
-      onclick="rotaStar('${date}','${key}')">${starred?'★':'☆'}</button>
-    ${empty&&req&&!ack?`<button class="rsil" ${dis} title="Silence this gap with a cover note" onclick="rotaAck('${date}','${key}')">🔕</button>`:''}
-    ${later?`<button class="rsil" id="rclk_${date.replace(/-/g,'')}_${key.replace(/\./g,'_')}" ${dis} style="${exp?'color:var(--pine)':'opacity:.55'}"
-      title="${exp?'Expected from '+exp+' — click to change':'When is this surgeon expected?'+(listStart?' (list starts '+listStart+')':'')}"
-      onclick="rotaSetOwnTime('${date}','${key}')">🕐</button>`:''}
-    ${exp?`<div style="font-size:11px;margin-top:2px;color:var(--pine);font-weight:600">🕐 Expected from ${exp}
-      ${locked?'':`<span onclick="rotaClearOwnTime('${date}','${key}')" title="Clear the expected time" style="cursor:pointer;color:var(--red);font-weight:700;margin-left:4px">✕</span>`}</div>`:''}
-    ${empty&&ack?`<div class="racknote">🔕 ${String(ack).replace(/</g,'&lt;')} <span ${locked?'':`onclick="rotaUnack('${date}','${key}')"`} style="cursor:${locked?'default':'pointer'};color:var(--red);font-weight:700">✕</span></div>`:''}
-  </div>`;
-}
-// Lenient, not strict -- the rota has no separate "confirm" step per field the way Theatre &
-// Ward's Save button does, so blocking on an unresolved pick would make a field impossible to
-// correct or clear mid-typo. A resolved pick is saved by its canonical name; anything else
-// (an unrecognised name, or a legacy value nobody's touched) is saved exactly as typed rather
-// than silently discarded, matching how every other rota field already behaves.
-function rotaSurgeonCommit(date, key, inputId){
-  const el = document.getElementById(inputId);
-  const text = (el?el.value:'').trim();
-  const pick = window._surgeonPick[inputId];
-  const name = (pick && pick.name===text) ? pick.name : text;
-  // an expected start belongs to the surgeon, not the box: a different surgeon starts clean
-  const p = key.split('.'); const d0 = rotaDayObj(date);
-  const cur = p.length===2 ? String((d0[p[0]]||{})[p[1]]||'') : '';
-  if(p.length===2 && name!==cur){ const dr = rotaDraft(date); if(dr.times) delete dr.times[key]; }
-  rotaSet(date, key, name);
+// Every name used on the rota (for search suggestions and the anaesthetist list).
+function rotaNamesList(role){
+  return [...new Set((state.rota||[]).flatMap(r=>(r.people||[]).filter(p=>!role || p.role===role).map(p=>String(p.name||'').trim()))
+    .filter(Boolean))].sort((a,b)=>a.localeCompare(b));
 }
 
 /* =================================================================================
@@ -6999,151 +7117,26 @@ function smsNormaliseMobile(s){ const d=String(s||'').replace(/[^0-9]/g,'');
   return null; }
 function smsPrettyMobile(m){ return /^\+447[0-9]{9}$/.test(m||'') ? '0'+m.slice(3,7)+' '+m.slice(7) : String(m||''); }
 const SMS_ROLE_LABEL = Object.fromEntries(STAFF_ROLES);
-// Rota slot key -> the "works as" role pre-ticked when adding someone from that box.
-const SMS_SLOT_ROLE = {scrub1:'scrub', scrub2:'scrub', scrub3:'scrub', odp:'odp', sfa:'sfa', recovery:'recovery',
-  ward:'ward_nurse', nightNurse:'night_nurse', hcaWard:'hca', hcaNight:'hca', hca:'hca', rmoDay:'rmo', rmoNight:'rmo',
-  housekeepAM:'housekeeping', housekeepPM:'housekeeping', receptionAM:'reception', receptionPM:'reception'};
-function rotaSmsRoleForKey(key){ return SMS_SLOT_ROLE[String(key).split('.').pop()] || 'scrub'; }
 
-/* ---- staff picker for the texted slots (Scrub 1-3, ODP, Ward nurse): type-ahead against the
-   staff directory, modelled on the surgeon picker above but kept separate on purpose so
-   Procedure Costing's surgeon picker is untouched. Lenient like every other rota field: a
-   resolved pick is saved by its canonical name, anything else exactly as typed -- and flagged
-   "not in the staff list", since such a person can't be texted until they're added. ---- */
-window._staffPick = {};
-window._staffSlotCtx = {};
-function staffInputHTML(id, value, placeholder, onCommit, extraClass, disabled){
-  const cls = extraClass ? ` class="${extraClass}"` : '';
-  const borderBg = extraClass ? '' : 'border:1px solid var(--line);';
-  const dis = disabled ? ' disabled' : '';
-  return `<div style="position:relative">
-    <input id="${id}"${cls} type="text" value="${smsEsc(value)}" placeholder="${placeholder||'Type 3+ letters…'}"
-      autocomplete="off"${dis} oninput="staffPickerInput('${id}')" onfocus="staffPickerInput('${id}')"
-      onblur="setTimeout(()=>staffPickerBlur('${id}'),150)${onCommit?';'+onCommit:''}"
-      style="width:100%;padding:10px 12px;${borderBg}border-radius:9px">
-    <div id="${id}_dd" style="display:none;position:absolute;z-index:50;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:8px;margin-top:4px;max-height:220px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,.15)"></div>
-  </div>`;
+/* ---- the clock picker: a person's own start time (a surgeon's "expected from"), and the night
+   team time. key = the person's id, or 'nightTeam'. ---- */
+let _tp = null;   // {date, key, ctx, who, role, base, baseFrom, cur, night, surgeon}
+function rotaSetOwnTime(date, id, ctx){
+  const day = rotaDayObj(date), p = rotaPerson(day, id);
+  if(!p) return;
+  const rr = rotaPersonRooms(day, p);
+  const role = rotaRoleLabel(p)+(rr.length ? ' · '+rotaRoomWords(rr) : '');
+  const base = p.role==='surgeon' ? '' : rotaPersonBaseTime(day, p);
+  const baseFrom = ROTA_ROLE[p.role].theatre ? 'list starts' : (p.shift==='night' && rotaNightTeamTime(day) ? 'night team' : 'usual time');
+  timePickerOpen({date, key:id, ctx, who:p.name, role, base, baseFrom, cur:rotaPersonOwnTime(p), night:p.shift==='night', surgeon:p.role==='surgeon'});
 }
-function staffPickerInput(id){
-  const el = document.getElementById(id), dd = document.getElementById(id+'_dd');
-  if(!el || !dd) return;
-  const raw = el.value.trim(), q = raw.toLowerCase(), qStripped = surgeonStripTitle(raw);
-  window._staffPick[id] = null;
-  if(q.length < 3){ dd.style.display='none'; return; }
-  const all = (state.staff||[]).filter(s=>s.active);
-  const exact = all.find(s=>{ const n=s.name.toLowerCase(); return n===q || n===qStripped; });
-  if(exact) window._staffPick[id] = exact;
-  const matches = all.filter(s=>{ const n=s.name.toLowerCase(); return n.includes(q) || (qStripped && n.includes(qStripped)); }).slice(0,8);
-  let html = matches.map(s=>`<div style="padding:9px 12px;cursor:pointer" onmousedown="staffPickerChoose('${id}','${s.id}')">${smsEsc(s.name)}${s.mobile?'':' <span style="color:var(--ink-soft);font-size:12px">(no mobile)</span>'}</div>`).join('');
-  if(!exact) html += `<div style="padding:9px 12px;cursor:pointer;color:var(--pine);font-weight:600;${matches.length?'border-top:1px solid var(--line)':''}" onmousedown="staffPickerAddNew('${id}')">＋ Add "${smsEsc(raw)}" to the staff list</div>`;
-  dd.innerHTML = html;
-  dd.style.display = 'block';
+function rotaSetNightTeamTime(date, ctx){
+  const defs = smsDefaultTimes();
+  const usual = ROTA_NIGHT_KEYS.map(k=>smsTimeOk(defs[k]) ? ROTA_DEFAULT_TIME_LABEL[k]+' '+defs[k] : '').filter(Boolean).join(', ');
+  timePickerOpen({date, key:'nightTeam', ctx, who:'Night team', role:'Night nurse, night HCA and night RMO together', base:'', baseFrom:'',
+    usual, cur: rotaNightTeamTime(rotaDayObj(date)), night:true});
 }
-function staffPickerChoose(id, staffId){
-  const el = document.getElementById(id), dd = document.getElementById(id+'_dd');
-  const s = (state.staff||[]).find(x=>x.id===staffId);
-  if(!el || !s) return;
-  el.value = s.name;
-  window._staffPick[id] = s;
-  if(dd) dd.style.display = 'none';
-}
-function staffPickerBlur(id){ const dd = document.getElementById(id+'_dd'); if(dd) dd.style.display = 'none'; }
-function staffPickerAddNew(id){
-  const el = document.getElementById(id);
-  const ctx = window._staffSlotCtx[id] || null;
-  openStaffDlg(null, el ? el.value.trim() : '', ctx, null, ctx ? [rotaSmsRoleForKey(ctx.key)] : null);
-}
-function rotaStaffSlot(date, day, key, label, req, locked){
-  const p = key.split('.');
-  const val = p.length===2 ? String((day[p[0]]||{})[p[1]]||'') : String(day[key]||'');
-  const ack = day.acks && day.acks[key];
-  const starred = day.stars && day.stars[key];
-  const empty = !val.trim();
-  // an empty theatre slot covered by the other theatre's "both theatres" person is not a gap
-  const sharedFrom = empty ? rotaSharedFrom(day, key) : '';
-  const cls = empty ? (sharedFrom ? '' : (ack ? 'rack' : (req ? 'rgap' : ''))) : (starred?'rprov':'');
-  const inputId = 'rst_'+date.replace(/-/g,'')+'_'+key.replace(/\./g,'_');
-  window._staffPick[inputId] = staffByName(val);
-  window._staffSlotCtx[inputId] = {date, key};
-  const dis = locked ? 'disabled' : '';
-  const unknown = !empty && !staffByName(val);
-  // housekeeping / reception use the staff picker too (they're in the staff database) but are
-  // never texted, so they get no start-time control
-  const textable = p.length===2 ? ROTA_SMS_T_KEYS.includes(p[1]) : ROTA_SMS_D_KEYS.includes(key);
-  const own = (!empty && textable) ? rotaSlotOwnTime(day, key) : '';
-  const base = textable ? rotaSlotBaseTime(day, key) : '';
-  // Lead (scrubs) and "2 theatres" ticks -- flags, so the name itself stays clean
-  const isScrub = /^t[12]\.scrub[123]$/.test(key), isTheatre = p.length===2;
-  const lead = !empty && rotaIsLead(day, key), both = !empty && rotaIsBoth(day, key);
-  const kid = date.replace(/-/g,'')+'_'+key.replace(/\./g,'_');
-  const chip = (on, text, fn, title, id)=>`<button id="${id}" ${dis} onclick="${fn}" title="${title}"
-      style="border:1px solid ${on?'var(--pine)':'var(--line)'};background:${on?'var(--pine)':'var(--card)'};color:${on?'#fff':'var(--ink-soft)'};border-radius:99px;padding:1px 8px;font-size:10.5px;font-weight:700;cursor:pointer;line-height:1.5">${on?'✓ ':''}${text}</button>`;
-  const chips = empty ? '' : [
-    isScrub ? chip(lead, 'Lead', `rotaToggleLead('${date}','${key}')`, lead?'Lead for the day — click to remove':'Make this scrub the Lead for the day', 'rlead_'+kid) : '',
-    (isTheatre && Number(day.theatres)>=2) ? chip(both, '2 theatres', `rotaToggleBoth('${date}','${key}')`, both?'Supporting both theatres — click to remove':'This person supports both theatres', 'rboth_'+kid) : ''
-  ].filter(Boolean).join(' ');
-  return `<div class="rslot">
-    <label>${label}${req?'':' <span style="font-weight:400">(optional)</span>'}</label>
-    ${staffInputHTML(inputId, val, 'Type 3+ letters…', "rotaStaffCommit('"+date+"','"+key+"','"+inputId+"')", cls, locked)}
-    <button class="rstar ${starred?'on':''}" ${dis} title="${starred?'Provisional — click to confirm':'Mark provisional (booked, not confirmed)'}"
-      onclick="rotaStar('${date}','${key}')">${starred?'★':'☆'}</button>
-    ${empty&&req&&!ack&&!sharedFrom?`<button class="rsil" ${dis} title="Silence this gap with a cover note" onclick="rotaAck('${date}','${key}')">🔕</button>`:''}
-    ${sharedFrom?`<div style="font-size:11px;margin-top:2px;color:var(--pine);font-weight:600">↔ Covered by ${smsEsc(rotaSlotVal(day, sharedFrom))} (supporting both theatres)</div>`:''}
-    ${chips?`<div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap">${chips}</div>`:''}
-    ${!empty&&textable?`<button class="rsil" id="rclk_${date.replace(/-/g,'')}_${key.replace(/\./g,'_')}" ${dis} style="${own?'color:var(--pine)':'opacity:.55'}"
-      title="${own?'Own start time '+own+' — click to change':'Give this person their own start time'+(base?' (otherwise '+base+')':'')}"
-      onclick="rotaSetOwnTime('${date}','${key}')">🕐</button>`:''}
-    ${own?`<div style="font-size:11px;margin-top:2px;color:var(--pine);font-weight:600">🕐 Starts ${own} (own time${base?', list/usual '+base:''})
-      ${locked?'':`<span onclick="rotaClearOwnTime('${date}','${key}')" title="Use the normal start time again" style="cursor:pointer;color:var(--red);font-weight:700;margin-left:4px">✕</span>`}</div>`:''}
-    ${empty&&ack?`<div class="racknote">🔕 ${String(ack).replace(/</g,'&lt;')} <span ${locked?'':`onclick="rotaUnack('${date}','${key}')"`} style="cursor:${locked?'default':'pointer'};color:var(--red);font-weight:700">✕</span></div>`:''}
-    ${unknown?`<div style="font-size:11px;color:var(--ink-soft);margin-top:2px" title="Add them to the staff database">Not in the staff list${locked?'':` · <a href="#" onclick="rotaStaffAddFromSlot('${date}','${key}');return false">Add</a>`}</div>`:''}
-  </div>`;
-}
-function rotaStaffCommit(date, key, inputId){
-  const el = document.getElementById(inputId);
-  const text = (el?el.value:'').trim();
-  const pick = window._staffPick[inputId];
-  const known = (pick && pick.name.toLowerCase()===text.toLowerCase()) ? pick : staffByName(text);
-  const name = known ? known.name : text;
-  const d = rotaDayObj(date); const p = key.split('.');
-  const cur = p.length===2 ? String((d[p[0]]||{})[p[1]]||'') : String(d[key]||'');
-  if(name===cur) return;   // just clicking in and out of a box must not create an unsaved change
-  // an own start time belongs to the person, not the box: a different person starts on the
-  // normal time until they're given their own
-  const dr = rotaDraft(date); if(dr.times) delete dr.times[key];
-  // likewise Lead / "2 theatres": they were ticked for the previous person
-  if(dr.flags){ if(dr.flags.lead===key) delete dr.flags.lead; if(dr.flags.both) delete dr.flags.both[key]; }
-  rotaSet(date, key, name);
-  // A new name: open the add form straight away, so everyone on the rota ends up in the staff
-  // database with their details. Cancelling keeps the name as typed (flagged "Not in the staff list").
-  if(name && !staffByName(name) && isSuperadmin() && typeof staffDlg!=='undefined' && !staffDlg.open)
-    openStaffDlg(null, name, {date, key}, null, [rotaSmsRoleForKey(key)]);
-}
-/* ---- start times: own time (🕐) > night team time (night roles) > theatre "List starts" /
-   the role's usual time. Mirrors rota_sms_slots() in the database. ---- */
-const ROTA_NIGHT_KEYS = ['nightNurse','hcaNight','rmoNight'];
-function rotaNightTeamTime(day){ return day && day.times && smsTimeOk(day.times.nightTeam) ? day.times.nightTeam : ''; }
-function rotaSlotOwnTime(day, key){ return day && day.times && smsTimeOk(day.times[key]) ? day.times[key] : ''; }
-// The normal start time for a slot (what applies without an own time).
-function rotaSlotBaseTime(day, key){
-  const p = String(key).split('.');
-  if(p.length===2){ const th = (day && day[p[0]]) || {}; return smsTimeOk(th.startTime) ? th.startTime : ''; }
-  if(ROTA_NIGHT_KEYS.includes(key)){ const n = rotaNightTeamTime(day); if(n) return n; }
-  const d = smsDefaultTimes(); return smsTimeOk(d[key]) ? d[key] : '';
-}
-function rotaSlotTime(day, key){ return rotaSlotOwnTime(day, key) || rotaSlotBaseTime(day, key); }
-// "Name (10:00)" for PDFs: always for day-cover roles (they have no theatre start to read it
-// from); for theatre roles only when the person has their own time (the theatre start is shown
-// with the theatre).
-// allTimes: also show theatre roles' time when it's just the list start (the Day PDF lists
-// every theatre-team member with their start time).
-function rotaNameWithTime(day, key, name, allTimes){
-  if(!name) return '';
-  const textable = key.includes('.') ? ROTA_SMS_T_KEYS.includes(key.split('.')[1]) : ROTA_SMS_D_KEYS.includes(key);
-  if(!textable) return name;
-  const t = (key.includes('.') && !allTimes) ? rotaSlotOwnTime(day, key) : rotaSlotTime(day, key);
-  return t ? name+' ('+t+')' : name;
-}
+
 function smsNormTime(v){
   const t = String(v==null?'':v).trim().replace(/[.h]/i,':');
   const n = /^\d{1,2}:\d{2}$/.test(t) ? t.padStart(5,'0') : (/^\d{3,4}$/.test(t) ? t.padStart(4,'0').replace(/^(\d\d)(\d\d)$/,'$1:$2') : t);
@@ -7152,26 +7145,7 @@ function smsNormTime(v){
 function smsAddMins(hhmm, mins){ const [h,m]=hhmm.split(':').map(Number); const x=((h*60+m+mins)%1440+1440)%1440;
   return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0'); }
 
-/* ---- the clock picker (own time per person, and the night team time) ---- */
-let _tp = null;   // {date, key (slot key, or 'nightTeam'), who, base, cur, night}
-function rotaSetOwnTime(date, key){
-  const day = rotaDayObj(date);
-  const p = key.split('.');
-  const who = p.length===2 ? String((day[p[0]]||{})[p[1]]||'') : String(day[key]||'');
-  const SURG = {surgeon:'Surgeon', surgeon2:'2nd surgeon', surgeon3:'3rd surgeon'};
-  const surgeon = p.length===2 && !!SURG[p[1]];
-  const role = p.length===2 ? ((surgeon ? SURG[p[1]] : (ROTA_T_ROLES.find(([k])=>k===p[1])||[p[1],p[1]])[1])+' · Theatre '+p[0].slice(1))
-                            : (ROTA_D_ROLES.find(([k])=>k===key)||[key,key])[1];
-  const base = rotaSlotBaseTime(day, key);
-  const baseFrom = p.length===2 ? 'list starts' : (ROTA_NIGHT_KEYS.includes(key) && rotaNightTeamTime(day) ? 'night team' : 'usual time');
-  timePickerOpen({date, key, who, role, base, baseFrom, cur: rotaSlotOwnTime(day, key), night: ROTA_NIGHT_KEYS.includes(key), surgeon});
-}
-function rotaSetNightTeamTime(date){
-  const day = rotaDayObj(date), defs = smsDefaultTimes();
-  const usual = ROTA_NIGHT_KEYS.map(k=>smsTimeOk(defs[k]) ? (ROTA_D_ROLES.find(([kk])=>kk===k)||[k,k])[1]+' '+defs[k] : '').filter(Boolean).join(', ');
-  timePickerOpen({date, key:'nightTeam', who:'Night team', role:'Night nurse, HCA night and RMO night together', base:'', baseFrom:'',
-    usual, cur: rotaNightTeamTime(day), night:true});
-}
+
 function timePickerOpen(o){
   _tp = o;
   $('#timeDlgTitle').textContent = o.key==='nightTeam' ? '🌙 Night team start time'
@@ -7209,37 +7183,40 @@ function timePickerChoose(v){
   if(!_tp) return;
   const t = smsNormTime(v);
   if(!t){ toast('Use a time like 10:00'); return; }
-  const o = _tp, d = rotaDraft(o.date);
-  if(o.key!=='nightTeam' && t===o.base) delete d.times[o.key]; else d.times[o.key] = t;
+  const o = _tp;
   timeDlg.close(); _tp = null;
-  render();
-  toast(o.key==='nightTeam' ? `Night team starts ${t} — remember to Save the day`
-    : (t===o.base ? 'Normal start time — remember to Save the day'
-       : `${o.who||'Own'} ${o.surgeon?'expected from':'starts'} ${t} — remember to Save the day`));
+  const after = o.ctx==='grid' ? '' : ' — remember to Save the day';
+  if(o.key==='nightTeam'){
+    rotaEdit(o.date, o.ctx, d=>{ d.times.nightTeam = t; });
+    if(o.ctx!=='grid') toast('Night team starts '+t+after);
+    return;
+  }
+  rotaPersonPatch(o.date, o.key, o.ctx, p=>{ p.time = (t===o.base) ? '' : t; });
+  if(o.ctx!=='grid') toast(t===o.base ? 'Normal start time'+after : (o.who||'Own')+' '+(o.surgeon?'expected from':'starts')+' '+t+after);
 }
 function timePickerClear(){
   if(!_tp) return;
-  const o = _tp, d = rotaDraft(o.date);
-  delete d.times[o.key];
+  const o = _tp;
   timeDlg.close(); _tp = null;
-  render();
-  toast(o.key==='nightTeam' ? 'Night team back to the usual times — remember to Save the day' : 'Normal start time — remember to Save the day');
+  if(o.key==='nightTeam') rotaEdit(o.date, o.ctx, d=>{ delete d.times.nightTeam; });
+  else rotaPersonPatch(o.date, o.key, o.ctx, p=>{ p.time = ''; });
+  if(o.ctx!=='grid') toast((o.key==='nightTeam' ? 'Night team back to the usual times' : 'Normal start time')+' — remember to Save the day');
 }
-function rotaClearOwnTime(date, key){ const d = rotaDraft(date); delete d.times[key]; render(); }
-function rotaNightTeamButton(date, day, locked){
+function rotaNightTeamButton(date, day, locked, ctx){
   const t = rotaNightTeamTime(day), defs = smsDefaultTimes();
   const usual = [...new Set(ROTA_NIGHT_KEYS.map(k=>defs[k]).filter(smsTimeOk))];
   const label = t ? `🌙 Night team starts <strong>${t}</strong>` : `🌙 Night team starts${usual.length?' (usual '+usual.join(' / ')+')':' — set time'}`;
-  return `<button class="btn" id="rotaNight_${date.replace(/-/g,'')}" ${locked?'disabled':''} onclick="rotaSetNightTeamTime('${date}')"
-    title="One start time for Night nurse, HCA night and RMO night on this day (anyone with their own 🕐 time keeps it)"
+  return `<button class="btn" id="rotaNight_${date.replace(/-/g,'')}" ${locked?'disabled':''} onclick="rotaSetNightTeamTime('${date}','${ctx||'alloc'}')"
+    title="One start time for the night nurse, night HCA and night RMO on this day (anyone with their own 🕐 time keeps it)"
     style="padding:5px 10px;font-size:12.5px;${t?'border-color:var(--pine);color:var(--pine)':''}">${label}</button>`;
 }
 
-/* ---- staff add/edit dialog ---- */
+/* ---- staff add/edit dialog. ctx.add = {date, role, rooms, shift, ctx}: a new person typed into a
+   rota cell -- once saved they are put straight onto that day. ---- */
 let _staffDlgCtx = null;
-function openStaffDlg(staffId, presetName, slotCtx, reopenSmsDate, presetRoles){
+function openStaffDlg(staffId, presetName, addCtx, reopenSmsDate, presetRoles){
   const s = staffId ? (state.staff||[]).find(x=>x.id===staffId) : null;
-  _staffDlgCtx = {id: s?s.id:null, slot: slotCtx||null, reopenSms: reopenSmsDate||null};
+  _staffDlgCtx = {id: s?s.id:null, add: addCtx||null, reopenSms: reopenSmsDate||null};
   $('#stfDlgTitle').textContent = s ? 'Edit staff member' : 'Add staff member';
   $('#stfName').value = s ? s.name : (presetName||'');
   const roles = s ? s.roles : (presetRoles||[]);
@@ -7275,11 +7252,19 @@ async function saveStaffDlg(){
     staffDlg.close();
     _staffDlgCtx = null;
     toast(renamed ? `Saved — “${old.name}” is now “${row.name}” on every rota day` : 'Saved '+row.name);
-    if(ctx.slot) rotaSet(ctx.slot.date, ctx.slot.key, row.name); else render();
+    if(ctx.add && ctx.add.replaceId) await rotaPersonReplace(ctx.add.date, ctx.add.replaceId, row.name, ctx.add.ctx);
+    else if(ctx.add) await rotaAddPeople(ctx.add.date, ctx.add.role, [row.name], ctx.add.rooms||[], ctx.add.shift, ctx.add.ctx);
+    else render();
     if(renamed && LIVE) await loadAll();   // pick up the corrected name on the rota
     if(ctx.reopenSms) rotaSmsOpen(ctx.reopenSms);
+    rotaCellPaint();
   }catch(err){ toast('Not saved — '+err.message); }
   finally{ btn.disabled = false; }
+}
+// The staff database "works as" role for a rota role (night ward nurses are "Night nurse").
+function rotaStaffRoleFor(role, shift){
+  if(role==='ward_nurse' && shift==='night') return 'night_nurse';
+  const R = ROTA_ROLE[role]; return (R && R.staff && R.staff[0]) || 'scrub';
 }
 
 /* ---- day header: button + status chips ---- */
@@ -7290,14 +7275,12 @@ function rotaSmsButton(date, unsaved){
   const why = !LIVE ? 'Texts need the live system' : (can ? 'Text confirmed staff about this day' : 'Save the day first');
   return `<button class="btn" id="rotaSmsBtn_${date}" ${can?'':'disabled'} title="${why}" onclick="rotaSmsOpen('${date}')">✉ Message staff</button>`;
 }
-// Lower-cased names of people holding a confirmed (unstarred) texted slot on a day.
+// Lower-cased names of people who are confirmed (named, no ★) in a textable role on a day.
 // Mirrors rota_sms_slots() / rota_sms_people() in the database.
 function rotaSmsConfirmedNames(day){
   const out = new Set();
-  if(!day || !(Number(day.theatres)>0)) return out;
-  const add = (key, v)=>{ v=String(v||'').trim(); if(v && !(day.stars && day.stars[key])) out.add(v.toLowerCase()); };
-  ROTA_SMS_D_KEYS.forEach(k=>add(k, day[k]));
-  for(const t of rotaRunning(day)){ const th=day['t'+t]||{}; ROTA_SMS_T_KEYS.forEach(k=>add('t'+t+'.'+k, th[k])); }
+  if(!day || !rotaIsRunning(day)) return out;
+  (day.people||[]).forEach(p=>{ if(rotaIsTextable(day, p) && !p.star) out.add(String(p.name).trim().toLowerCase()); });
   return out;
 }
 // Local mirror of rota_sms_affected(): people texted a confirmation for this day who are no
@@ -7344,12 +7327,13 @@ function smsRolesStarts(roles){ return [...new Set((roles||[]).map(r=>r && r.sta
 // Sorted distinct start times of one person's confirmed slots on a day (mirror of the database).
 function rotaSmsPersonStarts(day, nameLower){
   const out = new Set();
-  if(!day || !(Number(day.theatres)>0)) return [];
-  const take = (key, v)=>{ const st = rotaSlotTime(day, key);   // own > night team > list/usual
-    if(String(v||'').trim().toLowerCase()===nameLower && !(day.stars && day.stars[key]) && st) out.add(st); };
-  ROTA_SMS_D_KEYS.forEach(k=>take(k, day[k]));
-  for(const t of rotaRunning(day)){ const th=day['t'+t]||{};
-    ROTA_SMS_T_KEYS.forEach(k=>take('t'+t+'.'+k, th[k])); }
+  if(!day || !rotaIsRunning(day)) return [];
+  (day.people||[]).forEach(p=>{
+    if(rotaIsTextable(day, p) && !p.star && String(p.name).trim().toLowerCase()===nameLower){
+      const st = rotaPersonTime(day, p);   // own > night team > list/usual
+      if(st) out.add(st);
+    }
+  });
   return [...out].sort();
 }
 function rotaSmsChips(date){
@@ -7377,17 +7361,31 @@ const SMS_REASON = {provisional:'★ Provisional — confirm them on the rota fi
   not_on_rota:'No longer on this day', not_affected:'Nothing to cancel', confirmation_not_sent_yet:"Their text hadn't gone yet",
   no_start_time:'No start time set'};
 // Where to fill in the missing start time for someone who can't be texted yet.
+// Day-cover role wording in texts (everything else is a theatre role).
+const SMS_COVER_LABELS = ['Ward nurse','Night nurse','Ward HCA','Night HCA','RMO on site (day)','RMO on site (night)'];
 function smsNoTimeText(p){
   const missing = (p.roles||[]).filter(r=>!r.starred && !r.start);
-  // the theatre comes from the slot key: someone supporting both theatres has theatre 0 in the
-  // server's role list, but their time still comes from their own theatre's "List starts"
-  const tOf = r=>{ const m=/^t([12])\./.exec(String(r.key||'')); return m ? +m[1] : (r.theatre>0 ? r.theatre : 0); };
-  const th = [...new Set(missing.filter(r=>tOf(r)>0).map(tOf))];
-  const dc = [...new Set(missing.filter(r=>!(tOf(r)>0)).map(r=>r.label))];
+  // a theatre role names its room: theatre 1|2, or in the label, e.g. "Scrub (Minor op)"
+  const roomOf = r=>r.theatre>0 ? 'Theatre '+r.theatre : ((/\(([^()]*)\)\s*$/.exec(String(r.label||''))||[])[1] || 'the theatre');
+  const th = [...new Set(missing.filter(r=>!SMS_COVER_LABELS.includes(r.label)).map(roomOf))];
+  const dc = [...new Set(missing.filter(r=>SMS_COVER_LABELS.includes(r.label)).map(r=>r.label))];
   const parts = [];
-  if(th.length) parts.push('fill in "List starts" for Theatre '+th.join(' and ')+' on the rota');
+  if(th.length) parts.push('fill in "List starts" for '+th.join(' and ')+' on the rota');
   if(dc.length) parts.push('set the usual start time for '+dc.join(', ')+' in Text settings');
   return 'No start time — '+(parts.join(', and ')||'add one first');
+}
+// The staff database "works as" role for a role named in a text.
+function smsStaffRoleFromLabel(label){
+  const l = String(label||'');
+  if(/^Scrub/.test(l)) return 'scrub';
+  if(/^SFA/.test(l)) return 'sfa';
+  if(/^ODP/.test(l)) return 'odp';
+  if(/^Recovery/.test(l)) return 'recovery';
+  if(/^Night nurse/.test(l)) return 'night_nurse';
+  if(/^Ward nurse/.test(l)) return 'ward_nurse';
+  if(/HCA/.test(l)) return 'hca';
+  if(/^RMO/.test(l)) return 'rmo';
+  return 'scrub';
 }
 function smsFmt(ts){ if(!ts) return ''; return new Date(ts).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
 function smsStatusText(m){
@@ -7659,7 +7657,7 @@ function smsFixPerson(i){
   const date = _sms.date;
   smsDlg.close(); _sms = null;
   if(!p.staff_id){   // not in the database yet: adding is allowed from anywhere
-    openStaffDlg(null, p.name, null, date, [...new Set((p.roles||[]).map(r=>rotaSmsRoleForKey(r.key)))]);
+    openStaffDlg(null, p.name, null, date, [...new Set((p.roles||[]).map(r=>smsStaffRoleFromLabel(r.label)))]);
     return;
   }
   // already in the database: editing happens only on the Staff database page
@@ -7681,22 +7679,16 @@ function rotaUnlistedNotice(){
 }
 
 /* Staff database: one row per person -- everyone named on the rota EXCEPT surgeons (their own
-   list) and anaesthetists. People can be ADDED here or from a rota box; EDIT and DELETE are
-   only here. Names are stored on the rota as text and matched to this list by name. */
-// Rota boxes whose names belong in the staff database (textable or not).
-function rotaStaffBoxes(){
-  const out = [];
-  [1,2].forEach(t=>ROTA_T_ROLES.forEach(([k])=>{ if(k!=='anaes') out.push('t'+t+'.'+k); }));
-  ROTA_D_ROLES.forEach(([k])=>out.push(k));
-  return out;
-}
+   list) and anaesthetists. People can be ADDED here or from the rota; EDIT and DELETE are only
+   here. Names are stored on the rota as text and matched to this list by name. */
 // Names saved on the rota (any day) that aren't in the database yet: [{name, days, role}]
 function rotaUnlistedNames(){
   const seen = {};
-  (state.rota||[]).forEach(day=>rotaStaffBoxes().forEach(key=>{
-    const v = rotaSlotVal(day, key); if(!v || staffByName(v)) return;
+  (state.rota||[]).forEach(day=>(day.people||[]).forEach(p=>{
+    if(p.role==='surgeon' || p.role==='anaesthetist') return;
+    const v = String(p.name||'').trim(); if(!v || staffByName(v)) return;
     const id = v.toLowerCase();
-    (seen[id] = seen[id] || {name:v, days:new Set(), role:rotaSmsRoleForKey(key)}).days.add(day.date);
+    (seen[id] = seen[id] || {name:v, days:new Set(), role:rotaStaffRoleFor(p.role, p.shift)}).days.add(day.date);
   }));
   return Object.values(seen).map(x=>({name:x.name, days:x.days.size, role:x.role})).sort((a,b)=>a.name.localeCompare(b.name));
 }
@@ -7762,11 +7754,6 @@ function rotaStaffView(){
       <div style="display:flex;gap:6px;flex-wrap:wrap">${unlisted.map((u,i)=>`<button class="btn" style="padding:5px 10px;font-size:12.5px" onclick="staffAddUnlisted(${i})" title="Add to the staff database">＋ ${smsEsc(u.name)} <span style="font-weight:400;color:var(--ink-soft)">(${u.days} day${u.days>1?'s':''})</span></button>`).join('')}</div></div>`:''}
   </div>`;
 }
-// "Add" beside an unlisted name on the rota: the name is read from the day, never from markup
-function rotaStaffAddFromSlot(date, key){
-  const name = rotaSlotVal(rotaDayObj(date), key); if(!name) return;
-  openStaffDlg(null, name, {date, key}, null, [rotaSmsRoleForKey(key)]);
-}
 function staffAddUnlisted(i){
   const u = rotaUnlistedNames()[i]; if(!u) return;
   openStaffDlg(null, u.name, null, null, [u.role]);
@@ -7809,9 +7796,9 @@ function rotaSmsSettingsPanel(){
   return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px">${head}
     <div class="sub" style="margin:8px 0 0">Everyone on the rota except surgeons, anaesthetists, housekeeping and reception can be texted about a saved day with <strong>✉ Message staff</strong> — only when you press Send, never automatically.</div>
     <details style="margin-top:12px" ${missingDefs?'open':''}><summary style="cursor:pointer;font-weight:600">Usual start times — ward &amp; night roles${missingDefs?` <span style="color:var(--red)">(${missingDefs} not set)</span>`:''}</summary>
-      <div class="sub" style="margin:6px 0">Theatre staff get their theatre's <strong>List starts</strong> time from the rota. These roles aren't tied to a theatre, so they get their usual time below. On a given day, <strong>🌙 Night team starts</strong> (under Day cover) sets the whole night team at once, and 🕐 next to a name gives one person their own time. Nobody can be texted without a start time.</div>
+      <div class="sub" style="margin:6px 0">Theatre staff get their theatre's <strong>List starts</strong> time from the rota. These roles aren't tied to a theatre, so they get their usual time below. On a given day, <strong>🌙 Night team starts</strong> sets the whole night team at once, and 🕐 on a person gives them their own time. Nobody can be texted without a start time.</div>
       <div style="display:flex;gap:10px 16px;flex-wrap:wrap">${ROTA_SMS_D_KEYS.map(k=>{
-        const lab = (ROTA_D_ROLES.find(([kk])=>kk===k)||[k,k])[1];
+        const lab = ROTA_DEFAULT_TIME_LABEL[k]||k;
         return `<label style="display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:var(--ink-soft)">${smsEsc(lab)}
           <input type="time" id="smsDef_${k}" value="${smsTimeOk(defs[k])?defs[k]:''}" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:14px"></label>`; }).join('')}</div>
       <div style="margin-top:8px"><button class="btn" onclick="smsSaveDefaultTimes()">Save start times</button></div></details>
@@ -7906,105 +7893,165 @@ async function smsSendTest(){
   }catch(err){ toast('Not sent — '+err.message); }
 }
 
-// A case's surgeon: when the list has surgeons, a dropdown of just those (one surgeon is filled
-// in automatically, see rotaSyncCaseSurgeons); with none yet, the normal surgeon search.
-function rotaCaseSurgeonField(date, t, ci, c, list, locked){
-  const caseKey = 't'+t+'.cases.'+ci+'.surgeon';
-  const caseInputId = 'rsg_'+date.replace(/-/g,'')+'_t'+t+'_case'+ci;
+/* =================================================================================
+   ALLOCATION (view 'rotaalloc'): each day's rooms with their teams, case lists and start
+   times. Edits here are a draft until "Save day". The Rota grid (view 'rota') shows the same days.
+   ================================================================================= */
+// A person as a chip. Clicking it opens that row's editor (rotaCellOpen) for the day.
+function rotaChip(date, day, p, ctx, showRooms){
+  const R = ROTA_ROLE[p.role], rr = rotaPersonRooms(day, p), own = rotaPersonOwnTime(p);
+  const bits = [];
+  if(p.lead) bits.push('Lead');
+  if(R.shifts) bits.push(ROTA_SHIFT_LABEL[p.shift]);
+  if(R.theatre && showRooms) bits.push(rr.length ? rotaRoomsShort(rr) : 'no theatre');
+  else if(R.theatre && rr.length>1) bits.push(rotaRoomsShort(rr));
+  if(own) bits.push((p.role==='surgeon' ? 'from ' : '')+own);
+  const unknown = !!R.staff && !staffByName(p.name);
+  const cls = (R.theatre && !rr.length) ? 'warn' : (p.star ? 'prov' : '');
+  const title = rotaRoleLabel(p)+(rr.length?' · '+rotaRoomWords(rr):(R.theatre?' · no theatre yet':''))+(p.star?' · provisional':'')+(unknown?' · not in the staff database':'')+' — click to change';
+  return `<span class="rchip ${cls}" title="${rotaEsc(title)}" onclick="event.stopPropagation();rotaCellOpen('${date}','${p.role}','${ctx}','${p.id}')">${p.star?'★ ':''}${rotaEsc(p.name)}${bits.length?` <small>${bits.map(rotaEsc).join(' · ')}</small>`:''}${unknown?' <small title="Not in the staff database">⚠</small>':''}</span>`;
+}
+function rotaGapNote(date, day, key, ctx, locked){
+  const ack = day.acks && day.acks[key];
+  if(!ack) return '';
+  return `<div class="racknote">🔕 ${rotaEsc(ack)} ${locked?'':`<span onclick="rotaUnack('${date}','${key}','${ctx}')" title="Remove the cover note" style="cursor:pointer;color:var(--red);font-weight:700">✕</span>`}</div>`;
+}
+
+// A case's surgeon: a dropdown of the room's surgeons (one surgeon fills itself in, see
+// rotaSyncCaseSurgeons); with none in the room yet, the normal surgeon search.
+function rotaCaseSurgeonField(date, n, ci, c, list, locked){
+  const caseInputId = 'rsg_'+date.replace(/-/g,'')+'_r'+n+'_case'+ci;
   if(!list.length){
     window._surgeonPick = window._surgeonPick||{};
     window._surgeonPick[caseInputId] = (state.surgeons||[]).find(s=>s.name===(c.surgeon||'')) || null;
-    return surgeonInputHTML(caseInputId, c.surgeon||'', 'Type 3+ letters…', "rotaSurgeonCommit('"+date+"','"+caseKey+"','"+caseInputId+"')", '', locked);
+    return surgeonInputHTML(caseInputId, c.surgeon||'', 'Type 3+ letters…', "rotaCaseSurgeonCommit('"+date+"',"+n+","+ci+",'"+caseInputId+"')", '', locked);
   }
   const cur = String(c.surgeon||'').trim();
   const opts = [];
   if(!cur) opts.push(`<option value="" selected>${list.length>1?'Choose surgeon…':'—'}</option>`);
-  else if(!list.includes(cur)) opts.push(`<option value="${smsEsc(cur)}" selected>${smsEsc(cur)} (not on this list)</option>`);
-  list.forEach(s=>opts.push(`<option value="${smsEsc(s)}" ${s===cur?'selected':''}>${smsEsc(s)}</option>`));
-  return `<select id="${caseInputId}" ${locked?'disabled':''} onchange="rotaSet('${date}','${caseKey}',this.value)"
+  else if(!list.includes(cur)) opts.push(`<option value="${rotaEsc(cur)}" selected>${rotaEsc(cur)} (not on this list)</option>`);
+  list.forEach(s=>opts.push(`<option value="${rotaEsc(s)}" ${s===cur?'selected':''}>${rotaEsc(s)}</option>`));
+  return `<select id="${caseInputId}" ${locked?'disabled':''} onchange="rotaSetCase('${date}',${n},${ci},'surgeon',this.value)"
     style="width:100%;padding:9px 10px;border:1px solid ${cur&&!list.includes(cur)?'var(--red)':'var(--line)'};border-radius:8px;background:var(--card)">${opts.join('')}</select>`;
 }
-function rotaCaseBlock(date, t, th, locked){
+// Lenient like every rota field: a resolved pick is saved by its canonical name, anything else as typed.
+function rotaCaseSurgeonCommit(date, n, ci, inputId){
+  const el = document.getElementById(inputId);
+  const text = (el?el.value:'').trim();
+  const pick = (window._surgeonPick||{})[inputId];
+  const name = (pick && pick.name===text) ? pick.name : text;
+  const cur = (((rotaDayObj(date).rooms[n]||{}).cases||[])[ci]||{}).surgeon || '';
+  if(name===String(cur)) return;
+  rotaSetCase(date, n, ci, 'surgeon', name);
+}
+function rotaCaseBlock(date, day, n, locked){
   const dis = locked ? 'disabled' : '';
-  const list = rotaListSurgeons(th);
-  const rows = (th.cases||[]).map((c,ci)=>{
-    return `
+  const r = day.rooms[n];
+  const list = rotaListSurgeons(day, n);
+  const rows = (r.cases||[]).map((c,ci)=>`
     <div style="border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:6px;background:var(--mist)">
       <div style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:5px">Case ${ci+1}</div>
       <div class="rgrid">
-        <div class="rslot"><label>Surgeon</label>${rotaCaseSurgeonField(date, t, ci, c, list, locked)}</div>
-        <div class="rslot"><label>Procedure</label><input value="${String(c.procedure||'').replace(/"/g,'&quot;')}" ${dis} onchange="rotaSet('${date}','t${t}.cases.${ci}.procedure',this.value)"></div>
-        <div class="rslot"><label>Stay</label><select ${dis} onchange="rotaSet('${date}','t${t}.cases.${ci}.stay',this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+        <div class="rslot"><label>Surgeon</label>${rotaCaseSurgeonField(date, n, ci, c, list, locked)}</div>
+        <div class="rslot"><label>Procedure</label><input value="${rotaEsc(c.procedure||'')}" ${dis} onchange="rotaSetCase('${date}',${n},${ci},'procedure',this.value)"></div>
+        <div class="rslot"><label>Stay</label><select ${dis} onchange="rotaSetCase('${date}',${n},${ci},'stay',this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
           <option ${c.stay!=='Overnight'?'selected':''}>Day case</option><option ${c.stay==='Overnight'?'selected':''}>Overnight</option></select></div>
       </div>
-    </div>`;
-  }).join('');
+    </div>`).join('');
   return `<div style="margin-top:8px">
     <label style="font-size:11px;color:var(--ink-soft);font-weight:600">Number of cases
-      <select ${dis} onchange="rotaSetCaseCount('${date}',${t},+this.value)" style="margin-left:6px;padding:6px 8px;border:1px solid var(--line);border-radius:7px">
-        ${Array.from({length:21},(_,n)=>`<option value="${n}" ${(th.cases||[]).length===n?'selected':''}>${n}</option>`).join('')}
+      <select ${dis} onchange="rotaSetCaseCount('${date}',${n},+this.value)" style="margin-left:6px;padding:6px 8px;border:1px solid var(--line);border-radius:7px">
+        ${Array.from({length:21},(_,k)=>`<option value="${k}" ${(r.cases||[]).length===k?'selected':''}>${k}</option>`).join('')}
       </select></label>
     ${rows}</div>`;
 }
-
-function rotaTheatreBlock(date, day, t, locked){
-  const th = day['t'+t]||blankTheatre();
+// The roles shown in a room panel: the full team for a theatre; the lighter team first for Minor op.
+function rotaRoomRoles(n){ return n===3 ? ['surgeon','scrub','recovery','theatre_hca','sfa','odp','anaesthetist'] : ROTA_TEAM_ROLES; }
+function rotaRoomBlock(date, day, n, locked){
+  const r = day.rooms[n];
   const dis = locked ? 'disabled' : '';
-  const colourBar = th.colour ? `<span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:${th.colour};border:1px solid rgba(0,0,0,.2)"></span>` : '';
-  return `<div style="border:1px solid var(--line);border-left:4px solid ${th.colour||'var(--line)'};border-radius:12px;padding:10px 12px;margin-top:10px">
+  const gaps = rotaGaps(day);
+  const colourBar = r.colour ? `<span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:${rotaEsc(r.colour)};border:1px solid rgba(0,0,0,.2)"></span>` : '';
+  const tags = rotaTagOptions().map((t,i)=>`<button class="rtag ${r.tags.includes(t)?'on':''}" ${dis} onclick="rotaRoomToggleTag('${date}',${n},rotaTagOptions()[${i}],'alloc')">${rotaEsc(t)}</button>`).join('')
+    + `<button class="rtag" ${dis} title="Add an option to this list (kept for every day)" onclick="rotaAddTagOption('${date}',${n},'alloc')">＋</button>`;
+  const roleRows = rotaRoomRoles(n).map(role=>{
+    const ppl = rotaPeople(day, role, n).filter(p=>String(p.name||'').trim());
+    const g = gaps.find(x=>x.room===n && x.role===role);
+    const key = 'r'+n+'.'+role;
+    const acked = g && day.acks && day.acks[key];
+    const need = g && !acked;
+    return `<div class="rrole"><div class="rrolelab">${rotaEsc(ROTA_ROLE[role].label)}${need?' <span class="rghint">needed</span>':''}</div>
+      <div>${ppl.map(p=>rotaChip(date, day, p, 'alloc', false)).join('')}
+        <button class="rchip radd" ${dis} onclick="rotaPickOpen('${date}','${role}','alloc',[${n}])">＋ Add</button>
+        ${need&&!locked?`<button class="rchip radd" title="Silence this gap with a cover note" onclick="rotaAck('${date}','${key}','alloc')">🔕</button>`:''}
+        ${role==='anaesthetist'&&n!==3&&r.laNoAnaes?'<span class="rchip la">LA — not needed</span>':''}
+        ${g?rotaGapNote(date, day, key, 'alloc', locked):''}</div></div>`;
+  }).join('');
+  return `<div class="rroomblk" style="border-left:4px solid ${r.colour?rotaEsc(r.colour):'var(--line)'}">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <strong>Theatre ${t}</strong> ${colourBar}
-        <select ${dis} onchange="rotaSet('${date}','t${t}.type',this.value)" title="LA lists don't require anaesthetist, ODP or SFA"
+        <strong>${ROTA_ROOM_NAME[n]}</strong> ${colourBar}
+        <span style="display:flex;gap:4px;flex-wrap:wrap" title="Info for this room — GA, LA, Overnight… (LA only: no anaesthetist, ODP or SFA needed)">${tags}</span>
+        ${n!==3?`<label class="rcheck" title="No anaesthetist needed for this list"><input type="checkbox" ${dis} ${r.laNoAnaes?'checked':''} onchange="rotaRoomPatch('${date}',${n},'alloc',x=>{x.laNoAnaes=this.checked})"> LA — no anaesthetist</label>`:''}
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
+        <select ${dis} onchange="rotaRoomPatch('${date}',${n},'alloc',x=>{x.colour=this.value})" title="Colour-code this list (e.g. per surgeon)"
           style="padding:7px 10px;border:1px solid var(--line);border-radius:8px">
-          <option ${th.type!=='LA'?'selected':''}>GA</option><option ${th.type==='LA'?'selected':''}>LA</option></select>
-        <select ${dis} onchange="rotaSet('${date}','t${t}.colour',this.value)" title="Colour-code this list (e.g. per surgeon)"
-          style="padding:7px 10px;border:1px solid var(--line);border-radius:8px">
-          ${LIST_COLOURS.map(([v,n])=>`<option value="${v}" ${th.colour===v?'selected':''}>${n}</option>`).join('')}</select>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-soft)" title="Start time sent to this theatre's team in their rota texts">List starts
-          <input type="time" id="rotaStart_${date.replace(/-/g,'')}_t${t}" value="${String(th.startTime||'').replace(/"/g,'&quot;')}" ${dis}
-            onchange="rotaSet('${date}','t${t}.startTime',this.value)"
+          ${LIST_COLOURS.map(([v,nm])=>`<option value="${v}" ${r.colour===v?'selected':''}>${nm}</option>`).join('')}</select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-soft)" title="Start time sent to this room's team in their rota texts">List starts
+          <input type="time" id="rotaStart_${date.replace(/-/g,'')}_r${n}" value="${rotaEsc(r.startTime)}" ${dis}
+            onchange="rotaRoomPatch('${date}',${n},'alloc',x=>{x.startTime=smsTimeOk(this.value)?this.value:''})"
             style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:14px"></label>
-        <input placeholder="Detail — Overnight ×2, AM only, Transform…" value="${String(th.detail||'').replace(/"/g,'&quot;')}" ${dis}
-          onchange="rotaSet('${date}','t${t}.detail',this.value)"
+        <input placeholder="Detail — Overnight ×2, AM only, Transform…" value="${rotaEsc(r.detail)}" ${dis}
+          onchange="rotaRoomPatch('${date}',${n},'alloc',x=>{x.detail=this.value})"
           style="flex:1;min-width:160px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
       </div>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;font-weight:600">Surgeons (up to 3 sharing this theatre)</div>
-      <div class="rgrid" style="margin-top:4px">
-        ${rotaSurgeonSlot(date,day,'t'+t+'.surgeon','Surgeon',1,locked)}
-        ${rotaSurgeonSlot(date,day,'t'+t+'.surgeon2','2nd surgeon',0,locked)}
-        ${rotaSurgeonSlot(date,day,'t'+t+'.surgeon3','3rd surgeon',0,locked)}
-      </div>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;font-weight:600">Shared theatre team</div>
-      <div class="rgrid" style="margin-top:4px">
-        ${ROTA_T_ROLES.map(([k,lab,req])=>{
-          const reqNow = !!req && !(th.type==='LA' && (k==='anaes'||k==='odp'||k==='sfa'));
-          return ROTA_SMS_T_KEYS.includes(k) ? rotaStaffSlot(date, day, 't'+t+'.'+k, lab, reqNow, locked)
-                                             : rotaSlot(date, day, 't'+t+'.'+k, lab, reqNow, locked); }).join('')}
-      </div>
-      ${rotaCaseBlock(date, t, th, locked)}
+      <div style="margin-top:8px">${roleRows}</div>
+      ${rotaCaseBlock(date, day, n, locked)}
     </div>`;
 }
-
+function rotaUnplacedStrip(date, day, ctx, locked){
+  const un = rotaUnplaced(day);
+  if(!un.length) return '';
+  const ack = day.acks && day.acks.unplaced;
+  return `<div class="note" style="margin-top:10px;${ack?'':'background:var(--red-bg);border-color:var(--red);color:var(--red)'}">
+    <strong>Not given a theatre yet:</strong> ${un.map(p=>rotaChip(date, day, p, ctx, true)).join('')}
+    <div style="font-size:12px;margin-top:4px">Click a name to choose their theatre. They can't be texted until they have one.</div>
+    ${ack?rotaGapNote(date, day, 'unplaced', ctx, locked):(locked?'':`<button class="rchip radd" onclick="rotaAck('${date}','unplaced','${ctx}')">🔕 Cover note</button>`)}</div>`;
+}
+function rotaCoverBlock(date, day, ctx, locked){
+  const dis = locked ? 'disabled' : '';
+  const gaps = rotaGaps(day);
+  const order = {day:0, night:1, am:0, pm:1};
+  const rows = ROTA_COVER_ROLES.map(role=>{
+    const ppl = rotaPeople(day, role).filter(p=>String(p.name||'').trim()).sort((a,b)=>(order[a.shift]||0)-(order[b.shift]||0));
+    const g = gaps.filter(x=>x.role===role);
+    const need = g.filter(x=>!(day.acks && day.acks[x.key]));
+    return `<div class="rrole"><div class="rrolelab">${rotaEsc(ROTA_ROLE[role].grid)}${need.length?` <span class="rghint">${need.map(x=>rotaEsc(x.label.replace(/^.*\((.*)\)$/,'$1'))).join(', ')} needed</span>`:''}</div>
+      <div>${ppl.map(p=>rotaChip(date, day, p, ctx, false)).join('')}
+        <button class="rchip radd" ${dis} onclick="rotaPickOpen('${date}','${role}','${ctx}')">＋ Add</button>
+        ${need.map(x=>locked?'':`<button class="rchip radd" title="Silence this gap with a cover note" onclick="rotaAck('${date}','${x.key}','${ctx}')">🔕</button>`).join('')}
+        ${g.map(x=>rotaGapNote(date, day, x.key, ctx, locked)).join('')}</div></div>`;
+  }).join('');
+  return `<div style="margin-top:10px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong style="font-size:13px">Day cover</strong>
+      ${rotaNightTeamButton(date, day, locked, ctx)}</div>
+    <div style="margin-top:6px">${rows}</div></div>`;
+}
 function rotaDayCard(date, opts){
   opts = opts||{};
   const day = rotaDayObj(date);
   const unsaved = !!_rotaDrafts[date];
   const open = rotaOpenGaps(day).length;
-  const prov = Object.keys(day.stars||{}).length;
-  const running = Number(day.theatres)>0;
-  const choice = rotaTheatreChoice(day);
+  const prov = (day.people||[]).filter(p=>p.star && String(p.name||'').trim()).length;
+  const run = rotaRoomsRunning(day), running = run.length>0;
   const locked = rotaIsLocked(date, day);
   const collapsible = !!opts.collapsible;
   const collapsed = collapsible && !_rotaExpandedDays[date];
-  // The header row (date, status badges, collapse toggle, action buttons through Save/Edit day)
-  // is built once and always returned, whether or not the day's details are collapsed below it.
+  const advice = rotaScrubAdvice(day);
+  const roomBtns = ROTA_ROOMS.map(n=>{ const on = run.includes(n);
+    return `<button class="rtag ${on?'on':''}" id="rotaRoom_${date.replace(/-/g,'')}_${n}" ${locked?'disabled':''} onclick="rotaRoomToggleRunning('${date}',${n},'alloc')" title="${on?'Running — click to stop using it this day':'Not in use — click to run a list here'}">${on?'✓ ':''}${ROTA_ROOM_NAME[n]}</button>`; }).join('');
   const head = `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
       <h2 style="margin:0"><span class="led ${running?(open?'red':'green'):'amber'}"></span>${rotaNice(date)}</h2>
-      <select id="rotaTh_${date.replace(/-/g,'')}" ${locked?'disabled':''} onchange="rotaSetTheatres('${date}',this.value)" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px">
-        <option value="0" ${choice==='0'?'selected':''}>No lists</option>
-        <option value="1" ${choice==='1'?'selected':''}>1 theatre — Theatre 1</option>
-        <option value="1b" ${choice==='1b'?'selected':''}>1 theatre — Theatre 2</option>
-        <option value="2" ${choice==='2'?'selected':''}>2 theatres</option></select>
+      <span style="display:flex;gap:4px;flex-wrap:wrap">${roomBtns}</span>
       ${open?`<span style="background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:700">${open} gap${open>1?'s':''}</span>`
             :running?`<span style="background:var(--ok-bg);color:var(--ok);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:700">Covered ✓</span>`:''}
       ${locked?`<span style="background:var(--mist);color:var(--ink-soft);border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:700">🔒 Locked</span>`:''}
@@ -8016,22 +8063,29 @@ function rotaDayCard(date, opts){
         <button class="btn" ${locked?'disabled':''} onclick="rotaCopyPrev('${date}')" title="Copy the same weekday last week">⧉ Last week</button>
         ${opts.inMonth?`<button class="btn" onclick="_rotaOpenDay=null;render()">Close</button>`:''}
         <button class="btn" onclick="rotaDayPDF('${date}')" title="Wall-display PDF for the Recovery room TV">⬇ Day PDF</button>
+        ${unsaved?`<button class="btn" onclick="rotaDiscardDraft('${date}')" title="Forget the changes you haven't saved">Discard</button>`:''}
         <button class="btn primary" id="rotaSaveBtn_${date}" onclick="${locked?`rotaUnlockDay('${date}')`:`rotaSaveDay('${date}')`}">${locked?'🔓 Edit day':(unsaved?'● Save day':'Save day')}</button></span></div>`;
-  if(!running) return `<div class="gaspanel">${head}</div>`;
-  if(collapsed) return `<div class="gaspanel">${head}</div>`;
+  const hasPeople = (day.people||[]).some(p=>String(p.name||'').trim());
+  if((!running && !hasPeople) || collapsed) return `<div class="gaspanel">${head}</div>`;
   return `<div class="gaspanel">${head}
-    ${rotaRunning(day).map(t=>rotaTheatreBlock(date, day, t, locked)).join('')}
-    <div style="margin-top:10px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong style="font-size:13px">Day cover</strong>
-      ${rotaNightTeamButton(date, day, locked)}</div>
-      <div class="rgrid" style="margin-top:6px">${ROTA_D_ROLES.map(([k,lab,req])=>rotaStaffSlot(date,day,k,lab,!!req,locked)).join('')}</div></div>
+    ${run.map(n=>rotaRoomBlock(date, day, n, locked)).join('')}
+    ${rotaUnplacedStrip(date, day, 'alloc', locked)}
+    ${advice?`<div class="sub" style="margin:8px 0 0;color:#7A5A14">ℹ ${rotaEsc(advice)}</div>`:''}
+    ${rotaCoverBlock(date, day, 'alloc', locked)}
     <div class="m-row" style="margin-top:10px"><label>Notes</label>
-      <input value="${String(day.notes||'').replace(/"/g,'&quot;')}" ${locked?'disabled':''} onchange="rotaSet('${date}','notes',this.value)"
+      <input value="${rotaEsc(day.notes)}" ${locked?'disabled':''} onchange="rotaSetNotes('${date}',this.value)"
         placeholder="Holidays, Transform lists, extra info…"
         style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>
   </div>`;
 }
+function rotaDiscardDraft(date){
+  if(!_rotaDrafts[date]) return;
+  if(!confirm('Discard the changes to '+rotaNice(date)+' that you haven\'t saved?')) return;
+  delete _rotaDrafts[date];
+  render(); rotaCellPaint();
+}
 
-// ---- month grid ----
+// ---- Allocation month grid ----
 function rotaMonthView(){
   const now = new Date();
   const y = _rotaMonth ? _rotaMonth.y : now.getFullYear();
@@ -8044,18 +8098,18 @@ function rotaMonthView(){
   for(let dnum=1;dnum<=days;dnum++){
     const iso = `${y}-${String(m+1).padStart(2,'0')}-${String(dnum).padStart(2,'0')}`;
     const day = rotaDayObj(iso);
-    const running = Number(day.theatres)>0;
+    const run = rotaRoomsRunning(day), running = run.length>0;
     const open = rotaOpenGaps(day).length;
-    const prov = Object.keys(day.stars||{}).length;
-    const cols = rotaRunning(day).map(t=>day['t'+t] && day['t'+t].colour).filter(Boolean);
-    const stripe = cols.length ? `<div style="display:flex;height:4px;border-radius:2px;overflow:hidden;margin-top:3px">${cols.map(c=>`<div style="flex:1;background:${c}"></div>`).join('')}</div>` : '';
+    const prov = (day.people||[]).filter(p=>p.star && String(p.name||'').trim()).length;
+    const cols = run.map(n=>day.rooms[n].colour).filter(Boolean);
+    const stripe = cols.length ? `<div style="display:flex;height:4px;border-radius:2px;overflow:hidden;margin-top:3px">${cols.map(c=>`<div style="flex:1;background:${rotaEsc(c)}"></div>`).join('')}</div>` : '';
     cells += `<div class="rmcell ${iso===todayIso?'rmtoday':''} ${running?'rmrun':''}" onclick="_rotaOpenDay='${iso}';render()" style="cursor:pointer">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <strong>${dnum}</strong>
         ${open?`<span class="rmbadge" style="background:var(--red);color:#fff">${open}</span>`
               :running?`<span class="rmbadge" style="background:var(--ok);color:#fff">✓</span>`:''}
       </div>
-      ${running?`<div style="font-size:10px;color:var(--ink-soft)">${day.theatres} theatre${day.theatres>1?'s':''}</div>`:''}
+      ${running?`<div style="font-size:10px;color:var(--ink-soft)">${run.map(n=>ROTA_ROOM_SHORT[n]).join(' · ')}</div>`:''}
       ${prov?`<div style="font-size:10px;color:#7A5A14">★${prov}</div>`:''}
       ${stripe}
     </div>`;
@@ -8082,7 +8136,7 @@ function rotaMonthStep(delta){
   _rotaMonth = {y,m}; _rotaOpenDay=null; render();
 }
 
-// ---- staff search view ----
+// ---- staff search (on the Rota page) ----
 function rotaStaffSearch(){
   const sv = window._rotaStaff||{};
   const preset = sv.preset||'month';
@@ -8093,12 +8147,13 @@ function rotaStaffSearch(){
   const hits = (sv.name&&from&&to) ? rotaStaffShifts(sv.name, from, to) : [];
   const rows = hits.map(h=>`<tr>
     <td data-label="Date">${rotaNice(h.date,{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</td>
-    <td data-label="Role">${h.role}${h.theatre?' (Th '+h.theatre+')':''}</td>
-    <td data-label="Named">${h.colour?`<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${h.colour};margin-right:6px"></span>`:''}${h.who}</td></tr>`).join('');
-  return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:6px">
+    <td data-label="Role">${rotaEsc(h.role)}${h.theatre?' ('+rotaEsc(h.theatre)+')':''}</td>
+    <td data-label="Named">${h.colour?`<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${rotaEsc(h.colour)};margin-right:6px"></span>`:''}${rotaEsc(h.who)}</td></tr>`).join('');
+  return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:14px">
     <strong style="font-size:14px">Find a person's shifts</strong>
+    <datalist id="rotaNames">${rotaNamesList().concat((state.surgeons||[]).map(s=>s.name)).filter((v,i,a)=>a.indexOf(v)===i).map(n=>`<option value="${rotaEsc(n)}">`).join('')}</datalist>
     <div class="toolrow" style="margin-top:8px">
-      <input list="rotaNames" placeholder="Name — scrub, ODP, surgeon, RMO…" value="${String(sv.name||'').replace(/"/g,'&quot;')}"
+      <input list="rotaNames" placeholder="Name — scrub, ODP, surgeon, RMO…" value="${rotaEsc(sv.name||'')}"
         oninput="window._rotaStaff=Object.assign(window._rotaStaff||{},{name:this.value});refreshRotaStaffSearch()"
         style="flex:1;min-width:200px;padding:10px 12px;border:1px solid var(--line);border-radius:8px">
       <select onchange="window._rotaStaff=Object.assign(window._rotaStaff||{},{preset:this.value});render()"
@@ -8108,13 +8163,13 @@ function rotaStaffSearch(){
         <option value="custom" ${preset==='custom'?'selected':''}>Custom…</option>
       </select>
       ${preset==='custom'?`
-        <input type="date" value="${sv.from||''}" onchange="window._rotaStaff=Object.assign(window._rotaStaff||{},{from:this.value});render()" style="padding:9px;border:1px solid var(--line);border-radius:8px">
-        <input type="date" value="${sv.to||''}" onchange="window._rotaStaff=Object.assign(window._rotaStaff||{},{to:this.value});render()" style="padding:9px;border:1px solid var(--line);border-radius:8px">`:''}
+        <input type="date" value="${rotaEsc(sv.from||'')}" onchange="window._rotaStaff=Object.assign(window._rotaStaff||{},{from:this.value});render()" style="padding:9px;border:1px solid var(--line);border-radius:8px">
+        <input type="date" value="${rotaEsc(sv.to||'')}" onchange="window._rotaStaff=Object.assign(window._rotaStaff||{},{to:this.value});render()" style="padding:9px;border:1px solid var(--line);border-radius:8px">`:''}
       ${hits.length?`<button class="btn" onclick="rotaStaffPDF()">⬇ PDF</button>`:''}
     </div>
     <div id="rotaStaffResultsWrap">${sv.name?(hits.length?`<table style="margin-top:10px"><thead><tr><th>Date</th><th>Role</th><th>Named as</th></tr></thead><tbody>${rows}</tbody></table>
-        <div class="sub">${hits.length} shift(s) for "${sv.name}" between ${from} and ${to}.</div>`
-      :`<div class="sub" style="margin-top:10px">No shifts found for "${sv.name}" in this period.</div>`)
+        <div class="sub">${hits.length} shift(s) for "${rotaEsc(sv.name)}" between ${from} and ${to}.</div>`
+      :`<div class="sub" style="margin-top:10px">No shifts found for "${rotaEsc(sv.name)}" in this period.</div>`)
       :`<div class="sub" style="margin-top:10px">Type a name to see their shifts.</div>`}</div>
   </div>`;
 }
@@ -8128,9 +8183,10 @@ function refreshRotaStaffSearch(){
   if(fresh) el.innerHTML = fresh.innerHTML;
 }
 
-function rotaView(){
+// The Allocation page (view 'rotaalloc'): week / month / custom range of day cards.
+function rotaAllocView(){
   if(!isSuperadmin())
-    return '<h1>Rota</h1><div class="sub">Only super admins can see the theatre rota.</div>';
+    return '<h1>Allocation</h1><div class="sub">Only super admins can see the theatre rota.</div>';
   const mon = rotaMonday(_rotaWk);
   const days=[]; for(let i=0;i<7;i++) days.push(rotaISO(new Date(mon.getTime()+i*864e5)));
   let open=0; days.forEach(d=>open+=rotaOpenGaps(rotaDayObj(d)).length);
@@ -8140,7 +8196,7 @@ function rotaView(){
   let body='';
   if(_rotaMode==='week'){
     body = `
-      ${open?`<div class="note" style="background:var(--red-bg);border-color:var(--red);color:var(--red)"><strong>⚠ ${open} uncovered slot${open>1?'s':''} this week</strong> — fill the highlighted boxes or add a cover note.</div>`
+      ${open?`<div class="note" style="background:var(--red-bg);border-color:var(--red);color:var(--red)"><strong>⚠ ${open} uncovered slot${open>1?'s':''} this week</strong> — fill them or add a cover note.</div>`
             :`<div class="note" style="background:var(--ok-bg);border-color:var(--ok);color:var(--ok)"><strong>✓ Every running list this week is covered.</strong></div>`}
       <div class="toolrow" style="align-items:center">
         <button class="btn" onclick="_rotaWk--;render()">◀ Prev week</button>
@@ -8153,7 +8209,6 @@ function rotaView(){
   } else if(_rotaMode==='month'){
     body = rotaMonthView() + `<div class="toolrow" style="margin-top:10px"><button class="btn" onclick="rotaMonthPDF()">⬇ Month PDF</button></div>`;
   } else {
-    // custom range: list every saved/edited day in range as cards
     const cv = window._rotaCust||{};
     let cards='';
     if(cv.from && cv.to && cv.from<=cv.to){
@@ -8163,20 +8218,393 @@ function rotaView(){
         || '<div class="sub">No lists saved in this range yet.</div>';
     }
     body = `<div class="toolrow" style="align-items:center">
-        <label style="font-size:13px;color:var(--ink-soft)">From <input type="date" value="${cv.from||''}" onchange="window._rotaCust=Object.assign(window._rotaCust||{},{from:this.value});render()" style="padding:9px;border:1px solid var(--line);border-radius:8px"></label>
-        <label style="font-size:13px;color:var(--ink-soft)">To <input type="date" value="${cv.to||''}" onchange="window._rotaCust=Object.assign(window._rotaCust||{},{to:this.value});render()" style="padding:9px;border:1px solid var(--line);border-radius:8px"></label>
+        <label style="font-size:13px;color:var(--ink-soft)">From <input type="date" value="${rotaEsc(cv.from||'')}" onchange="window._rotaCust=Object.assign(window._rotaCust||{},{from:this.value});render()" style="padding:9px;border:1px solid var(--line);border-radius:8px"></label>
+        <label style="font-size:13px;color:var(--ink-soft)">To <input type="date" value="${rotaEsc(cv.to||'')}" onchange="window._rotaCust=Object.assign(window._rotaCust||{},{to:this.value});render()" style="padding:9px;border:1px solid var(--line);border-radius:8px"></label>
         ${(cv.from&&cv.to)?`<button class="btn" style="margin-left:auto" onclick="rotaCustomPDF()">⬇ Range PDF</button>`:''}
       </div>${cards}`;
   }
-  return `<h1>Theatre rota</h1>
-    <div class="sub">Empty required slots glow red until filled — or press 🔕 to silence one with a cover note. ☆/★ marks a name provisional (booked, not confirmed). GA lists need anaesthetist, ODP and SFA; LA lists don't. Type a few letters in any box to pick a name used before.</div>
+  return `<h1>Allocation</h1>
+    <div class="sub">Each running room with its team, case list and start times. Changes here are saved with <strong>Save day</strong> (the Rota grid saves as you go). ☆/★ marks a name provisional. LA lists don't need an anaesthetist, ODP or SFA; Minor op needs a surgeon and a scrub or nurse. <a href="#rota" onclick="navGo('rota');return false" style="color:var(--pine);font-weight:600">Open the Rota grid</a></div>
+    ${rotaUnlistedNotice()}
     <div style="border-bottom:1px solid var(--line);margin:6px 0 14px;display:flex;gap:2px;flex-wrap:wrap">
       ${tab('week','Weekly')}${tab('month','Monthly')}${tab('custom','Custom range')}
     </div>
-    <datalist id="rotaNames">${rotaNamesList().map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('')}</datalist>
-    ${rotaStaffSearch()}
-    ${rotaStaffDirPanel()}
     <div style="margin-top:14px">${body}</div>`;
+}
+
+/* =================================================================================
+   THE ROTA GRID (view 'rota'): dates across the top, one row per role, like Ruby's sheet.
+   Every change saves that day at once (atomic, version-checked rota_save_day_v2).
+   ================================================================================= */
+function rotaGridDates(){
+  const g = _rotaGrid, out = [];
+  if(g.span==='month'){
+    const now = new Date(), first = new Date(now.getFullYear(), now.getMonth()+g.off, 1, 12);
+    const n = new Date(first.getFullYear(), first.getMonth()+1, 0).getDate();
+    for(let d=1; d<=n; d++) out.push(rotaISO(new Date(first.getFullYear(), first.getMonth(), d, 12)));
+    return out;
+  }
+  const len = g.span==='2weeks' ? 14 : 7;
+  const mon = rotaMonday(g.off*(len/7));
+  for(let i=0;i<len;i++) out.push(rotaISO(new Date(mon.getTime()+i*864e5)));
+  return out;
+}
+function rotaGridStep(delta){ _rotaGrid.off = delta===0 ? 0 : _rotaGrid.off+delta; render(); }
+function rotaGridSpan(span){ _rotaGrid = {span, off:0}; render(); }
+function rotaGridLabel(dates){
+  if(_rotaGrid.span==='month') return new Date(dates[0]+'T12:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const a = new Date(dates[0]+'T12:00'), b = new Date(dates[dates.length-1]+'T12:00');
+  return a.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' – '+b.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
+function rotaGridHead(date){
+  const day = rotaDayObj(date), run = rotaRoomsRunning(day), open = rotaOpenGaps(day).length;
+  const d = new Date(date+'T12:00');
+  const pills = run.map(n=>{ const r = day.rooms[n];
+    return `<span class="rgpill" style="${r.colour?'background:'+rotaEsc(r.colour)+';color:#fff;border-color:'+rotaEsc(r.colour):''}">${ROTA_ROOM_SHORT[n]}${r.startTime?' '+r.startTime:''}</span>`; }).join('');
+  const badges = (open?`<span class="rgbadge bad">${open} gap${open>1?'s':''}</span>`:(run.length?'<span class="rgbadge ok">✓ covered</span>':''))
+    + (_rotaDrafts[date]?'<span class="rgbadge warn" title="Unsaved changes in Allocation">unsaved</span>':'')
+    + (rotaIsLocked(date, day)?'<span class="rgbadge" title="Fully covered and locked">🔒</span>':'');
+  return `<th class="rghead ${date===rotaISO(new Date(new Date().setHours(12,0,0,0)))?'rgtoday':''}" onclick="rotaDayDlgOpen('${date}')" title="Rooms, start times and notes for this day">
+    <div class="rgdow">${d.toLocaleDateString('en-GB',{weekday:'short'})}</div><div class="rgdate">${d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
+    <div class="rgpills">${pills||'<span class="rgmuted">No lists</span>'}</div><div>${badges}</div></th>`;
+}
+function rotaGridCell(date, row){
+  const day = rotaDayObj(date), run = rotaRoomsRunning(day);
+  const gaps = rotaGaps(day);
+  if(row==='tags'){
+    return run.map(n=>{ const r = day.rooms[n];
+      return `<div class="rgtagline"><b>${ROTA_ROOM_SHORT[n]}</b> ${r.tags.length?r.tags.map(rotaEsc).join(', '):'<span class="rgmuted">—</span>'}</div>`; }).join('');
+  }
+  const R = ROTA_ROLE[row];
+  const order = {day:0, night:1, am:0, pm:1};
+  const ppl = rotaPeople(day, row).filter(p=>String(p.name||'').trim()).sort((a,b)=>{
+    if(R.shifts) return (order[a.shift]||0)-(order[b.shift]||0);
+    const ar = rotaPersonRooms(day, a)[0]||9, br = rotaPersonRooms(day, b)[0]||9; return ar-br;
+  });
+  let html = ppl.map(p=>rotaChip(date, day, p, 'grid', true)).join('');
+  if(row==='anaesthetist') run.filter(n=>n!==3 && day.rooms[n].laNoAnaes).forEach(n=>{ html += `<span class="rchip la">${ROTA_ROOM_SHORT[n]} LA — not needed</span>`; });
+  gaps.filter(g=>g.role===row).forEach(g=>{
+    const acked = day.acks && day.acks[g.key];
+    const where = g.room ? ROTA_ROOM_SHORT[g.room] : g.label.replace(/^.*\((.*)\)$/,'$1');
+    html += acked ? `<span class="rgmuted" title="${rotaEsc(acked)}">🔕 ${rotaEsc(where)} covered</span>`
+                  : `<span class="rghint">${rotaEsc(where)} needs one</span>`;
+  });
+  return html;
+}
+function rotaGridView(){
+  if(!isSuperadmin())
+    return '<h1>Rota</h1><div class="sub">Only super admins can see the theatre rota.</div>';
+  const dates = rotaGridDates();
+  let open = 0, unplaced = 0;
+  dates.forEach(d=>{ const day = rotaDayObj(d); open += rotaOpenGaps(day).length; unplaced += rotaUnplaced(day).length; });
+  const spanBtn = (id, lab)=>`<button class="rtag ${_rotaGrid.span===id?'on':''}" onclick="rotaGridSpan('${id}')">${lab}</button>`;
+  const head = `<tr><th class="rgrole rgcorner">Role</th>${dates.map(rotaGridHead).join('')}</tr>`;
+  const rows = ROTA_GRID_ROWS.map(row=>{
+    const title = row==='tags' ? 'Info (GA / LA / Overnight)' : ROTA_ROLE[row].grid;
+    return `<tr><th class="rgrole">${rotaEsc(title)}</th>${dates.map(d=>`<td class="rgcell" onclick="rotaCellOpen('${d}','${row}','grid')">${rotaGridCell(d, row)}</td>`).join('')}</tr>`;
+  }).join('');
+  return `<h1>Rota</h1>
+    <div class="sub">Click a date for its rooms and start times, or any cell to add names, change, remove or allocate a theatre. Changes save straight away. ★ = provisional. <a href="#rotaalloc" onclick="navGo('rotaalloc');return false" style="color:var(--pine);font-weight:600">Allocation</a> shows the same days theatre by theatre.</div>
+    <div class="toolrow" style="align-items:center">
+      <button class="btn" onclick="rotaGridStep(-1)">◀</button>
+      <strong style="min-width:170px;text-align:center">${rotaGridLabel(dates)}</strong>
+      <button class="btn" onclick="rotaGridStep(1)">▶</button>
+      ${_rotaGrid.off?`<button class="btn" onclick="rotaGridStep(0)">Today</button>`:''}
+      <span style="display:flex;gap:4px">${spanBtn('week','Week')}${spanBtn('2weeks','2 weeks')}${spanBtn('month','Month')}</span>
+      ${open?`<span class="rgbadge bad" style="font-size:12.5px">⚠ ${open} gap${open>1?'s':''}${unplaced?' · '+unplaced+' without a theatre':''}</span>`:'<span class="rgbadge ok" style="font-size:12.5px">✓ Every running list covered</span>'}
+      <button class="btn" style="margin-left:auto" onclick="rotaExport(rotaGridDates(), rotaGridLabel(rotaGridDates()), 'Rota_'+rotaGridDates()[0]+'.pdf')">⬇ PDF</button>
+    </div>
+    <div class="rgwrap"><table class="rgt"><thead>${head}</thead><tbody>${rows}</tbody></table></div>
+    ${rotaStaffSearch()}
+    ${rotaUnlistedNotice()}
+    ${rotaSmsSettingsPanel()}`;
+}
+
+/* ---- the cell editor (one row of one day). ctx 'grid' saves each change at once; 'alloc'
+   edits the Allocation draft (Save day). ---- */
+let _rc = null;   // {date, row, ctx, focus}
+function rotaCellOpen(date, row, ctx, focusId){
+  if(!isSuperadmin()) return;
+  _rc = {date, row, ctx: ctx||'grid', focus: focusId||null};
+  if(typeof rotaCellDlg==='undefined') return;
+  rotaCellPaint();
+  if(!rotaCellDlg.open) rotaCellDlg.showModal();
+}
+function rotaDayDlgOpen(date){ rotaCellOpen(date, '__day', 'grid'); }
+// Why this day can't be edited from here right now ('' = it can).
+function rotaCellBlock(){
+  if(!_rc) return 'closed';
+  const day = rotaDayObj(_rc.date);
+  if(window._rotaSaving===_rc.date) return 'saving';
+  if(_rc.ctx==='grid' && _rotaDrafts[_rc.date]) return 'draft';
+  if(rotaIsLocked(_rc.date, day)) return 'locked';
+  return '';
+}
+function rotaCellPaint(){
+  if(!_rc || typeof rotaCellDlg==='undefined' || !rotaCellDlg) return;
+  const {date, row, ctx, focus} = _rc;
+  const day = rotaDayObj(date), run = rotaRoomsRunning(day);
+  const block = rotaCellBlock(), ed = !block, dis = ed ? '' : 'disabled';
+  const title = row==='__day' ? 'Rooms & times' : (row==='tags' ? 'Info (GA / LA / Overnight)' : ROTA_ROLE[row].grid);
+  $('#rotaCellTitle').textContent = title+' — '+rotaNice(date);
+  let warn = '';
+  if(block==='saving') warn = '<div class="note">Saving…</div>';
+  else if(block==='draft') warn = `<div class="note">This day has unsaved changes in Allocation. Save or discard them there first.
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="rotaCellDlg.close();rotaGoAlloc('${date}')">Open in Allocation</button></div></div>`;
+  else if(block==='locked') warn = `<div class="note">🔒 This day is fully covered and locked. <button class="btn" style="margin-left:6px" onclick="rotaUnlockDay('${date}')">🔓 Edit day</button></div>`;
+  let body = '';
+  if(row==='__day') body = rotaDayDlgBody(date, day, run, ctx, dis);
+  else if(row==='tags') body = rotaTagsBody(date, day, run, ctx, dis);
+  else body = rotaPeopleBody(date, day, run, row, ctx, focus, dis);
+  $('#rotaCellBody').innerHTML = warn + body;
+  $('#rotaCellActions').innerHTML = `<button class="btn" onclick="rotaCellDlg.close();_rc=null">Close</button>`;
+}
+function rotaCellCan(){ if(!_rc || rotaCellBlock()){ toast(_rc && rotaCellBlock()==='saving' ? 'Still saving — a moment…' : 'This day can\'t be changed right now'); return false; } return true; }
+// Every button in the editor goes through here: checks the day can be edited, then applies.
+async function rotaCellDo(op, id, arg){
+  if(!rotaCellCan()) return;
+  const {date, ctx} = _rc;
+  const day = rotaDayObj(date);
+  switch(op){
+    case 'room':   await rotaPersonToggleRoom(date, id, arg, ctx); break;
+    case 'shift':  await rotaPersonSetShift(date, id, arg, ctx); break;
+    case 'star':   await rotaPersonToggleStar(date, id, ctx); break;
+    case 'lead':   await rotaPersonToggleLead(date, id, ctx); break;
+    case 'time':   rotaSetOwnTime(date, id, ctx); return;
+    case 'edit':   { const p = rotaPerson(day, id); if(p) rotaPickOpen(date, p.role, ctx, null, p.shift, id); return; }
+    case 'remove': { const p = rotaPerson(day, id); if(!p) return;
+      if(!confirm('Remove '+p.name+' ('+rotaRoleLabel(p)+') from '+rotaNice(date)+'?')) return;
+      await rotaPersonRemove(date, id, ctx); break; }
+    case 'addstaff': { const p = rotaPerson(day, id); if(p) openStaffDlg(null, p.name, null, null, [rotaStaffRoleFor(p.role, p.shift)]); return; }
+    case 'tag':    await rotaRoomToggleTag(date, arg, rotaTagOptions()[id], ctx); break;
+    case 'addtag': await rotaAddTagOption(date, arg, ctx); return;
+    case 'la':     await rotaRoomPatch(date, arg, ctx, r=>{ r.laNoAnaes = !r.laNoAnaes; }); break;
+    case 'run':    await rotaRoomToggleRunning(date, arg, ctx); break;
+    case 'ack':    await rotaAck(date, id, ctx); break;
+    case 'unack':  await rotaUnack(date, id, ctx); break;
+    case 'night':  rotaSetNightTeamTime(date, ctx); return;
+  }
+  rotaCellPaint();
+}
+// room field from the day editor (start time, colour, detail), notes
+async function rotaCellRoomSet(n, field, value){
+  if(!rotaCellCan()) return;
+  const {date, ctx} = _rc;
+  await rotaRoomPatch(date, n, ctx, r=>{ r[field] = field==='startTime' ? (smsTimeOk(value)?value:'') : String(value||''); });
+  rotaCellPaint();
+}
+async function rotaCellNotes(value){
+  if(!rotaCellCan()) return;
+  const {date, ctx} = _rc;
+  await rotaEdit(date, ctx, d=>{ d.notes = String(value||''); });
+  rotaCellPaint();
+}
+function rotaGapRows(date, day, gaps, ed){
+  return gaps.map(g=>{ const ack = day.acks && day.acks[g.key];
+    return `<div class="rgaprow ${ack?'':'open'}">${ack?'🔕':'⚠'} ${rotaEsc(g.label)}${ack?` <span class="rgmuted">— ${rotaEsc(ack)}</span>`:''}
+      ${ed?(ack?`<button class="btn" style="padding:3px 9px" onclick="rotaCellDo('unack','${g.key}')">Remove note</button>`
+               :`<button class="btn" style="padding:3px 9px" onclick="rotaCellDo('ack','${g.key}')" title="It's OK to run without it — say why">🔕 Cover note</button>`):''}</div>`; }).join('');
+}
+function rotaRoomButtons(p, run, dis){
+  return ROTA_ROOMS.map(n=>{ const on = p.rooms.includes(n);
+    return `<button class="rtag ${on?'on':''}" ${dis} onclick="rotaCellDo('room','${p.id}',${n})" title="${run.includes(n)?'':ROTA_ROOM_NAME[n]+' is not running this day'}"
+      style="${run.includes(n)||on?'':'opacity:.55'}">${on?'✓ ':''}${ROTA_ROOM_SHORT[n]}</button>`; }).join('');
+}
+function rotaPeopleBody(date, day, run, row, ctx, focus, dis){
+  const R = ROTA_ROLE[row];
+  const order = {day:0, night:1, am:0, pm:1};
+  const ppl = rotaPeople(day, row).filter(p=>String(p.name||'').trim()).sort((a,b)=>(order[a.shift]||0)-(order[b.shift]||0));
+  const timeOk = p=>R.textable || p.role==='surgeon';
+  const list = ppl.map(p=>{
+    const own = rotaPersonOwnTime(p), base = p.role==='surgeon' ? '' : rotaPersonBaseTime(day, p);
+    const rr = rotaPersonRooms(day, p);
+    const unknown = !!R.staff && !staffByName(p.name);
+    return `<div class="rpersonrow ${p.id===focus?'focus':''}">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <strong>${p.star?'★ ':''}${rotaEsc(p.name)}</strong>
+        ${R.theatre?`<span class="rgmuted">${rr.length?rotaEsc(rotaRoomWords(rr)):'no theatre yet'}</span>`:''}
+        <span style="margin-left:auto;display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn" style="padding:4px 10px" ${dis} onclick="rotaCellDo('edit','${p.id}')" title="Put someone else here instead">Edit</button>
+          <button class="btn" style="padding:4px 10px;color:var(--red)" ${dis} onclick="rotaCellDo('remove','${p.id}')">Delete</button></span></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;align-items:center">
+        ${R.theatre?`<span class="rgmuted" style="font-size:12px">Theatre:</span> ${rotaRoomButtons(p, run, dis)}`:''}
+        ${R.shifts?R.shifts.map(s=>`<button class="rtag ${p.shift===s?'on':''}" ${dis} onclick="rotaCellDo('shift','${p.id}','${s}')">${ROTA_SHIFT_LABEL[s]}</button>`).join(''):''}
+        <button class="rtag ${p.star?'on':''}" ${dis} onclick="rotaCellDo('star','${p.id}')" title="Provisional: booked, not confirmed">${p.star?'★ Provisional':'☆ Provisional'}</button>
+        ${timeOk(p)?`<button class="rtag ${own?'on':''}" ${dis} onclick="rotaCellDo('time','${p.id}')" title="${p.role==='surgeon'?'When is this surgeon expected?':'Their own start time'+(base?' (otherwise '+base+')':'')}">🕐 ${own?(p.role==='surgeon'?'from ':'')+own:(p.role==='surgeon'?'Expected time':(base?'Starts '+base:'Start time'))}</button>`:''}
+        ${p.role==='scrub'?`<button class="rtag ${p.lead?'on':''}" ${dis} onclick="rotaCellDo('lead','${p.id}')" title="One Lead scrub per day">${p.lead?'✓ ':''}Lead</button>`:''}
+      </div>
+      ${unknown?`<div class="rgmuted" style="font-size:12px;margin-top:4px">Not in the staff database, so they can't be texted · <a href="#" onclick="rotaCellDo('addstaff','${p.id}');return false">Add them</a></div>`:''}
+    </div>`; }).join('');
+  const roomsForAdd = R.theatre && run.length===1 ? '['+run[0]+']' : '[]';
+  const la = row==='anaesthetist' ? run.filter(n=>n!==3).map(n=>`<label class="rcheck"><input type="checkbox" ${dis} ${day.rooms[n].laNoAnaes?'checked':''} onchange="rotaCellDo('la',null,${n})"> ${ROTA_ROOM_NAME[n]}: LA — no anaesthetist needed</label>`).join('') : '';
+  const gaps = rotaGaps(day).filter(g=>g.role===row);
+  const unplacedHere = R.theatre ? ppl.filter(p=>!rotaPersonRooms(day, p).length).length : 0;
+  return `${!run.length && R.theatre?'<div class="note">No theatre is running this day. Click the date at the top of the column to switch one on — or add names now and give them a theatre later.</div>':''}
+    ${la?`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">${la}</div>`:''}
+    ${unplacedHere?`<div class="note" style="background:var(--red-bg);border-color:var(--red);color:var(--red)">${unplacedHere} without a theatre — tick T1, T2 or Minor op under their name. They can't be texted until then.</div>`:''}
+    ${list || '<div class="sub">Nobody yet.</div>'}
+    <div style="margin-top:10px"><button class="btn primary" ${dis} onclick="rotaPickOpen('${date}','${row}','${ctx}',${roomsForAdd})">＋ Add names</button></div>
+    ${gaps.length?`<div style="margin-top:12px">${rotaGapRows(date, day, gaps, !dis)}</div>`:''}`;
+}
+function rotaTagsBody(date, day, run, ctx, dis){
+  if(!run.length) return '<div class="note">No theatre is running this day. Click the date at the top of the column to switch one on.</div>';
+  const opts = rotaTagOptions();
+  return run.map(n=>{ const r = day.rooms[n];
+    return `<div class="rpersonrow"><strong>${ROTA_ROOM_NAME[n]}</strong>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">${opts.map((t,i)=>`<button class="rtag ${r.tags.includes(t)?'on':''}" ${dis} onclick="rotaCellDo('tag',${i},${n})">${r.tags.includes(t)?'✓ ':''}${rotaEsc(t)}</button>`).join('')}
+        <button class="rtag" ${dis} onclick="rotaCellDo('addtag',null,${n})" title="Add an option (kept for every day)">＋ Add option</button></div></div>`; }).join('')
+    + '<div class="sub" style="margin-top:8px">A room tagged LA (and not GA) doesn\'t need an anaesthetist, ODP or SFA.</div>';
+}
+function rotaDayDlgBody(date, day, run, ctx, dis){
+  const rooms = ROTA_ROOMS.map(n=>{ const r = day.rooms[n], on = run.includes(n);
+    return `<div class="rpersonrow" style="${on?'':'opacity:.85'}">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button class="rtag ${on?'on':''}" ${dis} onclick="rotaCellDo('run',null,${n})">${on?'✓ ':''}${ROTA_ROOM_NAME[n]}</button>
+        <span class="rgmuted">${on?(rotaListSurgeons(day,n).join(', ')||'running, no surgeon yet'):'not in use'}</span></div>
+      ${on?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;align-items:center">
+        <label class="rcheck">List starts <input type="time" ${dis} value="${rotaEsc(r.startTime)}" onchange="rotaCellRoomSet(${n},'startTime',this.value)" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px"></label>
+        <select ${dis} onchange="rotaCellRoomSet(${n},'colour',this.value)" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px">${LIST_COLOURS.map(([v,nm])=>`<option value="${v}" ${r.colour===v?'selected':''}>${nm}</option>`).join('')}</select>
+        <input ${dis} placeholder="Detail — Transform, AM only…" value="${rotaEsc(r.detail)}" onchange="rotaCellRoomSet(${n},'detail',this.value)" style="flex:1;min-width:150px;padding:7px 9px;border:1px solid var(--line);border-radius:8px"></div>`:''}
+    </div>`; }).join('');
+  const gaps = rotaGaps(day);
+  const advice = rotaScrubAdvice(day);
+  return `${rooms}
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" ${dis} onclick="rotaCellDo('night')" title="One start time for the night nurse, night HCA and night RMO"
+        style="padding:5px 10px;font-size:12.5px;${rotaNightTeamTime(day)?'border-color:var(--pine);color:var(--pine)':''}">🌙 Night team starts ${rotaNightTeamTime(day)?'<strong>'+rotaNightTeamTime(day)+'</strong>':'— usual times'}</button>
+      <input ${dis} placeholder="Notes for the day" value="${rotaEsc(day.notes)}" onchange="rotaCellNotes(this.value)" style="flex:1;min-width:180px;padding:8px 10px;border:1px solid var(--line);border-radius:8px"></div>
+    ${advice?`<div class="sub" style="margin:8px 0 0;color:#7A5A14">ℹ ${rotaEsc(advice)}</div>`:''}
+    ${gaps.length?`<div style="margin-top:12px"><strong style="font-size:13px">Gaps</strong>${rotaGapRows(date, day, gaps, !dis)}</div>`:''}
+    <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+      ${run.length?rotaSmsButton(date, !!_rotaDrafts[date]).replace('onclick="rotaSmsOpen(', 'onclick="rotaCellDlg.close();rotaSmsOpen('):''}
+      <button class="btn" onclick="rotaDayPDF('${date}')">⬇ Day PDF</button>
+      <button class="btn" ${dis} onclick="rotaGridCopyPrev('${date}')" title="Copy the same weekday last week">⧉ Copy last week</button>
+      <button class="btn" onclick="rotaCellDlg.close();rotaGoAlloc('${date}')">Open in Allocation</button></div>`;
+}
+// Open a day in Allocation (its week, expanded).
+function rotaGoAlloc(date){
+  _rotaMode = 'week';
+  const mon0 = rotaMonday(0), d = new Date(date+'T12:00');
+  _rotaWk = Math.round((d.getTime() - mon0.getTime())/864e5/7 - ((d.getDay()+6)%7)/7);
+  _rotaExpandedDays[date] = true;
+  navGo('rotaalloc');
+}
+async function rotaGridCopyPrev(date){
+  if(!rotaCellCan()) return;
+  const has = (rotaDayObj(date).people||[]).some(p=>String(p.name||'').trim());
+  if(has && !confirm('Replace '+rotaNice(date)+' with a copy of the same day last week?')) return;
+  if(!rotaSaved(rotaISO(new Date(new Date(date+'T12:00').getTime()-7*864e5)))){ toast('Nothing saved on the same day last week'); return; }
+  rotaCopyPrev(date);
+  await rotaSaveDay(date, {fromGrid:true});
+}
+
+// A string as a JavaScript argument inside an HTML attribute (names can hold quotes and ampersands).
+function rotaJsArg(s){ return JSON.stringify(String(s)).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+/* ---- the name picker: tick one or more people (multi-select) for a row; 'replace' swaps one ---- */
+let _rp = null;   // {date, role, ctx, rooms, shift, sel:{name:true}, q, all, replaceId}
+function rotaPickOpen(date, role, ctx, rooms, shift, replaceId){
+  if(!isSuperadmin() || !ROTA_ROLE[role]) return;
+  const day = rotaDayObj(date), R = ROTA_ROLE[role], run = rotaRoomsRunning(day);
+  const rr = Array.isArray(rooms) && rooms.length ? rooms.slice() : (R.theatre && run.length===1 ? [run[0]] : []);
+  _rp = {date, role, ctx: ctx||'grid', rooms: rr, shift: (R.shifts && R.shifts.includes(shift)) ? shift : (R.shifts ? R.shifts[0] : null),
+         sel:{}, q:'', all:false, replaceId: replaceId||null};
+  rotaPickPaint();
+  if(!rotaPickDlg.open) rotaPickDlg.showModal();
+  setTimeout(()=>{ const el = document.getElementById('rotaPickQ'); if(el && el.focus) el.focus(); }, 30);
+}
+function rotaPickCandidates(){
+  const R = ROTA_ROLE[_rp.role];
+  let names;
+  if(_rp.role==='surgeon') names = (state.surgeons||[]).map(s=>s.name);
+  else if(_rp.role==='anaesthetist') names = rotaNamesList('anaesthetist');
+  else names = (state.staff||[]).filter(s=>s.active && (_rp.all || s.roles.some(r=>(R.staff||[]).includes(r)))).map(s=>s.name);
+  const q = String(_rp.q||'').toLowerCase().trim();
+  return [...new Set(names.map(n=>String(n||'').trim()).filter(Boolean))]
+    .filter(n=>!q || n.toLowerCase().includes(q)).sort((a,b)=>a.localeCompare(b));
+}
+// already on the day in this role (and shift): can't be added twice
+function rotaPickTaken(name){
+  const day = rotaDayObj(_rp.date), R = ROTA_ROLE[_rp.role];
+  return rotaPeople(day, _rp.role).some(p=>p.name.toLowerCase()===name.toLowerCase() && (!R.shifts || p.shift===_rp.shift));
+}
+function rotaPickListHtml(){
+  const R = ROTA_ROLE[_rp.role], single = !!_rp.replaceId;
+  const cands = rotaPickCandidates();
+  const q = String(_rp.q||'').trim();
+  const exact = cands.some(n=>n.toLowerCase()===q.toLowerCase());
+  const custom = Object.keys(_rp.sel).filter(n=>_rp.sel[n] && !cands.includes(n));
+  const row = (n, isCustom)=>{ const taken = !isCustom && rotaPickTaken(n) && !single;
+    return `<label class="rpickrow ${taken?'taken':''}"><input type="${single?'radio':'checkbox'}" name="rotaPickOne" ${taken?'disabled':''} ${_rp.sel[n]?'checked':''}
+      onchange="rotaPickToggle(${rotaJsArg(n)}, this.checked)"> ${rotaEsc(n)}${taken?' <span class="rgmuted">already on</span>':''}${isCustom?' <span class="rgmuted">new</span>':''}</label>`; };
+  let add = '';
+  if(q && !exact){
+    const enc = rotaJsArg(q);
+    add = _rp.role==='surgeon' ? `<button class="btn" style="margin-top:6px" onclick="rotaPickAddSurgeon(${enc})">＋ Add new surgeon “${rotaEsc(q)}”</button>`
+        : _rp.role==='anaesthetist' ? `<button class="btn" style="margin-top:6px" onclick="rotaPickToggle(${enc}, true)">＋ Use “${rotaEsc(q)}”</button>`
+        : `<button class="btn" style="margin-top:6px" onclick="rotaPickAddStaff(${enc})">＋ Add “${rotaEsc(q)}” to the staff database</button>`;
+  }
+  return (custom.map(n=>row(n, true)).join('') + cands.map(n=>row(n, false)).join('')
+    || `<div class="sub">${q?'Nobody matches “'+rotaEsc(q)+'”.':(R.staff?'Nobody in the staff database works as this yet.':'No names yet — type one.')}</div>`) + add;
+}
+function rotaPickPaint(){
+  if(!_rp) return;
+  const R = ROTA_ROLE[_rp.role], day = rotaDayObj(_rp.date), run = rotaRoomsRunning(day);
+  const single = !!_rp.replaceId;
+  const n = Object.keys(_rp.sel).filter(k=>_rp.sel[k]).length;
+  const cur = single ? rotaPerson(day, _rp.replaceId) : null;
+  $('#rotaPickTitle').textContent = (single ? 'Change '+(cur?cur.name:'') : 'Add '+R.grid.toLowerCase())+' — '+rotaNice(_rp.date);
+  const rooms = (!single && R.theatre) ? `<div style="margin-top:12px"><strong style="font-size:13px">Theatre</strong>
+      <span class="rgmuted" style="font-size:12px">${_rp.role==='surgeon'?'(choosing one switches it on)':'(leave empty to choose later)'}</span>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">${ROTA_ROOMS.map(k=>{ const on = _rp.rooms.includes(k);
+        return `<button class="rtag ${on?'on':''}" onclick="rotaPickRoom(${k})" style="${run.includes(k)||on||_rp.role==='surgeon'?'':'opacity:.55'}">${on?'✓ ':''}${ROTA_ROOM_NAME[k]}</button>`; }).join('')}</div></div>` : '';
+  const shifts = (!single && R.shifts) ? `<div style="margin-top:12px"><strong style="font-size:13px">Shift</strong>
+      <div style="display:flex;gap:4px;margin-top:5px">${R.shifts.map(s=>`<button class="rtag ${_rp.shift===s?'on':''}" onclick="_rp.shift='${s}';rotaPickPaint()">${ROTA_SHIFT_LABEL[s]}</button>`).join('')}</div></div>` : '';
+  const allToggle = R.staff ? `<label class="rcheck" style="margin-top:6px"><input type="checkbox" ${_rp.all?'checked':''} onchange="_rp.all=this.checked;rotaPickPaintList()"> Show everyone in the staff database (not only ${rotaEsc(R.label)})</label>` : '';
+  $('#rotaPickBody').innerHTML = `
+    <input id="rotaPickQ" type="search" placeholder="Search names…" value="${rotaEsc(_rp.q)}" oninput="_rp.q=this.value;rotaPickPaintList()"
+      style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px">
+    ${allToggle}
+    <div id="rotaPickList" style="max-height:42vh;overflow-y:auto;margin-top:8px">${rotaPickListHtml()}</div>
+    ${rooms}${shifts}`;
+  $('#rotaPickActions').innerHTML = `<button class="btn" onclick="rotaPickDlg.close();_rp=null">Cancel</button>
+    <button class="btn primary" ${n?'':'disabled'} onclick="rotaPickConfirm()">${single?'Change':(n?'Add '+n:'Add')}</button>`;
+}
+function rotaPickPaintList(){ const el = document.getElementById('rotaPickList'); if(el && _rp) el.innerHTML = rotaPickListHtml(); }
+function rotaPickToggle(name, on){
+  if(!_rp) return;
+  if(_rp.replaceId) _rp.sel = {};
+  if(on) _rp.sel[name] = true; else delete _rp.sel[name];
+  rotaPickPaint();
+  const el = document.getElementById('rotaPickQ'); if(el && el.focus){ el.focus(); }
+}
+function rotaPickRoom(n){ if(!_rp) return; _rp.rooms = _rp.rooms.includes(n) ? _rp.rooms.filter(x=>x!==n) : _rp.rooms.concat([n]); rotaPickPaint(); }
+async function rotaPickAddSurgeon(name){
+  name = String(name||'').trim().replace(/\s+/g,' ');
+  if(!name) return;
+  if(!confirm('Add "'+name+'" to the surgeon list? (Used by Procedure costing too.)')) return;
+  try{
+    const id = LIVE ? (await api({action:'surgeonAdd', name})).id : 'local-'+Date.now();
+    state.surgeons = (state.surgeons||[]).concat([{id, name}]).sort((a,b)=>a.name.localeCompare(b.name));
+    _rp.q = '';
+    rotaPickToggle(name, true);
+  }catch(err){ toast('Surgeon not added — '+err.message); }
+}
+function rotaPickAddStaff(name){
+  if(!_rp) return;
+  const p = _rp;
+  rotaPickDlg.close(); _rp = null;
+  openStaffDlg(null, String(name||'').trim(), {date:p.date, role:p.role, rooms:p.rooms, shift:p.shift, ctx:p.ctx, replaceId:p.replaceId},
+    null, [rotaStaffRoleFor(p.role, p.shift)]);
+}
+async function rotaPickConfirm(){
+  if(!_rp) return;
+  const p = _rp;
+  const names = Object.keys(p.sel).filter(k=>p.sel[k]);
+  if(!names.length) return;
+  if(p.ctx==='grid' && _rotaDrafts[p.date]){ toast('This day has unsaved changes in Allocation — save or discard them there first'); return; }
+  rotaPickDlg.close(); _rp = null;
+  if(p.replaceId) await rotaPersonReplace(p.date, p.replaceId, names[0], p.ctx);
+  else await rotaAddPeople(p.date, p.role, names, p.rooms, p.shift, p.ctx);
+  rotaCellPaint();
 }
 
 // ---- PDF exports (#8) in the implants report style ----
@@ -8198,31 +8626,49 @@ async function rotaPdfDoc(title){
   doc.setDrawColor(176,138,62); doc.setLineWidth(0.8); doc.line(10,25.5,W-10,25.5);
   return doc;
 }
-// One row per running theatre, for the per-day theatre-breakdown table. HCA/Recovery live here
-// now (moved from Day Cover), so they show inside the theatre team breakdown as requested.
+// A person as the PDFs show them: start time (always for day cover; for theatre roles only their
+// own time unless allTimes), "— LEAD", and the rooms when they cover more than one.
+function rotaPdfName(day, p, allTimes){
+  if(!p) return '';
+  let out = String(p.name||'').trim();
+  if(!out) return '';
+  const R = ROTA_ROLE[p.role];
+  if(p.role==='surgeon'){ const t = rotaPersonOwnTime(p); return t ? out+' (from '+t+')' : out; }
+  if(R.textable){
+    const t = (R.theatre && !allTimes) ? rotaPersonOwnTime(p) : rotaPersonTime(day, p);
+    if(t) out += ' ('+t+')';
+  }
+  if(p.lead) out += ' — LEAD';
+  const rr = rotaPersonRooms(day, p);
+  if(rr.length>1) out += ' ('+rotaRoomsShort(rr)+')';
+  return out;
+}
+function rotaPdfNames(day, role, n, allTimes){
+  return rotaPeople(day, role, n).map(p=>rotaPdfName(day, p, allTimes)).filter(Boolean);
+}
+function rotaRoomTypeText(r){ return (r.tags||[]).length ? r.tags.join(' / ') : ''; }
+// One row per running room, for the per-day breakdown table (week / month / range PDFs).
 function rotaTheatreTableRows(day){
   const rows=[];
-  for(const t of rotaRunning(day)){ const th=day['t'+t]; if(!th) continue;
-    // Start times: the theatre's "List starts" goes with the theatre; anyone with their own
-    // time gets it next to their name, e.g. "Bob Baker (10:00)".
-    const nt = k=>rotaTeamName(day, t, k, false);   // + " — LEAD" / " (both theatres)", incl. a slot covered from the other theatre
-    // later surgeons with an expected start: "Mubashir Cheema (from 10:30)"
-    const surg=['surgeon','surgeon2','surgeon3'].filter(k=>th[k]).map(k=>{
-      const et = k==='surgeon' ? '' : rotaSlotOwnTime(day, 't'+t+'.'+k); return th[k]+(et?' (from '+et+')':''); }).join(' / ');
-    const team=['scrub1','scrub2','scrub3'].map(nt).filter(Boolean).join(', ');
-    const cases=(th.cases||[]).map((c,i)=>`${i+1}. ${c.surgeon||'?'} — ${c.procedure||''} [${c.stay||'Day case'}]`).join('\n');
-    rows.push(['T'+t+' '+(th.type||'GA')+(smsTimeOk(th.startTime)?'\nStarts '+th.startTime:''), surg, th.anaes||'', nt('sfa'), team||'', nt('odp'),
-      nt('hca'), nt('recovery'), cases, th.detail||'']);
+  for(const n of rotaRoomsRunning(day)){
+    const r = day.rooms[n];
+    const surg = rotaPdfNames(day, 'surgeon', n).join(' / ');
+    const anaes = rotaPdfNames(day, 'anaesthetist', n).join(', ') || (n!==3 && r.laNoAnaes ? 'LA — not needed' : '');
+    const cases = (r.cases||[]).map((c,i)=>`${i+1}. ${c.surgeon||'?'} — ${c.procedure||''} [${c.stay||'Day case'}]`).join('\n');
+    const label = (n===3 ? 'Minor op' : 'T'+n)+(rotaRoomTypeText(r)?' '+rotaRoomTypeText(r):'')+(smsTimeOk(r.startTime)?'\nStarts '+r.startTime:'');
+    rows.push([label, surg, anaes, rotaPdfNames(day,'sfa',n).join(', '), rotaPdfNames(day,'scrub',n).join(', '),
+      rotaPdfNames(day,'odp',n).join(', '), rotaPdfNames(day,'theatre_hca',n).join(', '), rotaPdfNames(day,'recovery',n).join(', '),
+      cases, r.detail||'']);
   }
+  const un = rotaUnplaced(day);
+  if(un.length) rows.push(['No theatre yet', '', '', '', '', '', '', '', un.map(p=>p.name+' ('+ROTA_ROLE[p.role].label+')').join(', '), '']);
   return rows;
 }
-// One row of everything from HCA-ward down to Reception PM -- the general Day Cover
-// allocations, kept together as their own dedicated section separate from the theatre teams.
+// Day cover in one row: names (with their start times) per column.
 function rotaDayCoverRow(day){
-  // ward / night / RMO names carry their start time, e.g. "Nina Night (19:30)"
-  const nt = k=>rotaNameWithTime(day, k, day[k]||'');
-  return [nt('hcaWard'), nt('ward'), nt('nightNurse'), nt('hcaNight'),
-    nt('rmoDay'), nt('rmoNight'), day.housekeepAM||'', day.housekeepPM||'', day.receptionAM||'', day.receptionPM||''];
+  const names = (role, shift)=>(day.people||[]).filter(p=>p.role===role && p.shift===shift).map(p=>rotaPdfName(day, p)).filter(Boolean).join(', ');
+  return [names('ward_hca','day'), names('ward_nurse','day'), names('ward_nurse','night'), names('ward_hca','night'),
+    names('rmo','day'), names('rmo','night'), names('housekeeping','am'), names('housekeeping','pm'), names('reception','am'), names('reception','pm')];
 }
 const ROTA_THEATRE_TABLE_HEAD = ['Theatre','Surgeon(s)','Anaesthetist','SFA','Scrub team','ODP','Theatre HCA','Recovery Nurse','Cases','Detail'];
 const ROTA_THEATRE_COL_STYLES = {0:{cellWidth:16},1:{cellWidth:30},2:{cellWidth:22},3:{cellWidth:18},4:{cellWidth:26},5:{cellWidth:16},6:{cellWidth:22},7:{cellWidth:22},8:{cellWidth:48},9:{cellWidth:20}};
@@ -8230,7 +8676,7 @@ const ROTA_DAYCOVER_TABLE_HEAD = ['HCA Ward','Ward Nurse','Night Nurse','HCA Nig
 async function rotaExport(dates, title, fname){
   if(!isSuperadmin()) return;
   if(typeof window.jspdf==='undefined'){ toast('PDF engine still loading — try again'); return; }
-  const running = dates.map(iso=>({iso, day:rotaDayObj(iso)})).filter(x=>Number(x.day.theatres)>0);
+  const running = dates.map(iso=>({iso, day:rotaDayObj(iso)})).filter(x=>rotaIsRunning(x.day));
   if(!running.length){ toast('No lists in this range'); return; }
   const doc = await rotaPdfDoc(title);
   if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh and try again'); return; }
@@ -8245,7 +8691,7 @@ async function rotaExport(dates, title, fname){
     // Each day gets its own theatre-breakdown table immediately followed by its own Day Cover
     // row -- a dedicated section per day, not one field buried in a shared table -- with a
     // rough space estimate so a day's header doesn't get stranded alone at the bottom of a page.
-    const estRows = Math.max(1, day.theatres) + 1;
+    const estRows = Math.max(1, rotaRoomsRunning(day).length) + 1;
     if(i>0 && y + 14 + estRows*9 > pageH - 14){ doc.addPage(); y = 15; }
     doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(43,97,104);
     doc.text(rotaNice(iso,{weekday:'long',day:'numeric',month:'short',year:'numeric'}), 10, y);
@@ -8292,7 +8738,8 @@ async function rotaDayPDF(date){
   const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
   if(typeof doc.autoTable!=='function'){ toast('PDF table plugin failed to load — refresh and try again'); return; }
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
-  const running = Number(day.theatres)>0;
+  const runT = rotaRoomsRunning(day), nT = runT.length;
+  const running = nT>0;
   const open = rotaOpenGaps(day).length;
 
   // ---- header bar ----
@@ -8317,100 +8764,92 @@ async function rotaDayPDF(date){
     doc.save('Rota_Day_'+date+'.pdf'); toast('PDF downloaded'); return;
   }
 
-  // ---- theatre panels, side by side (or one full-width panel if only 1 theatre) ----
-  const runT = rotaRunning(day), nT = runT.length;   // e.g. [2] on a Theatre-2-only day
-  // panelY starts right after the (now tighter) header bar; the bottom reserve keeps the day
-  // cover strip/table/notes/footer strictly on this one page -- see the explicit bottom margin
-  // on the day-cover autoTable below, which is the actual fix (jsPDF-autoTable defaults to a
-  // 40mm bottom margin, so without an override a table starting this close to the page edge
-  // silently page-breaks the WHOLE day-cover section onto a second page).
-  // panelMaxH is the most room the panels may take; each panel now ends just below its own
-  // content (see panelBottom), so the day cover moves up instead of sitting under dead space.
+  // ---- room panels side by side (one, two or three). Each panel ends just below its content,
+  // so the day cover moves up instead of sitting under dead space. The explicit bottom margins on
+  // the autoTables keep everything on this one page (autoTable's default is 40mm). ----
   const panelY = 23, panelMaxH = H - 23 - 37;
-  const gap = 4, panelW = nT===1 ? (W-16) : (W-16-gap)/2;
+  const gap = 4, panelW = (W - 16 - gap*(nT-1)) / nT;
+  const fsBody = nT>2 ? 8.5 : 9.5, fsCase = nT>2 ? 8 : 9;
   let contentBottom = panelY + 30;
-  for(let ti=0;ti<nT;ti++){ const t = runT[ti];
-    const th = day['t'+t] || blankTheatre();
+  for(let ti=0;ti<nT;ti++){ const n = runT[ti];
+    const r = day.rooms[n];
     const x = 8 + ti*(panelW+gap);
-    const colour = th.colour || '#2B6168';
+    const colour = r.colour || '#2B6168';
     doc.setFillColor(colour); doc.rect(x, panelY, panelW, 10, 'F');
-    // Ribbon: "THEATRE 1 · MARK GORMAN-GA · STARTS 07:30" (surgeon moved up from the panel body).
-    // The font shrinks, never clips, if long surgeon names wouldn't fit beside the case count.
-    const nCases = (th.cases||[]).length;
-    const surgUp = [th.surgeon,th.surgeon2,th.surgeon3].filter(Boolean).join(' / ').toUpperCase();
-    const ribbon = 'THEATRE '+t+'   ·   '+(surgUp ? surgUp+'-'+(th.type||'GA') : (th.type||'GA'))
-      +(smsTimeOk(th.startTime)?'   ·   STARTS '+th.startTime:'');
+    // Ribbon: "THEATRE 1 · MARK GORMAN-GA · STARTS 07:30". The font shrinks, never clips.
+    const nCases = (r.cases||[]).length;
+    const surgUp = rotaListSurgeons(day, n).join(' / ').toUpperCase();
+    const type = rotaRoomTypeText(r);
+    const ribbon = ROTA_ROOM_NAME[n].toUpperCase()+'   ·   '+(surgUp ? surgUp+(type?'-'+type:'') : (type||'—'))
+      +(smsTimeOk(r.startTime)?'   ·   STARTS '+r.startTime:'');
     const casesTxt = nCases+' case'+(nCases===1?'':'s');
     const tw = s=>typeof doc.getTextWidth==='function' ? doc.getTextWidth(s) : 0;
     doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
     let rfs = 14; doc.setFontSize(rfs);
-    while(rfs>7 && tw(ribbon)+tw(casesTxt)+6 > panelW-8){ rfs -= 0.5; doc.setFontSize(rfs); }
+    while(rfs>6 && tw(ribbon)+tw(casesTxt)+6 > panelW-8){ rfs -= 0.5; doc.setFontSize(rfs); }
     doc.text(ribbon, x+4, panelY+7);
     doc.text(casesTxt, x+panelW-4, panelY+7, {align:'right'});
 
-    // The team list now starts right under the ribbon (ribbon ends at panelY+10).
     let py = panelY + 12, yb = panelY + 14.5;
-    if(th.detail){ doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(90,90,90);
-      const dl = doc.splitTextToSize(th.detail, panelW-8);
+    if(r.detail){ doc.setFont('helvetica','italic'); doc.setFontSize(9.5); doc.setTextColor(90,90,90);
+      const dl = doc.splitTextToSize(r.detail, panelW-8);
       doc.text(dl, x+4, yb); yb += (Array.isArray(dl)?dl.length:1)*4; py = yb; }
-    // 2nd / 3rd surgeon expected times, so the team knows when to expect them
-    const expected = ['surgeon2','surgeon3'].map(k=>({n:th[k], t:rotaSlotOwnTime(day,'t'+t+'.'+k)})).filter(o=>o.n && o.t);
+    // later surgeons with an expected start, so the team knows when to expect them
+    const expected = rotaPeople(day, 'surgeon', n).slice(1).filter(p=>rotaPersonOwnTime(p));
     if(expected.length){ doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(43,97,104);
-      const et = doc.splitTextToSize('Expected: '+expected.map(o=>o.n+' from '+o.t).join('   ·   '), panelW-8);
+      const et = doc.splitTextToSize('Expected: '+expected.map(p=>p.name+' from '+p.time).join('   ·   '), panelW-8);
       doc.text(et, x+4, yb); yb += (Array.isArray(et)?et.length:1)*4.2; py = yb; }
-    const nt = k=>rotaTeamName(day, t, k, true);   // every team member with their start: "Alice Able (08:00) — LEAD", "Murtaza (08:00) (both theatres)"
-    const teamPairs = [['Anaesthetist',th.anaes],['SFA',nt('sfa')],['Scrub 1',nt('scrub1')],['Scrub 2',nt('scrub2')],
-      ['Scrub 3',nt('scrub3')],['ODP',nt('odp')],['Theatre HCA',nt('hca')],['Recovery Nurse',nt('recovery')]].filter(([,v])=>v);
+    // every team member with their start time: "Alice Able (08:00) — LEAD", "Murtaza (08:00) (T1+T2)"
+    const pairs = [];
+    const anaes = rotaPdfNames(day, 'anaesthetist', n);
+    if(anaes.length) anaes.forEach(a=>pairs.push(['Anaesthetist', a])); else if(n!==3 && r.laNoAnaes) pairs.push(['Anaesthetist','LA — not needed']);
+    [['sfa','SFA'],['scrub','Scrub'],['odp','ODP'],['theatre_hca','Theatre HCA'],['recovery','Recovery Nurse']].forEach(([role, lab])=>
+      rotaPdfNames(day, role, n, true).forEach(v=>pairs.push([lab, v])));
     doc.autoTable({ startY:py, margin:{left:x+4, right: W-(x+panelW-4), bottom:4}, tableWidth: panelW-8,
-      body: teamPairs, theme:'plain',
-      styles:{font:'helvetica', fontSize:9.5, cellPadding:0.6, textColor:[23,37,31]},
-      columnStyles:{0:{fontStyle:'bold', cellWidth:32, textColor:[110,110,110]}, 1:{cellWidth:'auto'}} });
+      body: pairs, theme:'plain',
+      styles:{font:'helvetica', fontSize:fsBody, cellPadding:0.6, textColor:[23,37,31]},
+      columnStyles:{0:{fontStyle:'bold', cellWidth: nT>2 ? 24 : 32, textColor:[110,110,110]}, 1:{cellWidth:'auto'}} });
     py = doc.lastAutoTable.finalY + 2;
-
     if(nCases){
-      const caseRows = (th.cases||[]).map((c,i)=>[i+1, c.surgeon||'—', c.procedure||'—', c.stay||'Day case']);
+      const caseRows = (r.cases||[]).map((c,i)=>[i+1, c.surgeon||'—', c.procedure||'—', c.stay||'Day case']);
       doc.autoTable({ startY:py, margin:{left:x+4, right: W-(x+panelW-4), bottom:4}, tableWidth: panelW-8,
         head:[['#','Surgeon','Procedure','Stay']], body: caseRows, theme:'grid',
-        styles:{font:'helvetica', fontSize:9, cellPadding:1.3, lineColor:[210,210,210], lineWidth:0.2, textColor:[23,37,31], overflow:'linebreak'},
+        styles:{font:'helvetica', fontSize:fsCase, cellPadding:1.3, lineColor:[210,210,210], lineWidth:0.2, textColor:[23,37,31], overflow:'linebreak'},
         headStyles:{fillColor:[240,240,240], textColor:[80,80,80], fontStyle:'bold', fontSize:8.5},
-        columnStyles:{0:{cellWidth:8}, 1:{cellWidth:36}, 3:{cellWidth:22}} });
+        columnStyles:{0:{cellWidth:8}, 1:{cellWidth: nT>2 ? 26 : 36}, 3:{cellWidth: nT>2 ? 18 : 22}} });
     }
     contentBottom = Math.max(contentBottom, doc.lastAutoTable ? doc.lastAutoTable.finalY : py);
   }
-  // Panel borders, drawn now that the content height is known (sides + bottom only; the
-  // ribbon forms the top). Same height for both theatres so they line up.
+  // Panel borders, now the content height is known (sides + bottom; the ribbon is the top).
   const panelBottom = Math.min(contentBottom + 3, panelY + panelMaxH);
   doc.setDrawColor(200,200,200); doc.setLineWidth(0.4);
-  for(let ti=0;ti<nT;ti++){ const t = runT[ti];
+  for(let ti=0;ti<nT;ti++){
     const x = 8 + ti*(panelW+gap);
     doc.line(x, panelY+10, x, panelBottom); doc.line(x+panelW, panelY+10, x+panelW, panelBottom);
     doc.line(x, panelBottom, x+panelW, panelBottom);
   }
-
-  // ---- day cover strip, full width, below both panels ----
-  const coverY = panelBottom + 3;
+  let coverY = panelBottom + 3;
+  const un = rotaUnplaced(day);
+  if(un.length){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(200,60,50);
+    doc.text('No theatre yet: '+un.map(p=>p.name+' ('+ROTA_ROLE[p.role].label+')').join(', '), 10, coverY+3);
+    coverY += 6;
+  }
+  // ---- day cover strip, full width, below the panels ----
   doc.setFillColor(122,90,20); doc.rect(8, coverY, W-16, 7, 'F');
   doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,255,255);
   doc.text('DAY COVER', 12, coverY+5);
-  // margin.bottom must be set explicitly here: jsPDF-autoTable defaults to a 40mm bottom
-  // margin, and this table starts well within 40mm of the page's bottom edge by design (it's
-  // meant to sit in the last ~30mm of a single page) -- without this override, autoTable sees
-  // "not enough room before the default margin" and silently pushes the entire table (and the
-  // day cover section along with it) onto a second page, which was the actual reported bug.
   doc.autoTable({ startY: coverY+7, margin:{left:8,right:8,bottom:4},
     head:[ROTA_DAYCOVER_TABLE_HEAD], body:[rotaDayCoverRow(day)], theme:'grid',
     styles:{font:'helvetica', fontSize:9, cellPadding:1.6, lineColor:[210,196,150], lineWidth:0.2, textColor:[23,37,31], halign:'center'},
     headStyles:{fillColor:[247,239,220], textColor:[122,90,20], fontStyle:'bold', fontSize:8} });
-
   if(day.notes){
     const notesY = doc.lastAutoTable.finalY + 3;
     doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(90,90,90);
     doc.text('Notes: '+day.notes, 10, notesY);
   }
-
   doc.setFontSize(7.5); doc.setTextColor(140,140,140);
   doc.text('Generated '+new Date().toLocaleString('en-GB'), W-10, H-4, {align:'right'});
-
   doc.save('Rota_Day_'+date+'.pdf');
   toast('PDF downloaded');
 }
@@ -8427,7 +8866,7 @@ async function rotaStaffPDF(){
   const W=doc.internal.pageSize.getWidth();
   doc.autoTable({ startY:28, margin:{left:10,right:10},
     head:[['Date','Role','Named as','Theatre']],
-    body: hits.map(h=>[rotaNice(h.date,{weekday:'short',day:'numeric',month:'short',year:'numeric'}), h.role, h.who, h.theatre?('Theatre '+h.theatre):'']),
+    body: hits.map(h=>[rotaNice(h.date,{weekday:'short',day:'numeric',month:'short',year:'numeric'}), h.role, h.who, h.theatre||'']),
     theme:'grid',
     styles:{font:'helvetica', fontSize:9, cellPadding:2, lineColor:[185,201,197], lineWidth:0.15, textColor:[23,37,31]},
     headStyles:{fillColor:[43,97,104], textColor:255, fontStyle:'bold'},
@@ -8437,6 +8876,7 @@ async function rotaStaffPDF(){
       doc.text('Page '+d.pageNumber, W-10, doc.internal.pageSize.getHeight()-6, {align:'right'}); } });
   doc.save('Rota_'+sv.name.replace(/[^A-Za-z0-9]+/g,'_')+'_'+from+'_'+to+'.pdf'); toast('PDF downloaded');
 }
+
 
 /* ---------------- sample collection (specimen log) ---------------- */
 const SAMPLE_CATEGORIES = ['Histology','Cytology','Microbiology','Frozen section','Immunology','Biochemistry','Other'];
@@ -10224,7 +10664,8 @@ function render(){
   else if(v==='samples') m.innerHTML = samplesView();
   else if(v==='theatreward') m.innerHTML = theatreWardView();
   else if(v==='users') m.innerHTML = usersView();
-  else if(v==='rota') m.innerHTML = rotaView();
+  else if(v==='rota') m.innerHTML = rotaGridView();
+  else if(v==='rotaalloc') m.innerHTML = rotaAllocView();
   else if(v==='rotastaff') m.innerHTML = rotaStaffView();
   else m.innerHTML = trackerView(v);
 }
@@ -10455,28 +10896,18 @@ async function api(payload){
         sb.from('rota_days').select('*'), sb.from('rota_theatres').select('*')
       ]);
       if(dErr) throw new Error(dErr.message); if(tErr) throw new Error(tErr.message);
+      // the people model (migration 20261016100000_rota_people_model.sql); the old slot columns
+      // are history only and are not read
       rota = (days||[]).map(d=>{
-        // HCATheatre/RecoveryNurse are no longer read here -- those two fields moved from
-        // day-level to per-theatre (T{n}_HCA/T{n}_Recovery below); the old rota_days columns
-        // are kept in the database for historical integrity but the app no longer uses them.
-        const out = {Date: d.date, UpdatedAt: d.updated_at, Theatres: d.theatres, HCAWard: d.hca_ward,
-          WardNurse: d.ward_nurse, NightNurse: d.night_nurse, HCANight: d.hca_night,
-          RMODay: d.rmo_day, RMONight: d.rmo_night, HousekeepingAM: d.housekeeping_am, HousekeepingPM: d.housekeeping_pm,
-          ReceptionAM: d.reception_am, ReceptionPM: d.reception_pm, Notes: d.notes,
-          AcksJSON: JSON.stringify(d.acks||{}), StarsJSON: JSON.stringify(d.stars||{}), TimesJSON: JSON.stringify(d.times||{}),
-          FlagsJSON: JSON.stringify(d.flags||{})};
-        [1,2].forEach(n=>{
+        const day = {date:d.date, updatedAt:d.updated_at, theatres:Number(d.theatres)||0, notes:d.notes||'',
+          acks:d.acks||{}, times:d.times||{}, people:Array.isArray(d.people)?d.people:[], rooms:{}};
+        [1,2,3].forEach(n=>{
           const th = (theatres||[]).find(t=>t.day_id===d.id && t.theatre_number===n) || {};
-          out['T'+n+'_Type']=th.type||''; out['T'+n+'_Detail']=th.detail||''; out['T'+n+'_Colour']=th.colour||'';
-          out['T'+n+'_CasesJSON']=JSON.stringify(th.cases||[]);
-          out['T'+n+'_Surgeon']=th.surgeon||''; out['T'+n+'_Surgeon2']=th.surgeon2||''; out['T'+n+'_Surgeon3']=th.surgeon3||'';
-          out['T'+n+'_Anaesthetist']=th.anaesthetist||''; out['T'+n+'_SFA']=th.sfa||'';
-          out['T'+n+'_Scrub1']=th.scrub1||''; out['T'+n+'_Scrub2']=th.scrub2||'';
-          out['T'+n+'_Scrub3']=th.scrub3||''; out['T'+n+'_ODP']=th.odp||'';
-          out['T'+n+'_HCA']=th.hca||''; out['T'+n+'_Recovery']=th.recovery||'';
-          out['T'+n+'_StartTime']=th.start_time ? String(th.start_time).slice(0,5) : '';   // "07:30:00" -> "07:30"
+          day.rooms[n] = {running:!!th.running, tags:Array.isArray(th.tags)?th.tags:[], laNoAnaes:!!th.la_no_anaesthetist,
+            startTime: th.start_time ? String(th.start_time).slice(0,5) : '',   // "07:30:00" -> "07:30"
+            detail:th.detail||'', colour:th.colour||'', cases:Array.isArray(th.cases)?th.cases:[]};
         });
-        return out;
+        return day;
       });
     }
     const samples = (sampRes.data||[]).map(s=>{
@@ -10886,13 +11317,13 @@ async function api(payload){
     // had no conflict detection at all: whichever save was based on the older state could
     // finish last and silently overwrite a newer save's theatre data. The RPC row-locks the
     // day and refuses the write (ROTA_CONFLICT) if it's changed since payload.expectedUpdatedAt.
-    const {data, error} = await sb.rpc('rota_save_day', {p_date: payload.date,
-      p_expected_updated_at: payload.expectedUpdatedAt||null, p_fields: payload.fields});
+    const {data, error} = await sb.rpc('rota_save_day_v2', {p_date: payload.date,
+      p_expected_updated_at: payload.expectedUpdatedAt||null, p_day: payload.day});
     if(error){
       if(String(error.message||'').includes('ROTA_CONFLICT')) throw new Error('ROTA_CONFLICT');
       throw new Error(error.message);
     }
-    return {ok:true, updatedAt: data.updated_at};
+    return {ok:true, updatedAt: data.updated_at, people: data.people, theatres: data.theatres};
   }
 
   // ---- rota texts (see migration 20260930100000_rota_sms.sql) ----
@@ -11070,27 +11501,7 @@ async function loadAll(){
     state.settings = data.settings || state.settings || [];
     state.users = (data.users||[]).map(u=>({username:String(u.Username||''), name:String(u.DisplayName||''),
       role:String(u.Role||'common'), active:String(u.Active||'')}));
-    state.rota = (data.rota||[]).map(r=>{
-      const S=v=>v!=null?String(v):'';
-      // updatedAt is needed for the atomic-save conflict check (rota_save_day) -- a save is
-      // refused, not silently applied, if the server's copy has moved on since this was loaded.
-      const day={ date:rotaSheetDate(r.Date), updatedAt:r.UpdatedAt||null, theatres:Number(r.Theatres)||0,
-        hcaWard:S(r.HCAWard), ward:S(r.WardNurse), nightNurse:S(r.NightNurse), hcaNight:S(r.HCANight),
-        rmoDay:S(r.RMODay), rmoNight:S(r.RMONight),
-        housekeepAM:S(r.HousekeepingAM), housekeepPM:S(r.HousekeepingPM),
-        receptionAM:S(r.ReceptionAM), receptionPM:S(r.ReceptionPM),
-        notes:S(r.Notes), acks:{}, stars:{}, times:{}, flags:{}, t1:{}, t2:{} };
-      try{ day.acks = JSON.parse(r.AcksJSON||'{}')||{}; }catch(e){}
-      try{ day.stars = JSON.parse(r.StarsJSON||'{}')||{}; }catch(e){}
-      try{ day.times = JSON.parse(r.TimesJSON||'{}')||{}; }catch(e){}
-      try{ day.flags = JSON.parse(r.FlagsJSON||'{}')||{}; }catch(e){}
-      [1,2].forEach(t=>{ let cases=[]; try{ cases=rotaCasesNoPat(JSON.parse(r['T'+t+'_CasesJSON']||'[]')||[]); }catch(e){}
-        day['t'+t]={ type:S(r['T'+t+'_Type'])||'GA', detail:S(r['T'+t+'_Detail']), colour:S(r['T'+t+'_Colour']), cases:cases,
-        surgeon:S(r['T'+t+'_Surgeon']), surgeon2:S(r['T'+t+'_Surgeon2']), surgeon3:S(r['T'+t+'_Surgeon3']),
-        anaes:S(r['T'+t+'_Anaesthetist']), sfa:S(r['T'+t+'_SFA']),
-        scrub1:S(r['T'+t+'_Scrub1']), scrub2:S(r['T'+t+'_Scrub2']), scrub3:S(r['T'+t+'_Scrub3']), odp:S(r['T'+t+'_ODP']),
-        hca:S(r['T'+t+'_HCA']), recovery:S(r['T'+t+'_Recovery']), startTime:S(r['T'+t+'_StartTime']) }; });
-      return day; });
+    state.rota = (data.rota||[]).map(r=>{ const d = rotaNormDay(r); d.date = rotaSheetDate(d.date); return d; });
     if(typeof updateRotaBadge==='function') updateRotaBadge();
     // ---- CRITICAL: preserve every room's in-progress procedure + cart across a reload ----
     // Carts live only in memory (proc._cart). Capture each room's live proc id + cart BEFORE
@@ -11299,6 +11710,7 @@ function viewAllowed(v){
   if(v==='users') return isDeveloper();
   if(v==='rota') return isSuperadmin();
   if(v==='rotastaff') return isSuperadmin();   // Staff database: child of Rota, same gate
+  if(v==='rotaalloc') return isSuperadmin();   // Allocation: child of Rota, same gate
   return true;
 }
 function applyNavPerms(){
@@ -11348,13 +11760,14 @@ function navGroupKey(ev, g){
 function rotaSubPref(){ try{ return localStorage.getItem('bollin_rota_sub'); }catch(e){ return null; } }
 function rotaSubShown(){
   const p = rotaSubPref();
-  return currentView==='rotastaff' || p==='1' || (p!=='0' && currentView==='rota');
+  return currentView==='rotastaff' || currentView==='rotaalloc' || p==='1' || (p!=='0' && currentView==='rota');
 }
 function applyRotaSub(){
-  const child = document.getElementById('navRotaStaff'), caret = document.getElementById('rotaSubCaret');
-  if(!child || !child.classList) return;
+  const kids = [document.getElementById('navRotaAlloc'), document.getElementById('navRotaStaff')].filter(c=>c && c.classList);
+  const caret = document.getElementById('rotaSubCaret');
+  if(!kids.length) return;
   const open = rotaSubShown();
-  if(open) child.classList.remove('navsub-hidden'); else child.classList.add('navsub-hidden');
+  kids.forEach(child=>{ if(open) child.classList.remove('navsub-hidden'); else child.classList.add('navsub-hidden'); });
   if(caret) caret.textContent = open ? '▾' : '▸';
 }
 function toggleRotaSub(ev){
