@@ -218,8 +218,30 @@ expiry = dispatch date + 1 year.
     With no free room it is listed in `state.procUnplaced` as a warning.
 - Items sit in a cart. Stock is NOT decremented until the case is **ended**. Ending is one
   atomic RPC, `proc_consume_batch`: consume stock, record cost + bill lines, close the case.
-- The cart auto-saves to the server (`proc_save_cart`). Manual "Save progress" sorts A→Z;
-  autosave never reorders.
+- The cart auto-saves to the server. Manual "Save progress" sorts A→Z; autosave never reorders.
+- **Several devices, one case** (migration `20261022100000_proc_cart_versions.sql`, §9 #16):
+  - **Versioned saves.** `procedures.cart_version` goes up by one whenever the cart changes
+    (a trigger, so every path counts). `proc_save_cart_v2(id, cart, expected_version)` saves
+    only from the version the device last saw. Otherwise it saves nothing and returns the
+    newer cart, and the page **combines** its own changes with it (`procMergeCarts`, three-way
+    against `p._base`), then saves again. The old `proc_save_cart` is kept for unrefreshed
+    devices, and its saves move the version on too.
+  - **A case saves itself** (`procQueueSave(p)` / `procSaveNow(id)`), never "the room on
+    screen". There is one save at a time per case, a change made mid-save is saved straight
+    after, and failures retry every 5 s ("⚠ Not saved yet, retrying").
+  - **Every screen refreshes running cases** (`procPoll` → `get_open_procedures`): every 20 s
+    on the costing page, on opening it, on tapping a room tab, and before Start. A newer
+    server cart replaces this device's copy only when the device has nothing unsaved. A case
+    ended or cancelled elsewhere triggers a full reload.
+  - **Start checks the server first.** A start the server refuses is taken off the screen at
+    once with an alert, never left as a local case to scan into. Items scanned while a start is
+    still on its way are saved when it lands.
+  - **End** saves first. If that save had to combine another device's changes, End stops and
+    shows the combined list, so nothing is consumed unseen.
+  - **Starts and cancels are logged** in `activity_log` (a trigger), so a cancelled case leaves
+    a trace.
+  - **All cases are fetched in pages of 1000** (`sbRpcAllRows`), because Supabase returns at
+    most 1000 rows a request.
 - Surgeon comes from the canonical **surgeon picker** (`surgeons` table + `surgeon_id`), so
   names can't fragment. Anyone can add a new surgeon.
 - Admin can edit meta, reopen (returns stock) or delete (returns stock) a case.
@@ -689,6 +711,22 @@ Sheets-era notes and may be out of date; this file is the current reference.
     start there. Found when a case showed in the wrong theatre after a change of login and
     had to be restarted. Rule: an optional parameter must never mean "set to null" on an
     update; default to keeping the current value, and send every field that the RPC writes.
+16. **A theatre's items vanished on other devices (21 Oct 2026):** two theatres were running, and
+    after a log-out / log-in one case showed with nothing scanned, in the wrong tab. The server's
+    cases were fine.
+    - **Cause, in the page:**
+      - every device kept its own copy of every running case and never refreshed it;
+      - the autosave saved whichever room was on screen when its timer fired, so a device
+        holding an old copy could write it over the real list;
+      - a save started while another was in flight was dropped;
+      - a theatre could look free when another device was using it, and a start the server
+        refused left a local case that people scanned into and that could never be saved.
+    - **Fixed by** versioned saves with a three-way combine, per-case save queues, a 20 s
+      refresh, and Start checking the server first (§4 "Several devices, one case").
+    - **Rule:** anything several devices edit needs a version check on the server and a
+      refresh on the page. Last write wins is never acceptable.
+    - **Also found:** reopen read `procedures` directly, which has no read policy, so it
+      reported "Could not reopen" after reopening. It now reads through `get_open_procedures`.
 
 ---
 
@@ -703,6 +741,10 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
 - procedure rooms (`proc_rooms_tests.js`: where running cases appear after a load, "Edit
   details" keeping the theatre, the guessed-theatre warning; database side in
   `tests/sql/proc_room_db_tests.sql`, staging only, needs no running cases on staging);
+- procedure costing on several devices (`proc_devices_tests.js`: several copies of the app
+  against one fake server that behaves like the database, replaying the 21 Oct incident, stale
+  copies, combining, slow and failed saves, refused starts, ending and cancelling elsewhere;
+  database side in `tests/sql/proc_cart_db_tests.sql`, staging only, needs no running cases);
 - dashboard samples tile and inventory requests (`dash_requests_tests.js`; database side in
   `tests/sql/request_item_db_tests.sql`, staging only);
 - rota (`rota_tests.js`: the people model, Allocation, gaps, saving, PDFs);

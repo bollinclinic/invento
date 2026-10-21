@@ -4917,6 +4917,233 @@ function procRoomOf(p){
   const slot = PROC_ROOMS.find(r=>_procByRoom[r]===p);
   return slot || (PROC_ROOMS.indexOf(p.room)>=0 ? p.room : null);
 }
+function procCaseById(id){ return PROC_ROOMS.map(r=>_procByRoom[r]).find(p=>p && p.procedureId===id) || null; }
+
+/* ---- running cases on more than one device (fix of Oct 2026) ----
+   Each device holds its own copy of every running case. Three rules keep those copies from
+   wiping each other:
+   1. Every case carries cartVersion, the version of its item list this device last saw. A save
+      says which version it was based on; the server refuses a save from an out-of-date copy
+      (proc_save_cart_v2) and sends the newer list back. The page then combines its own changes
+      with that list (procMergeCarts) and saves the result, so neither device's items are lost.
+   2. A case saves ITSELF (procQueueSave(p)): never "whichever room is on screen when the timer
+      fires". One save at a time per case; a change made while a save is on its way is saved
+      straight after it, and a failed save is retried.
+   3. Running cases are re-read from the server every 20 s on this page, when a room tab is
+      tapped and before a case is started (procPoll), so no screen shows a stale list or a
+      theatre as free when another device is using it. */
+function procFromSheet(p){
+  return {procedureId:p.ProcedureID||'', date:p.Date||'',
+    surgeon:p.Surgeon||'', surgeonId:p.SurgeonId||null, procedure:p.Procedure||'', patientRef:p.PatientRef||'', startedBy:p.StartedBy||'',
+    status:p.Status||'Open', startTime:p.StartTime||'', endTime:p.EndTime||'',
+    totalCost:p.TotalCost===''||p.TotalCost==null?0:Number(p.TotalCost), notes:p.Notes||'',
+    room:p.Room||'', cartJSON:p.CartJSON||'', cartVersion:Number(p.CartVersion)||0};
+}
+function procCartKey(l){ return [l.tracker||'', l.code||'', l.barcode||'', l.name||''].join('|'); }
+// the list as it is stored on the server
+function procCartPlain(cart){
+  return (Array.isArray(cart)?cart:[]).map(l=>({tracker:l.tracker, code:l.code||'', barcode:l.barcode||'', name:l.name,
+    qty:Number(l.qty)||0, unitCost:(l.unitCost===''||l.unitCost==null?'':l.unitCost), _row:l._row||null}));
+}
+// Three-way combine: apply what THIS device changed since `base` (lines added, removed, qty
+// changed) on top of the newer list `theirs` that another device saved.
+function procMergeCarts(base, mine, theirs){
+  const tally = c => { const m = {}; (c||[]).forEach(l=>{ const k = procCartKey(l); m[k] = (m[k]||0) + (Number(l.qty)||0); }); return m; };
+  const b = tally(base), me = tally(mine);
+  const out = procCartPlain(theirs);
+  new Set([...Object.keys(b), ...Object.keys(me)]).forEach(k=>{
+    const d = (me[k]||0) - (b[k]||0);
+    if(!d) return;
+    let line = out.find(l=>procCartKey(l)===k);
+    if(!line){
+      if(d<0) return;   // removed here, already gone there
+      const src = (mine||[]).find(l=>procCartKey(l)===k);
+      line = Object.assign(procCartPlain([src])[0], {qty:0});
+      out.push(line);
+    }
+    line.qty = (Number(line.qty)||0) + d;
+  });
+  return out.filter(l=>Number(l.qty)>0);
+}
+// this device's copies of the running cases, captured just before the room map is rebuilt
+function procMemory(){
+  const m = {};
+  PROC_ROOMS.forEach(room=>{ const p = _procByRoom[room]; if(!p) return;
+    const q = _procSaveQ[p.procedureId];
+    m[p.procedureId] = {room, obj:p, cart:p._cart||[], base:p._base||null,
+      version:(p.cartVersion==null ? null : Number(p.cartVersion)), dirty:!!p._dirty, busy:!!(q && (q.busy || q.timer)),
+      local:String(p.procedureId).startsWith('PROC-LOCAL')}; });
+  return m;
+}
+// Rebuild the room map from state.procedures. The DATABASE's theatre is the truth for every
+// running case; this device's memory supplies its own carts (when they are current or still
+// being saved) and the room of a case the server hasn't confirmed yet.
+function procRebuildRooms(mem){
+  _procByRoom = {};
+  const openCases = state.procedures.filter(p=>p.status==='Open' && p.procedureId!==window._justEndedProc);
+  const giveCart = p => {
+    const L = mem[p.procedureId];
+    let server = [];
+    try{ server = JSON.parse(p.cartJSON||'[]'); if(!Array.isArray(server)) server = []; }catch(e){ server = []; }
+    const sv = Number(p.cartVersion)||0;
+    if(L && (L.dirty || L.busy || L.version==null || L.version>=sv)){
+      // this device's copy is current, or has changes still on their way (an out-of-date save is
+      // refused by the server and combined, never written over the newer list)
+      p._cart = L.cart; p._base = L.base || procCartPlain(server); p.cartVersion = L.version==null ? sv : L.version;
+      p._dirty = L.dirty; p._savedAt = L.obj._savedAt; p._saveError = L.obj._saveError;
+    } else {
+      // someone else saved a newer list and this device has nothing unsaved: show theirs
+      p._cart = server; p._base = procCartPlain(server); p.cartVersion = sv; p._dirty = false;
+      if(L) p._savedAt = L.obj._savedAt;
+    }
+  };
+  // 1) running cases with a theatre recorded go in that theatre (the database allows one each)
+  openCases.filter(p=>PROC_ROOMS.indexOf(p.room)>=0).forEach(p=>{
+    if(_procByRoom[p.room]) return;
+    giveCart(p); _procByRoom[p.room] = p;
+  });
+  // 2) a case started on this device that the server hasn't confirmed yet keeps its room, if free
+  Object.keys(mem).forEach(id=>{ const L = mem[id];
+    if(L.local && !_procByRoom[L.room]){ L.obj._cart = L.cart; _procByRoom[L.room] = L.obj; }
+  });
+  // 3) a running case with NO theatre recorded (damaged by the old "Edit details" bug, see
+  //    migration 20261010100000; the database now refuses new ones): the room this device had it
+  //    in if that is free, else the first free room, flagged on screen. It never displaces a
+  //    case that has a theatre. With no free room it is listed as a warning instead of vanishing.
+  state.procUnplaced = [];
+  openCases.filter(p=>PROC_ROOMS.indexOf(p.room)<0).forEach(p=>{
+    const L = mem[p.procedureId];
+    const room = (L && PROC_ROOMS.indexOf(L.room)>=0 && !_procByRoom[L.room]) ? L.room : PROC_ROOMS.find(r=>!_procByRoom[r]);
+    if(room){ giveCart(p); p.room = room; p._roomGuessed = true; _procByRoom[room] = p; }
+    else state.procUnplaced.push(p);
+  });
+  procSyncActive();   // keep the plain activeProc pointer in step with the rebuilt room map
+}
+
+/* ---- saving a case's item list ---- */
+const _procSaveQ = {};   // procedureId -> {timer, busy (the running save's promise), again}
+function procQueueSave(p, delay){
+  if(!p || !LIVE) return;
+  p._dirty = true;
+  const id = p.procedureId;
+  const q = _procSaveQ[id] || (_procSaveQ[id] = {});
+  clearTimeout(q.timer);
+  q.timer = setTimeout(()=>{ q.timer = null; procSaveNow(id); }, delay==null ? 1200 : delay);
+  procPaintSaveState();
+}
+function procDropSave(id){ const q = _procSaveQ[id]; if(q){ clearTimeout(q.timer); delete _procSaveQ[id]; } }
+// Save one case now. Resolves {ok, merged, error}. If a save of it is already on its way, this
+// waits for that one, which saves again with anything changed in the meantime.
+function procSaveNow(id){
+  const q = _procSaveQ[id] || (_procSaveQ[id] = {});
+  clearTimeout(q.timer); q.timer = null;
+  if(q.busy){ q.again = true; return q.busy; }
+  q.busy = (async()=>{
+    const result = {ok:true, merged:false, error:null};
+    let retry = false;
+    try{
+      for(let tries=0; tries<6; tries++){
+        const p = procCaseById(id);
+        if(!p || String(id).startsWith('PROC-LOCAL')) return result;   // gone, or not started on the server yet
+        q.again = false;
+        const sent = procCartPlain(p._cart);
+        const res = await api({action:'procSaveCart', procedureId:id, cart:sent, expectedVersion:p.cartVersion});
+        const cur = procCaseById(id) || p;   // a reload may have swapped in a fresh object
+        if(res && res.conflict){
+          // another device saved a newer list: keep its items AND this device's changes
+          cur._cart = procMergeCarts(cur._base, cur._cart, res.cart);
+          cur._base = procCartPlain(res.cart); cur.cartVersion = res.version;
+          result.merged = true;
+          continue;
+        }
+        cur.cartVersion = res && res.version!=null ? res.version : cur.cartVersion;
+        cur._base = sent; cur._savedAt = new Date(); cur._saveError = '';
+        if(!q.again && JSON.stringify(procCartPlain(cur._cart))===JSON.stringify(sent)){ cur._dirty = false; return result; }
+      }
+      retry = true;   // still changing after several rounds: go again shortly
+      return result;
+    }catch(err){
+      result.ok = false; result.error = err;
+      const p = procCaseById(id);
+      if(p){ p._saveError = String(err && err.message || err); retry = !/not open or not found/i.test(p._saveError); }
+      return result;
+    }finally{
+      q.busy = null;
+      const p = procCaseById(id);
+      if(retry && p) procQueueSave(p, 5000);
+      else if(!p) delete _procSaveQ[id];
+      if(result.merged){
+        toast((procRoomOf(p)||'This case')+': the list was also changed on another device. Both sets of items are kept; check the list.');
+        if(currentView==='procedures') render();
+      }
+      procPaintSaveState();
+    }
+  })();
+  return q.busy;
+}
+function procSaveStateText(p){
+  if(!p) return '';
+  if(String(p.procedureId).startsWith('PROC-LOCAL')) return 'Starting the case on the server…';
+  const q = _procSaveQ[p.procedureId];
+  if(p._dirty && p._saveError) return '⚠ Not saved yet, retrying ('+p._saveError+')';
+  if(p._dirty || (q && q.busy)) return 'Saving…';
+  return 'All changes saved';
+}
+function procPaintSaveState(){ const b = document.getElementById('procSaveState'); if(b) b.textContent = procSaveStateText(activeProc); }
+
+/* ---- keeping every screen up to date ---- */
+let _procPolling = null, _procRenderPending = false, _procStarting = 0;
+function procRoomsSig(){
+  return PROC_ROOMS.map(r=>{ const p = _procByRoom[r];
+    return p ? [p.procedureId, p.cartVersion, p.surgeon, p.procedure, p.date, JSON.stringify(procCartPlain(p._cart))].join('~') : '-'; }).join('|');
+}
+// re-render the costing page, unless someone is typing (then on the next refresh)
+function procRenderSoon(){
+  const ae = document.activeElement;
+  if(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(String(ae.tagName||''))){ _procRenderPending = true; return; }
+  _procRenderPending = false;
+  if(currentView==='procedures') render();
+}
+// Re-read the running cases. Resolves true if anything shown changed.
+function procPoll(){
+  if(!LIVE || !session) return Promise.resolve(false);
+  if(_procPolling) return _procPolling;
+  if(_procStarting) return Promise.resolve(false);   // a start is on its way; its own reply places it
+  _procPolling = (async()=>{
+    try{
+      const res = await api({action:'procOpenCases'});
+      if(_procStarting) return false;
+      const fresh = (res.procedures||[]).map(procFromSheet);
+      const ids = new Set(fresh.map(p=>p.procedureId));
+      const gone = PROC_ROOMS.map(r=>_procByRoom[r]).filter(p=>p && !String(p.procedureId).startsWith('PROC-LOCAL') &&
+        !ids.has(p.procedureId) && p.procedureId!==window._justEndedProc);
+      if(gone.length){
+        // ended or cancelled on another device
+        const lost = gone.filter(p=>p._dirty && (p._cart||[]).length);
+        lost.forEach(p=>alert((procRoomOf(p)||'A theatre')+': the case "'+(p.surgeon||'—')+' — '+(p.procedure||'')+
+          '" was ended or cancelled on another device.\n\nChanges made on this screen in the last few seconds were not included. Please check the case sheet.'));
+        gone.forEach(p=>procDropSave(p.procedureId));
+        await loadAll();
+        return true;
+      }
+      const before = procRoomsSig();
+      const mem = procMemory();
+      state.procedures = state.procedures.filter(p=>p.status!=='Open' || String(p.procedureId).startsWith('PROC-LOCAL')).concat(fresh);
+      procRebuildRooms(mem);
+      const changed = procRoomsSig()!==before;
+      if(changed) procRenderSoon();
+      return changed;
+    }catch(e){ return false; }   // offline for a moment: the next refresh tries again
+    finally{ _procPolling = null; }
+  })();
+  return _procPolling;
+}
+function procPollTick(){
+  if(currentView!=='procedures') return;
+  if(typeof document.visibilityState==='string' && document.visibilityState==='hidden') return;
+  if(_procRenderPending) procRenderSoon();
+  procPoll();
+}
 // Admin+: save the theatre of a running case that had none recorded (shown with a warning).
 async function procConfirmRoom(){
   const p = activeProc;
@@ -4954,7 +5181,7 @@ function procView(){
     ${activeProc ? procConsolePanel() : procStartPanel(open)}
     ${procHistoryPanel()}`;
 }
-function procSwitchRoom(r){ if(PROC_ROOMS.indexOf(r)>=0){ _procRoom=r; procSyncActive(); render(); } }
+function procSwitchRoom(r){ if(PROC_ROOMS.indexOf(r)>=0){ _procRoom=r; procSyncActive(); render(); procPoll(); } }   // and fetch that room's latest list
 
 /* ---- surgeon picker: type-ahead against the real surgeons roster, with an explicit
    "add new" step on no match, instead of a plain free-text box. Attach to any input by id;
@@ -5169,7 +5396,7 @@ function procConsolePanel(){
         <button class="btn" style="padding:12px 20px" onclick="procTempSave(false)" title="Save your progress to the server without ending. Stock is NOT touched.">💾 Save progress</button>
         <button class="btn primary" style="padding:12px 24px" onclick="endProc()">■ End procedure &amp; consume stock</button>
         ${(session&&isAdmin())?`<button class="btn" onclick="downloadProcPDF('${p.procedureId}')">Download case sheet PDF</button>`:''}
-        <span id="procSaveState" style="color:var(--ink-soft);font-size:12.5px">${activeProc&&activeProc._savedAt?'All changes saved':'Not saved yet'}</span>
+        <span id="procSaveState" style="color:var(--ink-soft);font-size:12.5px">${procSaveStateText(p)}</span>
         <span style="margin-left:auto;color:var(--ink-soft);font-size:13px">${cart.length} line(s)</span>
       </div>
     </div>`;
@@ -5416,18 +5643,49 @@ async function startProc(){
   if(!surgeon || !procedure){ toast('Enter at least surgeon and procedure'); return; }
   if(_procByRoom[_procRoom]){ toast(_procRoom+' already has a case running'); return; }
   const room = _procRoom;
+  if(LIVE){
+    // this screen may not know about a case started on another device yet: check first
+    await procPoll();
+    const other = _procByRoom[room];
+    if(other){
+      render();
+      alert(room+' already has a case running: '+(other.surgeon||'—')+' — '+(other.procedure||'')+
+        '.\n\nIt was started on another device and is now shown here. Nothing new was started.');
+      return;
+    }
+  }
   const localId = 'PROC-LOCAL-' + Date.now();
-  _procByRoom[room] = {procedureId:localId, surgeon, surgeonId, procedure, date, patientRef, room, status:'Open', totalCost:0, by:myName||''};
-  state.procedures.push(_procByRoom[room]);
+  const local = {procedureId:localId, surgeon, surgeonId, procedure, date, patientRef, room, status:'Open', totalCost:0, by:myName||'',
+    _cart:[], _base:[], cartVersion:0};
+  _procByRoom[room] = local;
+  state.procedures.push(local);
   procSyncActive();
   window._surgeonPick['pcSurgeon'] = null;
   _procPrefillMatch = null;
   render(); toast(room+': procedure started — scan items to consume');
   if(LIVE){
+    _procStarting++;
     try{
       const res = await api({action:'procStart', surgeon, surgeonId, procedure, date, patientRef, room, by:myName||''});
-      if(res.procedureId){ _procByRoom[room].procedureId = res.procedureId; }
-    }catch(err){ toast('Not saved — '+err.message); }
+      if(res.procedureId){
+        local.procedureId = res.procedureId; local.cartVersion = res.cartVersion||0; local._base = [];
+        if((local._cart||[]).length) procQueueSave(local, 0);   // items scanned while it was starting
+        procPaintSaveState();
+      }
+    }catch(err){
+      // The server did not start it. Take it off the screen at once: a case the server doesn't
+      // have can never be saved or ended, so anything scanned into it would be lost.
+      PROC_ROOMS.forEach(r=>{ if(_procByRoom[r]===local) delete _procByRoom[r]; });
+      const ix = state.procedures.indexOf(local); if(ix>=0) state.procedures.splice(ix,1);
+      procSyncActive(); render();
+      const n = (local._cart||[]).length;
+      alert('This case was NOT started: '+err.message+'\n\n'+(n ? n+' item line(s) scanned into it were not saved. ' : '')+
+        'Nothing was recorded. The screen will now show what is really running.');
+      _procStarting--;
+      await loadAll();
+      return;
+    }
+    _procStarting--;
   }
 }
 
@@ -5529,36 +5787,37 @@ function procPickChoose(ix){
   procPickerDlg.close();
 }
 
-// ---- temporary save (security net): persist the cart to the sheet without ending ----
-let _procSaving = false;
+// ---- saving progress (security net): the list goes to the server without ending ----
+// "Save progress" and ending both save the case shown here, through the same per-case queue
+// as the background save (procQueueSave / procSaveNow). Resolves {ok, merged, error}.
 async function procTempSave(silent){
-  if(!activeProc) return;
+  const p = activeProc;
+  if(!p) return null;
   const cart = procCart();
   if(!silent && cart.length>1){
     // manual "Save progress" tidies the list A→Z; while scanning it stays in scan order
     cart.sort((a,b)=>String(a.name).toLowerCase().localeCompare(String(b.name).toLowerCase()));
     render();
   }
-  if(!LIVE){ if(!silent) toast('Saved (demo)'); return; }
-  if(_procSaving) return;
-  _procSaving = true;
-  try{
-    await api({action:'procSaveCart', procedureId:activeProc.procedureId,
-      cart: cart.map(l=>({tracker:l.tracker, code:l.code||'', barcode:l.barcode||'',
-        name:l.name, qty:l.qty, unitCost:(l.unitCost===''?'':l.unitCost)})), by:myName||''});
-    activeProc._savedAt = new Date();
-    if(!silent) toast('Progress saved ✓ ('+cart.length+' lines) — safe to close or refresh');
-    else { const b=document.getElementById('procSaveState'); if(b) b.textContent='All changes saved'; }
-  }catch(err){ if(!silent) toast('Save failed — '+err.message); }
-  finally{ _procSaving = false; }
+  if(!LIVE){ if(!silent) toast('Saved (demo)'); return {ok:true, merged:false}; }
+  if(String(p.procedureId).startsWith('PROC-LOCAL')){
+    if(!silent) toast('This case is still being started on the server. It will save as soon as it has started.');
+    return {ok:false, merged:false, error:new Error('the case is still being started on the server')};
+  }
+  p._dirty = true;
+  procPaintSaveState();
+  const r = await procSaveNow(p.procedureId);
+  if(!silent){
+    if(r.ok) toast('Progress saved ✓ ('+((procCaseById(p.procedureId)||p)._cart||[]).length+' lines) — safe to close or refresh');
+    else toast('Save failed — '+(r.error ? r.error.message : 'unknown error')+'. Your items are still on this screen; it will keep trying.');
+  }
+  return r;
 }
-// autosave the cart shortly after each change, so a crash never loses more than a few seconds
-let _procAutosaveTimer = null;
+// autosave the cart shortly after each change, so a crash never loses more than a few seconds.
+// It saves THIS case (the one just changed), whatever room is on screen when it runs.
 function procAutosave(){
   if(!activeProc || !LIVE) return;
-  const b=document.getElementById('procSaveState'); if(b) b.textContent='Saving…';
-  clearTimeout(_procAutosaveTimer);
-  _procAutosaveTimer = setTimeout(()=>procTempSave(true), 1200);
+  procQueueSave(activeProc);
 }
 
 async function endProc(){
@@ -5584,10 +5843,22 @@ async function endProc(){
   // The cart is NOT cleared locally until the server confirms, so nothing is lost on failure.
   toast('Ending procedure — consuming stock…');
   try{
-    // make sure the latest cart is persisted first (belt and braces)
-    await procTempSave(true);
+    // The list must be safely on the server first. If another device changed it meanwhile, the
+    // two have just been combined: show that to the user before anything is taken from stock.
+    const sv = await procTempSave(true);
+    if(sv && sv.merged){
+      render();
+      alert('This case was also changed on another device, so its list now includes those changes too.\n\nPlease check the list, then press End again. Nothing has been taken from stock.');
+      return;
+    }
+    if(sv && sv.ok===false){
+      toast('Could not end — the list could not be saved'+(sv.error?': '+sv.error.message:'')+'. Nothing was taken from stock; your items are safe.');
+      return;
+    }
+    const done = procCaseById(id);
+    const lines = (done && done._cart) || cart;
     const res = await api({action:'procConsumeBatch', procedureId:id,
-      lines: cart.map(l=>({item_id:l._row||null, tracker:l.tracker, code:l.code||'', barcode:l.barcode||'', name:l.name, qty:l.qty})),
+      lines: lines.map(l=>({item_id:l._row||null, tracker:l.tracker, code:l.code||'', barcode:l.barcode||'', name:l.name, qty:l.qty})),
       by:myName||''});
     if(res && res.failed && res.failed.length){
       // some lines could not be consumed — keep the procedure open with those lines still in the cart
@@ -5596,7 +5867,8 @@ async function endProc(){
         '\n\nThe other items were consumed. Please check these manually.');
     }
     // success (fully or partially) — clear local cart and refresh from sheet
-    if(activeProc) activeProc._cart = [];
+    if(done) done._cart = [];
+    procDropSave(id);
     procClearRoom(id);
     window._justEndedProc = id;          // stop a stale reload resurrecting it
     await loadAll();
@@ -5617,6 +5889,7 @@ async function cancelProc(){
     (cart.length? cart.length+' item line(s) in the list will be DISCARDED. ':'')+
     'Nothing has been taken from stock, so no inventory changes are needed.\n\nThis cannot be undone.')) return;
   const id = activeProc.procedureId;
+  procDropSave(id);
   const ix = state.procedures.findIndex(x=>x.procedureId===id);
   if(ix>=0) state.procedures.splice(ix,1);
   procClearRoom(id);
@@ -5678,6 +5951,7 @@ async function procEditClosed(procId){
       p.status='Open';
       p._cart = (res.cart||[]).length ? res.cart :
         (p.cartJSON ? (function(){try{return JSON.parse(p.cartJSON);}catch(e){return [];}})() : []);
+      p._base = procCartPlain(p._cart); p._dirty = false;   // as reopened on the server (version from the reload)
       // place the reopened case into its room (its saved room, or the room on screen if free)
       const room = PROC_ROOMS.indexOf(p.room)>=0 ? p.room : _procRoom;
       p.room = room;
@@ -10614,7 +10888,8 @@ function nav(view){
   navMarkActive(view);   // highlight this page's sidebar link(s), however we got here
   if(typeof applyRotaSub==='function') applyRotaSub();   // Rota's child item opens while you're in that section
   if(typeof applyNavGroups==='function') applyNavGroups();
-  render(); }
+  render();
+  if(view==='procedures' && typeof procPoll==='function') procPoll(); }   // bring the running cases up to date
 // Item usage search sits under both Stock and Records, so a page can have two links: mark both.
 function navMarkActive(view){
   document.querySelectorAll('nav a').forEach(x=>{
@@ -10694,7 +10969,34 @@ if(LIVE) sb.auth.onAuthStateChange((event)=>{
     if(typeof showLogin==='function') showLogin('Session expired — please sign in again'); }
 });
 
+// Procedure costing: re-read the running cases every 20 s while that page is open (procPoll).
+// Here, below LIVE, because top-level code above its declaration would throw on load.
+if(LIVE && typeof window.addEventListener==='function' && typeof setInterval==='function'){
+  setInterval(procPollTick, 20000);
+  document.addEventListener('visibilitychange', procPollTick);
+}
 function synthEmail(username){ return String(username||'').trim().toLowerCase() + '@bollin.local'; }
+// All rows of a set-returning RPC. Supabase returns at most 1000 rows per request, so this pages
+// through in a stable order until a short page comes back.
+async function sbRpcAllRows(name){
+  const out = [];
+  for(let from=0; ; from+=1000){
+    const q = sb.rpc(name);
+    if(typeof q.range!=='function'){ const r = await q; if(r.error) throw new Error(r.error.message); return r.data||[]; }
+    const r = await q.order('id').range(from, from+999);
+    if(r.error) throw new Error(r.error.message);
+    const rows = r.data||[];
+    out.push(...rows);
+    if(rows.length<1000) return out;
+  }
+}
+// a procedures row from the database -> the page's procedure shape (Sheet-era field names)
+function procRowToSheet(p){
+  return {ProcedureID:p.id, Date:p.date, Surgeon:p.surgeon, SurgeonId:p.surgeon_id,
+    Procedure:p.procedure_name, PatientRef:p.patient_ref, StartedBy:p.started_by, Status:p.status,
+    StartTime:p.start_time, EndTime:p.end_time, TotalCost:p.total_cost, Notes:p.notes,
+    CartJSON: JSON.stringify(p.cart||[]), Room:p.room, CartVersion:p.cart_version};
+}
 function numOrNull(v){ return v===''||v==null ? null : Number(v); }
 function strOrNull(v){ return v===''||v==null ? null : v; }
 function low(v){ return String(v||'').toLowerCase(); }
@@ -10876,12 +11178,9 @@ async function api(payload){
     });
     let procedures = [], procLines = [];
     {
-      const {data: procData, error: procErr} = await sb.rpc('get_procedures');
-      if(procErr) throw new Error(procErr.message);
-      procedures = (procData||[]).map(p=>({ProcedureID:p.id, Date:p.date, Surgeon:p.surgeon, SurgeonId:p.surgeon_id,
-        Procedure:p.procedure_name, PatientRef:p.patient_ref, StartedBy:p.started_by, Status:p.status,
-        StartTime:p.start_time, EndTime:p.end_time, TotalCost:p.total_cost, Notes:p.notes,
-        CartJSON: JSON.stringify(p.cart||[]), Room:p.room}));
+      // every case, a page of 1000 at a time: Supabase returns at most 1000 rows per request, and
+      // a cut-off list would silently drop running cases from every screen
+      procedures = (await sbRpcAllRows('get_procedures')).map(procRowToSheet);
       if(rank>=2){
         const {data: lineData, error: lineErr} = await sb.from('procedure_lines').select('*')
           .order('ts',{ascending:false}).limit(500);
@@ -11265,7 +11564,7 @@ async function api(payload){
       p_procedure_name: strOrNull(payload.procedure), p_patient_ref: strOrNull(payload.patientRef), p_room: payload.room,
       p_surgeon_id: payload.surgeonId||null});
     if(error) throw new Error(error.message);
-    return {ok:true, procedureId: data.id};
+    return {ok:true, procedureId: data.id, cartVersion: Number(data.cart_version)||0};
   }
   if(a==='surgeonAdd'){
     const {data, error} = await sb.from('surgeons').insert({name: payload.name}).select('id').single();
@@ -11273,9 +11572,24 @@ async function api(payload){
     return {ok:true, id: data.id};
   }
   if(a==='procSaveCart'){
-    const {error} = await sb.rpc('proc_save_cart', {p_procedure_id: payload.procedureId, p_cart: payload.cart});
+    // Saves only if the case is still at the version this device last saw; otherwise nothing is
+    // saved and the newer list comes back (migration 20261022100000_proc_cart_versions.sql).
+    const {data, error} = await sb.rpc('proc_save_cart_v2', {p_procedure_id: payload.procedureId, p_cart: payload.cart,
+      p_expected_version: payload.expectedVersion==null ? null : Number(payload.expectedVersion)});
+    if(error && /proc_save_cart_v2/.test(error.message||'') && /find|exist|schema cache/i.test(error.message||'')){
+      // a database that hasn't had the migration yet: the old, unchecked save
+      const old = await sb.rpc('proc_save_cart', {p_procedure_id: payload.procedureId, p_cart: payload.cart});
+      if(old.error) throw new Error(old.error.message);
+      return {ok:true, version: payload.expectedVersion};
+    }
     if(error) throw new Error(error.message);
-    return {ok:true};
+    if(data && data.conflict) return {ok:false, conflict:true, version:Number(data.version)||0, cart:Array.isArray(data.cart)?data.cart:[]};
+    return {ok:true, version: data ? Number(data.version)||0 : payload.expectedVersion};
+  }
+  if(a==='procOpenCases'){
+    const {data, error} = await sb.rpc('get_open_procedures');
+    if(error) throw new Error(error.message);
+    return {ok:true, procedures:(data||[]).map(procRowToSheet)};
   }
   if(a==='procConsumeBatch'){
     const {data, error} = await sb.rpc('proc_consume_batch', {p_procedure_id: payload.procedureId,
@@ -11303,8 +11617,16 @@ async function api(payload){
   if(a==='procReopen'){
     const {data, error} = await sb.rpc('proc_reopen', {p_procedure_id: payload.procedureId});
     if(error) throw new Error(error.message);
-    return {ok:true, restored: data.restored, failed: data.failed,
-      cart: (await sb.from('procedures').select('cart').eq('id',payload.procedureId).single()).data.cart};
+    // The reopened list is read back through the RPC. (It used to read the procedures table
+    // directly, which has no read policy, so it got nothing and reported "Could not reopen"
+    // although the case HAD been reopened.)
+    let cart = [];
+    try{
+      const open = await sb.rpc('get_open_procedures');
+      const row = (open.data||[]).find(r=>r.id===payload.procedureId);
+      if(row && Array.isArray(row.cart)) cart = row.cart;
+    }catch(e){}
+    return {ok:true, restored: data.restored, failed: data.failed, cart};
   }
   if(a==='procDelete'){
     const {data, error} = await sb.rpc('proc_delete', {p_procedure_id: payload.procedureId});
@@ -11503,17 +11825,10 @@ async function loadAll(){
       role:String(u.Role||'common'), active:String(u.Active||'')}));
     state.rota = (data.rota||[]).map(r=>{ const d = rotaNormDay(r); d.date = rotaSheetDate(d.date); return d; });
     if(typeof updateRotaBadge==='function') updateRotaBadge();
-    // ---- CRITICAL: preserve every room's in-progress procedure + cart across a reload ----
-    // Carts live only in memory (proc._cart). Capture each room's live proc id + cart BEFORE
-    // rebuilding, then re-attach after — so an accidental loadAll() mid-case never wipes items.
-    const _liveByRoom = {};
-    Object.keys(_procByRoom).forEach(room=>{ const p=_procByRoom[room];
-      if(p) _liveByRoom[room] = { id:p.procedureId, cart:(p._cart||[]), local:String(p.procedureId).startsWith('PROC-LOCAL') , obj:p }; });
-    state.procedures = (data.procedures||[]).map(p=>({procedureId:p.ProcedureID||'', date:p.Date||'',
-      surgeon:p.Surgeon||'', surgeonId:p.SurgeonId||null, procedure:p.Procedure||'', patientRef:p.PatientRef||'', startedBy:p.StartedBy||'',
-      status:p.Status||'Open', startTime:p.StartTime||'', endTime:p.EndTime||'',
-      totalCost:p.TotalCost===''||p.TotalCost==null?0:Number(p.TotalCost), notes:p.Notes||'',
-      room:p.Room||'', cartJSON:p.CartJSON||''}));
+    // Running cases: this device's own copies (carts, save state) are captured BEFORE the list
+    // is replaced, then the room map is rebuilt from the database (procRebuildRooms).
+    const _procMem = procMemory();
+    state.procedures = (data.procedures||[]).map(procFromSheet);
     state.surgeons = (data.surgeons||[]).map(s=>({id:s.id, name:s.name}));
     state.staff = (data.staff||[]).map(staffFromRow);
     state.sms = data.sms||[];
@@ -11521,39 +11836,7 @@ async function loadAll(){
       tracker:(l.Tracker||'').toLowerCase(), code:l.Code||'', name:l.Name||'',
       qty:Number(l.Qty)||0, unitCost:l.UnitCost===''||l.UnitCost==null?'':Number(l.UnitCost),
       lineCost:l.LineCost===''||l.LineCost==null?'':Number(l.LineCost), by:l.By||''}));
-    // rebuild the room map. The DATABASE's theatre is the truth for every running case: this
-    // device's memory only supplies carts, and the room of a case the server hasn't confirmed
-    // yet. (It used to let memory win, so two devices could show one case in different rooms.)
-    _procByRoom = {};
-    const liveById = {};
-    Object.keys(_liveByRoom).forEach(room=>{ const L=_liveByRoom[room]; liveById[L.id] = Object.assign({room}, L); });
-    const openCases = state.procedures.filter(p=>p.status==='Open' && p.procedureId!==window._justEndedProc);
-    const giveCart = p => {
-      const L = liveById[p.procedureId];
-      if(L) p._cart = L.cart;
-      else if(p.cartJSON){ try{ p._cart = JSON.parse(p.cartJSON); }catch(e){ p._cart = p._cart||[]; } }
-    };
-    // 1) running cases with a theatre recorded go in that theatre (the database allows one each)
-    openCases.filter(p=>PROC_ROOMS.indexOf(p.room)>=0).forEach(p=>{
-      if(_procByRoom[p.room]) return;
-      giveCart(p); _procByRoom[p.room] = p;
-    });
-    // 2) a case started on this device that the server hasn't confirmed yet keeps its room, if free
-    Object.keys(liveById).forEach(id=>{ const L = liveById[id];
-      if(L.local && !_procByRoom[L.room]){ L.obj._cart = L.cart; _procByRoom[L.room] = L.obj; }
-    });
-    // 3) a running case with NO theatre recorded (damaged by the old "Edit details" bug, see
-    //    migration 20261010100000; the database now refuses new ones): the room this device had it
-    //    in if that is free, else the first free room, flagged on screen. It never displaces a
-    //    case that has a theatre. With no free room it is listed as a warning instead of vanishing.
-    state.procUnplaced = [];
-    openCases.filter(p=>PROC_ROOMS.indexOf(p.room)<0).forEach(p=>{
-      const L = liveById[p.procedureId];
-      const room = (L && PROC_ROOMS.indexOf(L.room)>=0 && !_procByRoom[L.room]) ? L.room : PROC_ROOMS.find(r=>!_procByRoom[r]);
-      if(room){ giveCart(p); p.room = room; p._roomGuessed = true; _procByRoom[room] = p; }
-      else state.procUnplaced.push(p);
-    });
-    procSyncActive();   // keep the plain activeProc pointer in step with the rebuilt room map
+    procRebuildRooms(_procMem);
     state.gasChecks = (data.gasChecks||[]).map(g=>({_row:g._row, date:g.Date?String(g.Date).slice(0,10):'', by:g.By||'',
       o2L:g.O2_LeftBank??'', o2R:g.O2_RightBank??'', o2P:g.O2_Pipeline??'', o2Use:g.O2_InUseBank||'',
       o2Deliv:g.O2_DeliveryBooked==='Yes',
