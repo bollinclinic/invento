@@ -492,9 +492,9 @@ is ever sent automatically; this is a firm rule from Yasar.**
     - People can be **added** here or from a rota box. **Edit and Delete are only here.**
     - It lists names that are on the rota but not in the database (`rotaUnlistedNames`, which
       also returns the rota days each name is on and what they are down as).
-      - **Super admin:** each name is a one-click Add button (`staffAddUnlisted`).
-      - **Developer:** clicking a name opens a menu under it (`staffUnlistedClick`,
-        `staffUnlistedMenuHtml`): "Add to the staff database", or a button per rota day that
+      - Clicking a name opens a menu under it (`staffUnlistedClick`, `staffUnlistedMenuHtml`;
+        super admin and above, like the page): "Add to the staff database"
+        (`staffAddUnlisted`), or a button per rota day that
         opens that day in Allocation (`staffUnlistedGo` → `rotaGoAlloc`) to correct the name
         there and save the day. The open name is remembered by name (`window._unlistedOpen`),
         never by position.

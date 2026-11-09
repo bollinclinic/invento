@@ -8082,7 +8082,7 @@ function rotaStaffView(){
       <strong style="font-size:13px">On the rota but not in the database</strong>
       <div class="sub" style="margin:2px 0 8px">These names were typed on the rota. Add each one (or, if it's a misspelling of someone already listed, correct it on the rota).</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">${unlisted.map((u,i)=>{
-        const dev = isDeveloper(), on = dev && staffUnlistedOpenKey()===u.name.toLowerCase();
+        const dev = isSuperadmin(), on = dev && staffUnlistedOpenKey()===u.name.toLowerCase();
         return `<button class="btn${on?' primary':''}" style="padding:5px 10px;font-size:12.5px" onclick="staffUnlistedClick(${i})" ${dev?`aria-expanded="${on}" title="Add to the staff database, or open the rota day"`:'title="Add to the staff database"'}>${dev?'':'＋ '}${smsEsc(u.name)} <span style="font-weight:400;${on?'opacity:.85':'color:var(--ink-soft)'}">(${u.days} day${u.days>1?'s':''})</span>${dev?(on?' ▴':' ▾'):''}</button>`; }).join('')}</div>
       ${staffUnlistedMenuHtml(unlisted)}</div>`:''}
   </div>`;
@@ -8091,20 +8091,20 @@ function staffAddUnlisted(i){
   const u = rotaUnlistedNames()[i]; if(!u) return;
   openStaffDlg(null, u.name, null, null, [u.role]);
 }
-/* Developers get a choice under the name: add the person, or open one of the rota days the name
-   is on (in Allocation) to correct it there and save the day. Everyone else keeps the one-click
-   add. The open name is remembered by name, not by position, so a reload can't move it. */
+/* Clicking a name gives a choice under it (super admin and above, like the page itself): add the
+   person, or open one of the rota days the name is on (in Allocation) to correct it there and
+   save the day. The open name is remembered by name, not by position, so a reload can't move it. */
 function staffUnlistedOpenKey(){ return String(window._unlistedOpen||''); }
 function staffUnlistedClick(i){
   const u = rotaUnlistedNames()[i]; if(!u) return;
-  if(!isDeveloper()){ staffAddUnlisted(i); return; }
+  if(!isSuperadmin()) return;
   const k = u.name.toLowerCase();
   window._unlistedOpen = staffUnlistedOpenKey()===k ? '' : k;
   window._unlistedAll = false;
   render();
 }
 function staffUnlistedMenuHtml(unlisted){
-  if(!isDeveloper()) return '';
+  if(!isSuperadmin()) return '';
   const i = unlisted.findIndex(u=>u.name.toLowerCase()===staffUnlistedOpenKey());
   if(i<0) return '';
   const u = unlisted[i], today = todayISO();
@@ -8127,7 +8127,7 @@ function staffUnlistedMenuHtml(unlisted){
   </div>`;
 }
 function staffUnlistedGo(date){
-  if(!isDeveloper()) return;
+  if(!isSuperadmin()) return;
   window._unlistedOpen = '';
   rotaGoAlloc(date);
 }
