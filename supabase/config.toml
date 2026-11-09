@@ -394,6 +394,11 @@ deno_version = 2
 [functions.sms-dispatch]
 verify_jwt = false
 
+# PIN sign-in: called before anyone is signed in. It checks the device key + PIN itself
+# (database function pin_check, five tries).
+[functions.pin-login]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

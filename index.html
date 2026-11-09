@@ -446,6 +446,68 @@
   .logincard input{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;font-size:16px}
   .logincard .btn{width:100%;margin-top:18px;padding:13px 0;font-size:15px}
   #loginErr{color:var(--red);font-size:13px;margin-top:10px;min-height:18px;text-align:center}
+  .loginmodes{display:flex;gap:6px;justify-content:center;margin:-6px 0 8px}
+  .loginmodes .chip{flex:1;text-align:center}
+  .logincard select{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;font-size:16px;background:#fff}
+  /* PIN boxes: plain text fields drawn as dots, so the browser's password manager leaves them alone */
+  input.pinbox{-webkit-text-security:disc;text-align:center;letter-spacing:.55em;font-size:26px;font-family:var(--mono);padding-left:.55em}
+  .logincard input.pinbox{padding:10px 12px 10px calc(12px + .55em)}
+  #pinDlg .m-row input.pinbox{max-width:170px}
+
+  /* ---------- welcome after signing in (plays once per sign-in, never on refresh) ---------- */
+  #welcomeFx{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;
+    background:radial-gradient(120% 90% at 50% 0%,#3d858d 0%,#2B6168 38%,#163b40 100%);color:#fff;animation:wfIn .45s ease both}
+  #welcomeFx.out{animation:wfOut .65s cubic-bezier(.6,0,.3,1) both;pointer-events:none}
+  @keyframes wfIn{from{opacity:0}to{opacity:1}}
+  @keyframes wfOut{from{opacity:1}to{opacity:0;transform:scale(1.05);filter:blur(6px)}}
+  #welcomeFx .wf-orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;animation:wfOrb 7s ease-in-out infinite alternate}
+  #welcomeFx .wf-orb.a{width:46vmax;height:46vmax;left:-12vmax;top:-16vmax;background:#6fd0c6}
+  #welcomeFx .wf-orb.b{width:40vmax;height:40vmax;right:-12vmax;bottom:-16vmax;background:#B08A3E;animation-delay:-3.5s}
+  @keyframes wfOrb{from{transform:none}to{transform:translate(5vmax,3vmax) scale(1.14)}}
+  #welcomeFx .wf-ring{position:absolute;left:50%;top:50%;width:min(86vmin,760px);height:min(86vmin,760px);margin:calc(min(86vmin,760px)/-2) 0 0 calc(min(86vmin,760px)/-2);
+    border-radius:50%;border:1px solid rgba(233,215,174,.28);animation:wfRing 2.6s cubic-bezier(.2,.8,.2,1) both}
+  #welcomeFx .wf-ring.b{width:min(62vmin,540px);height:min(62vmin,540px);margin:calc(min(62vmin,540px)/-2) 0 0 calc(min(62vmin,540px)/-2);animation-delay:.18s;border-color:rgba(255,255,255,.14)}
+  @keyframes wfRing{from{opacity:0;transform:scale(.55)}45%{opacity:1}to{opacity:.55;transform:scale(1)}}
+  #welcomeFx .wf-inner{position:relative;text-align:center;padding:24px;max-width:92vw}
+  #welcomeFx .wf-logo{display:inline-block;background:#fff;border-radius:18px;padding:12px 22px;box-shadow:0 18px 50px rgba(0,0,0,.28);
+    animation:wfLogo .85s cubic-bezier(.2,.9,.25,1.2) both}
+  #welcomeFx .wf-logo img{height:54px;display:block}
+  @keyframes wfLogo{from{opacity:0;transform:translateY(-14px) scale(.8)}to{opacity:1;transform:none}}
+  #welcomeFx .wf-hi{margin-top:28px;font-size:14px;font-weight:600;letter-spacing:.34em;text-transform:uppercase;color:#E9D7AE;animation:wfRise .7s .4s both}
+  #welcomeFx .wf-name{margin-top:10px;font-size:clamp(40px,8.5vw,88px);font-weight:700;line-height:1.05;letter-spacing:-.01em;text-shadow:0 6px 30px rgba(0,0,0,.22)}
+  #welcomeFx .wf-name span{display:inline-block;animation:wfLetter .75s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(.62s + var(--k,0)*55ms)}
+  @keyframes wfLetter{from{opacity:0;transform:translateY(.55em) rotate(5deg);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+  #welcomeFx .wf-rule{height:2px;width:min(280px,62vw);margin:22px auto 0;background:linear-gradient(90deg,transparent,#D9B871,transparent);
+    transform:scaleX(0);animation:wfRule .9s 1.2s cubic-bezier(.2,.8,.2,1) forwards}
+  @keyframes wfRule{to{transform:scaleX(1)}}
+  #welcomeFx .wf-sub{margin-top:14px;font-size:14.5px;color:rgba(255,255,255,.84);animation:wfRise .7s 1.45s both}
+  #welcomeFx .wf-skip{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:12px;color:rgba(255,255,255,.5);animation:wfRise .6s 2.1s both}
+  @keyframes wfRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* ---------- dashboard tiles arriving after a sign-in ----------
+     .intro is only on the tiles for about 2 s after the welcome. --el is how far in we already
+     are, so a redraw part-way (a sync) carries on from there and never starts again. */
+  @keyframes tileIn{0%{opacity:0;transform:translateY(24px) scale(.93);filter:blur(6px)}55%{opacity:1;filter:blur(0)}100%{opacity:1;transform:none;filter:blur(0)}}
+  @keyframes tileIc{0%{opacity:0;transform:scale(.3) rotate(-25deg)}70%{opacity:.9;transform:scale(1.18) rotate(4deg)}100%{opacity:.9;transform:none}}
+  @keyframes tileSheen{from{transform:translateX(-130%) skewX(-18deg)}to{transform:translateX(330%) skewX(-18deg)}}
+  .tiles.intro>*{animation:tileIn .72s cubic-bezier(.2,.9,.25,1.12) both;animation-delay:calc(var(--i,0)*75ms - var(--el,0ms))}
+  .tiles.intro>.tile.attn{animation:tileIn .72s cubic-bezier(.2,.9,.25,1.12) both,attnGlow 1.7s infinite;
+    animation-delay:calc(var(--i,0)*75ms - var(--el,0ms)),calc(1700ms - var(--el,0ms))}
+  .tiles.intro .tile{overflow:hidden}
+  .tiles.intro .tile .ic{animation:tileIc .6s cubic-bezier(.2,.9,.25,1.2) both;animation-delay:calc(var(--i,0)*75ms + 240ms - var(--el,0ms))}
+  .tiles.intro .tile::after{content:"";position:absolute;top:0;bottom:0;left:0;width:40%;pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(176,138,62,.20),transparent);
+    animation:tileSheen .8s ease-out both;animation-delay:calc(var(--i,0)*75ms + 380ms - var(--el,0ms))}
+  .tiles.intro>:nth-child(1){--i:0} .tiles.intro>:nth-child(2){--i:1} .tiles.intro>:nth-child(3){--i:2} .tiles.intro>:nth-child(4){--i:3}
+  .tiles.intro>:nth-child(5){--i:4} .tiles.intro>:nth-child(6){--i:5} .tiles.intro>:nth-child(7){--i:6} .tiles.intro>:nth-child(8){--i:7}
+  .tiles.intro>:nth-child(9){--i:8} .tiles.intro>:nth-child(n+10){--i:9}
+  @media (prefers-reduced-motion:reduce){
+    #welcomeFx,#welcomeFx *{animation-duration:.01s !important;animation-delay:0s !important}
+    #welcomeFx .wf-orb,#welcomeFx .wf-ring{display:none}
+    .tiles.intro>*,.tiles.intro .tile .ic{animation:none}
+    .tiles.intro>.tile.attn{animation:none}
+    .tiles.intro .tile::after{display:none}
+  }
 
   /* ---------- password fields: eye toggle to confirm what was typed ---------- */
   .pwfield{position:relative;flex:1}
@@ -560,6 +622,7 @@
     <div class="userbox">
       <div id="userName"></div>
       <button id="pwBtn" onclick="openPw()" style="display:none">Password</button>
+      <button id="pinBtn" onclick="openPinDlg('manage')" style="display:none" title="Sign in on this computer with a 4-number PIN">PIN</button>
       <button id="outBtn" onclick="signOut()" style="display:none">Sign out</button>
     </div>
   </header>
@@ -1000,39 +1063,25 @@
   <div class="m-actions" id="smsDlgActions"><button class="btn" onclick="smsDlg.close()">Close</button></div>
 </dialog>
 
-<div id="loginWrap" style="display:none">
-  <div class="logincard">
-    <img src="logo.png" alt="Bollin Clinic Stock Manager">
-    <h2>Sign in</h2>
-    <label for="liUser">Username</label>
-    <input id="liUser" type="text" autocomplete="username" autocapitalize="none">
-    <label for="liPass">Password</label>
-    <div class="pwfield">
-      <input id="liPass" type="password" autocomplete="current-password"
-             onkeydown="if(event.key==='Enter')doLogin()">
-      <button class="pw-eye" onclick="togglePwVisibility(this,'liPass')" title="Show/hide password">👁</button>
-    </div>
-    <button class="btn primary" onclick="doLogin()">Sign in</button>
-    <div id="loginErr"></div>
-    <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--ink-soft)">
-      Accounts are created by the clinic administrator.<br>You can change your password after signing in.</div>
-  </div>
-</div>
+<!-- The sign-in card is written into this box only while someone has to sign in, and taken out
+     again afterwards (showLogin / hideLogin). A password box left filled in on the page makes the
+     browser offer to save the password again on every refresh. -->
+<div id="loginWrap" style="display:none"></div>
 
-<dialog id="pwDlg">
+<!-- Same rule for the change-password boxes: they exist only while this is open (openPw). -->
+<dialog id="pwDlg" onclose="pwDlgClear()">
   <div class="m-head">Change password</div>
-  <div class="m-body">
-    <div class="m-row"><label for="pwOld">Current</label><div class="pwfield"><input id="pwOld" type="password">
-      <button class="pw-eye" onclick="togglePwVisibility(this,'pwOld')" title="Show/hide password">👁</button></div></div>
-    <div class="m-row"><label for="pwNew">New (6+ chars)</label><div class="pwfield"><input id="pwNew" type="password">
-      <button class="pw-eye" onclick="togglePwVisibility(this,'pwNew')" title="Show/hide password">👁</button></div></div>
-    <div class="m-row"><label for="pwNew2">Repeat new</label><div class="pwfield"><input id="pwNew2" type="password">
-      <button class="pw-eye" onclick="togglePwVisibility(this,'pwNew2')" title="Show/hide password">👁</button></div></div>
-  </div>
+  <div class="m-body" id="pwDlgBody"></div>
   <div class="m-actions">
-    <button class="btn" onclick="pwDlg.close()">Cancel</button>
+    <button class="btn" onclick="closePw()">Cancel</button>
     <button class="btn primary" onclick="doChangePassword()">Change password</button>
   </div>
+</dialog>
+
+<dialog id="pinDlg" onclose="pinDlgClear()" style="max-width:440px">
+  <div class="m-head" id="pinDlgTitle">PIN for this computer</div>
+  <div class="m-body" id="pinDlgBody"></div>
+  <div class="m-actions" id="pinDlgActions"></div>
 </dialog>
 
 <dialog id="smpDlg">
@@ -1150,6 +1199,8 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 let buf='', lastKey=0;
 document.addEventListener('keydown', e => {
   if(e.target.id === 'scanInput') return;          // handled by its own listener
+  // a PIN or password typed quickly must never be read as a barcode
+  if(e.target.closest && e.target.closest('#loginWrap,#pinDlg,#pwDlg')) return;
   if(e.target.matches('input,select,textarea')) {
     // typing in a form field: still allow scans — bursts are distinguishable,
     // but keep it simple in v1: ignore while a dialog is open
@@ -1588,11 +1639,12 @@ function dashboardView(){
   const impOrdered = state.implants.filter(i=>i.status==='Ordered'||i.status==='Pending').length;
   const impAwaitRet = state.implants.filter(i=>i.status==='Delivered' && !i.returnDetails).length;
   if(twDashCountsDate !== todayISO()) twRefreshDashCounts();   // fire-and-forget; patches its own tile when it resolves
+  const intro = dashIntro();   // the tiles arrive one by one, once, after a sign-in
   return `
     <h1>Dashboard</h1>
     <div class="sub">Live position across all five trackers</div>
     ${LIVE ? '' : '<div class="note">Demo mode — sample data only. Set CONFIG.SUPABASE_URL to connect the live Supabase project.</div>'}
-    <div class="tiles">
+    <div class="tiles${intro.cls}"${intro.style}>
       <div class="tile warn ${low.length?'attn':''}" onclick="nav('dash-low')"><span class="ic">📉</span><div class="n">${low.length}</div><div class="l">Low stock items</div></div>
       <div class="tile bad ${out.length?'attn':''}"  onclick="nav('dash-out')"><span class="ic">🚫</span><div class="n">${out.length}</div><div class="l">Out of stock</div></div>
       <div class="tile exp ${exp.length?'attn':''}"  onclick="nav('dash-exp')"><span class="ic">⏳</span><div class="n">${exp.length}</div><div class="l">Expiring ≤ 90 days</div></div>
@@ -7962,9 +8014,13 @@ function rotaUnlistedNames(){
     if(p.role==='surgeon' || p.role==='anaesthetist') return;
     const v = String(p.name||'').trim(); if(!v || staffByName(v)) return;
     const id = v.toLowerCase();
-    (seen[id] = seen[id] || {name:v, days:new Set(), role:rotaStaffRoleFor(p.role, p.shift)}).days.add(day.date);
+    const e = (seen[id] = seen[id] || {name:v, days:new Set(), role:rotaStaffRoleFor(p.role, p.shift), where:{}});
+    e.days.add(day.date);
+    (e.where[day.date] = e.where[day.date] || []).push((ROTA_ROLE[p.role]||{}).label || String(p.role||''));
   }));
-  return Object.values(seen).map(x=>({name:x.name, days:x.days.size, role:x.role})).sort((a,b)=>a.name.localeCompare(b.name));
+  // dates: every rota day the name is on, oldest first, with what they are down as that day
+  return Object.values(seen).map(x=>({name:x.name, days:x.days.size, role:x.role,
+    dates:[...x.days].sort().map(d=>({date:d, roles:[...new Set(x.where[d])]}))})).sort((a,b)=>a.name.localeCompare(b.name));
 }
 function staffDbState(){ return window._staffDb = Object.assign({q:'', role:'', status:'', sort:'name'}, window._staffDb||{}); }
 function staffDbRows(){
@@ -8025,12 +8081,55 @@ function rotaStaffView(){
     ${unlisted.length?`<div style="margin-top:12px;border:1px solid var(--red);background:var(--red-bg);border-radius:10px;padding:10px 12px">
       <strong style="font-size:13px">On the rota but not in the database</strong>
       <div class="sub" style="margin:2px 0 8px">These names were typed on the rota. Add each one (or, if it's a misspelling of someone already listed, correct it on the rota).</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">${unlisted.map((u,i)=>`<button class="btn" style="padding:5px 10px;font-size:12.5px" onclick="staffAddUnlisted(${i})" title="Add to the staff database">＋ ${smsEsc(u.name)} <span style="font-weight:400;color:var(--ink-soft)">(${u.days} day${u.days>1?'s':''})</span></button>`).join('')}</div></div>`:''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${unlisted.map((u,i)=>{
+        const dev = isDeveloper(), on = dev && staffUnlistedOpenKey()===u.name.toLowerCase();
+        return `<button class="btn${on?' primary':''}" style="padding:5px 10px;font-size:12.5px" onclick="staffUnlistedClick(${i})" ${dev?`aria-expanded="${on}" title="Add to the staff database, or open the rota day"`:'title="Add to the staff database"'}>${dev?'':'＋ '}${smsEsc(u.name)} <span style="font-weight:400;${on?'opacity:.85':'color:var(--ink-soft)'}">(${u.days} day${u.days>1?'s':''})</span>${dev?(on?' ▴':' ▾'):''}</button>`; }).join('')}</div>
+      ${staffUnlistedMenuHtml(unlisted)}</div>`:''}
   </div>`;
 }
 function staffAddUnlisted(i){
   const u = rotaUnlistedNames()[i]; if(!u) return;
   openStaffDlg(null, u.name, null, null, [u.role]);
+}
+/* Developers get a choice under the name: add the person, or open one of the rota days the name
+   is on (in Allocation) to correct it there and save the day. Everyone else keeps the one-click
+   add. The open name is remembered by name, not by position, so a reload can't move it. */
+function staffUnlistedOpenKey(){ return String(window._unlistedOpen||''); }
+function staffUnlistedClick(i){
+  const u = rotaUnlistedNames()[i]; if(!u) return;
+  if(!isDeveloper()){ staffAddUnlisted(i); return; }
+  const k = u.name.toLowerCase();
+  window._unlistedOpen = staffUnlistedOpenKey()===k ? '' : k;
+  window._unlistedAll = false;
+  render();
+}
+function staffUnlistedMenuHtml(unlisted){
+  if(!isDeveloper()) return '';
+  const i = unlisted.findIndex(u=>u.name.toLowerCase()===staffUnlistedOpenKey());
+  if(i<0) return '';
+  const u = unlisted[i], today = todayISO();
+  const coming = u.dates.filter(d=>d.date>=today), past = u.dates.filter(d=>d.date<today).reverse();
+  const LIMIT = 12, all = !!window._unlistedAll;
+  const btn = d=>`<button class="btn" style="padding:5px 10px;font-size:12.5px" onclick="staffUnlistedGo('${d.date}')" title="Open this day in Allocation">${rotaNice(d.date,{weekday:'short',day:'numeric',month:'short',year:'numeric'})}<span style="font-weight:400;color:var(--ink-soft)"> · ${smsEsc(d.roles.join(', '))}</span></button>`;
+  const group = (label, list)=>{
+    if(!list.length) return '';
+    const shown = all ? list : list.slice(0, LIMIT);
+    return `<div class="sub" style="margin:8px 0 4px;font-weight:600">${label}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${shown.map(btn).join('')}${list.length>shown.length?`<button class="btn" style="padding:5px 10px;font-size:12.5px" onclick="window._unlistedAll=true;render()">Show ${list.length-shown.length} more…</button>`:''}</div>`;
+  };
+  return `<div id="staffUnlistedMenu" style="margin-top:8px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(20,60,55,.10)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <strong style="font-size:13.5px">${smsEsc(u.name)}</strong>
+      <button class="btn" style="padding:3px 9px;font-size:12px" onclick="window._unlistedOpen='';render()" title="Close">✕</button></div>
+    <div style="margin-top:8px"><button class="btn primary" style="padding:6px 12px;font-size:12.5px" onclick="staffAddUnlisted(${i})">＋ Add to the staff database</button></div>
+    <div class="sub" style="margin:10px 0 0">Or open a rota day to correct the name there, then save that day:</div>
+    ${group('Today and coming up', coming)}${group('Earlier days', past)}
+  </div>`;
+}
+function staffUnlistedGo(date){
+  if(!isDeveloper()) return;
+  window._unlistedOpen = '';
+  rotaGoAlloc(date);
 }
 async function staffDelete(id){
   if(!isSuperadmin()) return;
@@ -10913,7 +11012,7 @@ function render(){
   updateNavBadges();
   const v = currentView;
   const m = $('#main');
-  if(v==='dashboard') m.innerHTML = dashboardView();
+  if(v==='dashboard'){ m.innerHTML = dashboardView(); dashIntroAfterRender(); }
   else if(v==='dash-low') m.innerHTML = listView('Low stock', i=>i.tracker!=='instruments'&&i.tracker!=='services'&&i.qty>0&&i.qty<=i.reorder);
   else if(v==='dash-out') m.innerHTML = listView('Out of stock', i=>i.tracker!=='instruments'&&i.tracker!=='services'&&i.qty===0);
   else if(v==='dash-exp') m.innerHTML = listView('Expiring within 90 days', i=>{const d=daysTo(i.expiry);return d!=null&&d<=90;});
@@ -11119,10 +11218,52 @@ function assetGuard(){ if(!isAdmin()) throw new Error('Admin access required'); 
 async function sbSignIn(username, password){
   const {data, error} = await sb.auth.signInWithPassword({email: synthEmail(username), password});
   if(error) throw new Error(error.message==='Invalid login credentials' ? 'Wrong username or password' : error.message);
+  return sbSessionProfile(data);
+}
+// The signed-in person's profile, as the session object the rest of the page uses.
+async function sbSessionProfile(data){
   const {data: prof, error: pErr} = await sb.from('profiles').select('username,display_name,role,active').eq('id', data.user.id).single();
   if(pErr || !prof) throw new Error('Signed in, but no profile found for this account');
   if(!prof.active){ await sb.auth.signOut().catch(()=>{}); throw new Error('This account has been deactivated'); }
   return {token: data.session.access_token, role: prof.role, displayName: prof.display_name, username: prof.username};
+}
+/* PIN sign-in. The pin-login Edge Function checks username + this computer's key + PIN in the
+   database (five tries, then the PIN is deleted) and, only if right, returns a one-time token
+   that is exchanged here for a normal session. A refusal carries a reason in err.code. */
+const PIN_REFUSED = {
+  wrong:    'Wrong PIN',
+  locked:   'Too many wrong tries, so that PIN has been removed. Sign in with your password, then set a new PIN',
+  no_pin:   'That PIN is no longer set up on this computer. Sign in with your password',
+  inactive: 'This account has been deactivated',
+};
+async function sbPinSignIn(username, device, pin){
+  let data = null, error = null;
+  try{ ({data, error} = await sb.functions.invoke('pin-login', {body:{username, device, pin}})); }
+  catch(e){ error = e; }
+  if(error || !data) throw new Error('Could not check the PIN. Check the connection, or sign in with your password');
+  if(!data.ok){
+    const left = Number(data.left);
+    const e = new Error(data.reason==='wrong' && left>0 ? `Wrong PIN. ${left} ${left===1?'try':'tries'} left`
+      : (PIN_REFUSED[data.reason] || 'Could not sign in with the PIN. Use your password'));
+    e.code = String(data.reason||'error');
+    throw e;
+  }
+  const {data: v, error: vErr} = await sb.auth.verifyOtp({token_hash: data.token_hash, type:'email'});
+  if(vErr || !v || !v.session || !v.user) throw new Error('Could not sign in with the PIN. Use your password');
+  return sbSessionProfile(v);
+}
+async function sbPinSet(device, pin){
+  const {error} = await sb.rpc('pin_set', {p_device: device, p_pin: pin});
+  if(error) throw new Error(error.message||'The PIN was not saved');
+}
+async function sbPinClear(device){
+  const {error} = await sb.rpc('pin_clear', {p_device: device});
+  if(error) throw new Error(error.message||'The PIN was not removed');
+}
+async function sbPinStatus(device){
+  const {data, error} = await sb.rpc('pin_status', {p_device: device});
+  if(error) throw new Error(error.message);
+  return data===true;
 }
 async function sbChangePassword(oldPassword, newPassword){
   const {data: u} = await sb.auth.getUser();
@@ -11924,36 +12065,174 @@ const PERMS = {
 function role(){ return LIVE ? (session ? session.role : null) : 'admin'; }
 function can(p){ const r = role(); return !!(r && PERMS[r] && PERMS[r][p]); }
 
-function showLogin(msg){
-  $('#loginWrap').style.display = 'flex';
-  $('#loginErr').textContent = msg||'';
-  $('#liPass').value='';
-  setTimeout(()=>$('#liUser').focus(), 50);
-}
-function hideLogin(){ $('#loginWrap').style.display = 'none'; }
+/* ---------------- signing in ----------------
+   The sign-in card exists on the page ONLY while someone has to sign in: showLogin writes it,
+   hideLogin takes it out again. A password box left filled in (even hidden) makes the browser
+   offer to save the password again on every refresh.
+   Two ways in: username + password, or -- on a computer where the person has set one -- a
+   4-number PIN. PIN boxes are plain text fields drawn as dots, so the browser never tries to
+   save them. */
+let _loginMode = 'password';     // 'password' | 'pin'
+let _loginBusy = false;
+let _signOutP = null;            // the last sign-out still on its way to the server
+function loginEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function loginErr(msg){ const el = document.getElementById('loginErr'); if(el) el.textContent = msg||''; }
 
+/* PINs on this computer: localStorage bollin_pins = { "<username>": {dev, name} }.
+   dev is this browser's long random key for that person; the database holds only its hash. */
+function pinStore(){
+  try{ const o = JSON.parse(localStorage.getItem('bollin_pins')||'{}'); return (o && typeof o==='object' && !Array.isArray(o)) ? o : {}; }
+  catch(e){ return {}; }
+}
+function pinStoreSave(o){ try{ localStorage.setItem('bollin_pins', JSON.stringify(o)); }catch(e){} }
+function pinHere(username){
+  const e = pinStore()[String(username||'').trim().toLowerCase()];
+  return (e && typeof e.dev==='string' && e.dev.length>=32) ? e : null;
+}
+function pinUsersHere(){
+  const o = pinStore();
+  return Object.keys(o).filter(u=>pinHere(u)).map(u=>({username:u, name:String(o[u].name||u)}))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+}
+function pinRemember(username, dev, name){
+  const o = pinStore(); o[String(username).toLowerCase()] = {dev, name:String(name||username)}; pinStoreSave(o);
+}
+function pinForget(username){ const o = pinStore(); delete o[String(username||'').toLowerCase()]; pinStoreSave(o); }
+function pinNewDeviceKey(){
+  const b = new Uint8Array(32); crypto.getRandomValues(b);
+  return Array.from(b, x=>x.toString(16).padStart(2,'0')).join('');
+}
+// the same list the database refuses (pin_too_easy)
+function pinTooEasy(pin){ return /^(\d)\1{3}$/.test(pin) || ['1234','4321','0123','2580'].includes(pin); }
+function pinDigits(el){ const v = String(el.value||'').replace(/\D/g,'').slice(0,4); if(el.value!==v) el.value = v; return v; }
+function pinNoAsk(username){
+  try{ const o = JSON.parse(localStorage.getItem('bollin_pin_noask')||'{}'); return !!(o && o[String(username||'').toLowerCase()]); }catch(e){ return false; }
+}
+function pinSetNoAsk(username){
+  let o = {}; try{ o = JSON.parse(localStorage.getItem('bollin_pin_noask')||'{}') || {}; }catch(e){}
+  o[String(username||'').toLowerCase()] = 1;
+  try{ localStorage.setItem('bollin_pin_noask', JSON.stringify(o)); }catch(e){}
+}
+function lastUserHere(){ try{ return String(localStorage.getItem('bollin_last_user')||''); }catch(e){ return ''; } }
+
+function loginCardHtml(msg){
+  const pins = pinUsersHere();
+  const mode = (_loginMode==='pin' && pins.length) ? 'pin' : 'password';
+  const last = lastUserHere();
+  const modes = pins.length ? `<div class="loginmodes" role="tablist">
+      <div class="chip ${mode==='pin'?'on':''}" id="liModePin" role="tab" tabindex="0" onclick="loginSetMode('pin')" onkeydown="if(event.key==='Enter')loginSetMode('pin')">PIN</div>
+      <div class="chip ${mode==='password'?'on':''}" id="liModePass" role="tab" tabindex="0" onclick="loginSetMode('password')" onkeydown="if(event.key==='Enter')loginSetMode('password')">Password</div></div>` : '';
+  const form = mode==='pin' ? `
+    <label for="liPinUser">Who is signing in?</label>
+    <select id="liPinUser" onchange="loginErr('');const p=document.getElementById('liPin');if(p){p.value='';p.focus();}">
+      ${pins.map(p=>`<option value="${loginEsc(p.username)}" ${p.username===last?'selected':''}>${loginEsc(p.name)}</option>`).join('')}</select>
+    <label for="liPin">PIN</label>
+    <input id="liPin" class="pinbox" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" data-lpignore="true" data-1p-ignore
+           aria-label="4-number PIN" oninput="if(pinDigits(this).length===4)doPinLogin()" onkeydown="if(event.key==='Enter')doPinLogin()">
+    <button class="btn primary" type="button" onclick="doPinLogin()">Sign in</button>` : `
+    <form id="liForm" onsubmit="event.preventDefault();doLogin()" autocomplete="on">
+    <label for="liUser">Username</label>
+    <input id="liUser" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false">
+    <label for="liPass">Password</label>
+    <div class="pwfield">
+      <input id="liPass" name="password" type="password" autocomplete="current-password">
+      <button class="pw-eye" type="button" onclick="togglePwVisibility(this,'liPass')" title="Show/hide password">👁</button>
+    </div>
+    <button class="btn primary" type="submit">Sign in</button>
+    </form>`;
+  return `<div class="logincard">
+    <img src="logo.png" alt="Bollin Clinic Stock Manager">
+    <h2>Sign in</h2>
+    ${modes}${form}
+    <div id="loginErr">${loginEsc(msg||'')}</div>
+    <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--ink-soft)">
+      ${mode==='pin' ? 'Your PIN works on this computer only. You can always use your password instead.'
+        : 'Accounts are created by the clinic administrator.<br>You can change your password after signing in.'}</div>
+  </div>`;
+}
+function showLogin(msg, keepMode){
+  const pins = pinUsersHere();
+  // open on PIN when the last person here has one (or anyone has), otherwise on the password
+  if(!keepMode) _loginMode = pins.length ? 'pin' : 'password';
+  if(!pins.length) _loginMode = 'password';
+  const w = $('#loginWrap');
+  w.innerHTML = loginCardHtml(msg);
+  w.style.display = 'flex';
+  setTimeout(()=>{ const el = document.getElementById(_loginMode==='pin' ? 'liPin' : 'liUser'); if(el && el.focus) el.focus(); }, 50);
+}
+function hideLogin(){ const w = $('#loginWrap'); w.style.display = 'none'; w.innerHTML = ''; }
+function loginSetMode(mode){ _loginMode = mode; showLogin('', true); }
+
+// Shared by both ways in: remember the session, close the card, greet, load.
+function loginDone(data, how){
+  session = {token:data.token, role:data.role, displayName:data.displayName, username:data.username};
+  myName = data.displayName;
+  try{ localStorage.setItem('bollin_session', JSON.stringify(session)); }catch(e){}
+  try{ localStorage.setItem('bollin_last_user', String(data.username||'').toLowerCase()); }catch(e){}
+  hideLogin(); paintName();
+  if(!(currentView in TRACKER_TAB) && !viewAllowed(currentView)) nav('dashboard');
+  const w = welcomeStart(how);
+  Promise.resolve().then(()=>loadAll()).catch(()=>{}).then(()=>welcomeDataReady(w));
+}
 async function doLogin(){
-  const u = $('#liUser').value.trim(), p = $('#liPass').value;
-  if(!u || !p){ $('#loginErr').textContent = 'Enter username and password'; return; }
-  $('#loginErr').textContent = 'Signing in…';
+  if(_loginBusy) return;
+  const uEl = document.getElementById('liUser'), pEl = document.getElementById('liPass');
+  const u = uEl ? uEl.value.trim() : '', p = pEl ? pEl.value : '';
+  if(!u || !p){ loginErr('Enter username and password'); return; }
+  loginErr('Signing in…');
+  _loginBusy = true;
   try{
+    if(_signOutP){ await _signOutP; }
     const data = await sbSignIn(u, p);
-    session = {token:data.token, role:data.role, displayName:data.displayName, username:data.username};
-    myName = data.displayName;
-    try{ localStorage.setItem('bollin_session', JSON.stringify(session)); }catch(e){}
-    hideLogin(); paintName();
-    if(!(currentView in TRACKER_TAB) && !viewAllowed(currentView)) nav('dashboard');
-    loadAll();
-  }catch(err){ $('#loginErr').textContent = err.message||'Sign-in failed'; }
+    loginDone(data, 'password');
+  }catch(err){ loginErr(err.message||'Sign-in failed'); }
+  finally{ _loginBusy = false; }
+}
+async function doPinLogin(){
+  if(_loginBusy) return;
+  const uEl = document.getElementById('liPinUser'), pEl = document.getElementById('liPin');
+  const u = String(uEl ? uEl.value : '').toLowerCase(), pin = String(pEl ? pEl.value : '');
+  const e = pinHere(u);
+  if(!e){ _loginMode = 'password'; showLogin('No PIN is set up for that person on this computer. Sign in with your password', true); return; }
+  if(!/^\d{4}$/.test(pin)){ loginErr('Enter your 4-number PIN'); return; }
+  loginErr('Signing in…');
+  _loginBusy = true;
+  try{
+    if(_signOutP){ await _signOutP; }
+    const data = await sbPinSignIn(u, e.dev, pin);
+    // keep the name on the sign-in list up to date
+    pinRemember(String(data.username||u).toLowerCase(), e.dev, data.displayName);
+    loginDone(data, 'pin');
+  }catch(err){
+    if(err.code==='locked' || err.code==='no_pin'){
+      pinForget(u);                      // the server no longer has it: stop offering it here
+      _loginMode = 'password';
+      showLogin(err.message, true);
+    } else {
+      loginErr(err.message||'Sign-in failed');
+      const p2 = document.getElementById('liPin'); if(p2){ p2.value = ''; if(p2.focus) p2.focus(); }
+    }
+  }
+  finally{ _loginBusy = false; }
 }
 function signOut(){
   session = null; myName='';
   try{ localStorage.removeItem('bollin_session'); }catch(e){}
-  if(LIVE) sb.auth.signOut().catch(()=>{});
+  if(LIVE){ const p = sb.auth.signOut().catch(()=>{}).then(()=>{ if(_signOutP===p) _signOutP = null; }); _signOutP = p; }
+  welcomeCancel();
+  closePinDlg(); closePw();
   paintName(); showLogin();
 }
+
+/* ---------------- change password: boxes exist only while the dialog is open ---------------- */
+// (never while it is open: the browser sends 'close' a moment late, possibly after a reopen)
+function pwDlgClear(){ const d = document.getElementById('pwDlg'); if(d && d.open) return; const b = document.getElementById('pwDlgBody'); if(b) b.innerHTML = ''; }
+function closePw(){ const d = document.getElementById('pwDlg'); try{ if(d && d.open) d.close(); }catch(e){} pwDlgClear(); }
 function openPw(){
-  ['pwOld','pwNew','pwNew2'].forEach(id=>$('#'+id).value='');
+  const row = (id, label, ac)=>`<div class="m-row"><label for="${id}">${label}</label><div class="pwfield"><input id="${id}" type="password" autocomplete="${ac}">
+      <button class="pw-eye" type="button" onclick="togglePwVisibility(this,'${id}')" title="Show/hide password">👁</button></div></div>`;
+  $('#pwDlgBody').innerHTML = row('pwOld','Current','current-password') + row('pwNew','New (6+ chars)','new-password') + row('pwNew2','Repeat new','new-password')
+    + '<div class="sub" style="margin:8px 0 0">Changing your password removes your sign-in PIN from every computer. You can set a new PIN afterwards.</div>';
   pwDlg.showModal();
 }
 async function doChangePassword(){
@@ -11962,15 +12241,213 @@ async function doChangePassword(){
   if(n!==n2){ toast('New passwords do not match'); return; }
   try{
     await api({action:'changePassword', oldPassword:o, newPassword:n});
-    pwDlg.close(); toast('Password changed');
+    if(session) pinForget(session.username);   // the database dropped this person's PINs with the old password
+    closePw(); toast('Password changed');
   }catch(err){ toast(err.message); }
 }
+
+/* ---------------- PIN for this computer ----------------
+   'offer'  : shown once after a password sign-in on a computer with no PIN for this person
+              (Not now / Don't ask again on this computer / Save).
+   'manage' : the PIN button in the header (set, change or remove). */
+let _pinDlgMode = 'manage';
+function pinDlgClear(){ const d = document.getElementById('pinDlg'); if(d && d.open) return; ['pinDlgBody','pinDlgActions'].forEach(id=>{ const b = document.getElementById(id); if(b) b.innerHTML = ''; }); }
+function pinBox(id, label){
+  return `<div class="m-row"><label for="${id}">${label}</label><input id="${id}" class="pinbox" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+    autocomplete="off" data-lpignore="true" data-1p-ignore oninput="pinDigits(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();pinSave();}"></div>`;
+}
+function openPinDlg(mode){
+  if(!LIVE || !session) return;
+  _pinDlgMode = mode==='offer' ? 'offer' : 'manage';
+  const has = !!pinHere(session.username);
+  $('#pinDlgTitle').textContent = _pinDlgMode==='offer' ? 'Quicker sign-in on this computer' : 'PIN for this computer';
+  $('#pinDlgBody').innerHTML = `
+    <div class="sub" style="margin:0 0 10px">${_pinDlgMode==='offer'
+      ? 'Choose a 4-number PIN. Next time you sign in <strong>on this computer</strong> you can use your PIN or your password, whichever you like.'
+      : has ? 'You have a PIN on this computer. Enter a new one to change it, or remove it.'
+            : 'Choose a 4-number PIN to sign in on <strong>this computer</strong> without typing your password. Your password still works.'}</div>
+    ${pinBox('pinNew', has?'New PIN':'PIN')}${pinBox('pinNew2','Repeat PIN')}
+    <div class="sub" style="margin:8px 0 0">The PIN only works on this computer. Five wrong tries remove it, and so does changing your password. Don't use one that is easy to guess.</div>
+    <div id="pinDlgErr" style="color:var(--red);font-size:13px;min-height:18px;margin-top:6px"></div>`;
+  $('#pinDlgActions').innerHTML = _pinDlgMode==='offer'
+    ? `<button class="btn" style="white-space:nowrap" onclick="pinOfferNever()" title="Don't offer me a PIN on this computer again. You can still set one with the PIN button at the top">Don't ask again</button>
+       <button class="btn" onclick="closePinDlg()">Not now</button>
+       <button class="btn primary" id="pinSaveBtn" onclick="pinSave()">Save PIN</button>`
+    : `${has?'<button class="btn" style="color:var(--red)" onclick="pinRemove()">Remove PIN</button>':''}
+       <button class="btn" onclick="closePinDlg()">Cancel</button>
+       <button class="btn primary" id="pinSaveBtn" onclick="pinSave()">${has?'Change PIN':'Save PIN'}</button>`;
+  pinDlg.showModal();
+  setTimeout(()=>{ const el = document.getElementById('pinNew'); if(el && el.focus) el.focus(); }, 50);
+}
+function closePinDlg(){ const d = document.getElementById('pinDlg'); try{ if(d && d.open) d.close(); }catch(e){} pinDlgClear(); }
+function pinDlgErr(msg){ const el = document.getElementById('pinDlgErr'); if(el) el.textContent = msg||''; }
+let _pinBusy = false;
+async function pinSave(){
+  if(_pinBusy || !session) return;
+  const a = String(($('#pinNew')||{}).value||''), b = String(($('#pinNew2')||{}).value||'');
+  if(!/^\d{4}$/.test(a)){ pinDlgErr('The PIN must be 4 numbers'); return; }
+  if(a!==b){ pinDlgErr('The two PINs do not match'); return; }
+  if(pinTooEasy(a)){ pinDlgErr('That PIN is too easy to guess. Choose another'); return; }
+  const who = session.username, name = session.displayName;
+  const old = pinHere(who), dev = old ? old.dev : pinNewDeviceKey();
+  _pinBusy = true; pinDlgErr('Saving…');
+  try{
+    await sbPinSet(dev, a);
+    pinRemember(who, dev, name);         // only once the database has it
+    closePinDlg();
+    toast('PIN saved. Use it next time you sign in on this computer');
+  }catch(err){ pinDlgErr(err.message||'The PIN was not saved'); }
+  finally{ _pinBusy = false; }
+}
+async function pinRemove(){
+  if(_pinBusy || !session) return;
+  const who = session.username, e = pinHere(who);
+  if(!e){ closePinDlg(); return; }
+  if(!confirm('Remove your PIN from this computer? You will sign in here with your password.')) return;
+  _pinBusy = true; pinDlgErr('Removing…');
+  try{
+    await sbPinClear(e.dev);
+    pinForget(who);
+    closePinDlg(); toast('PIN removed from this computer');
+  }catch(err){ pinDlgErr(err.message||'The PIN was not removed'); }
+  finally{ _pinBusy = false; }
+}
+function pinOfferNever(){ if(session) pinSetNoAsk(session.username); closePinDlg(); toast('OK. You can set a PIN any time with the PIN button at the top'); }
+// After a PASSWORD sign-in: offer a PIN if this person has none on this computer. If the page
+// remembers one that the database has since dropped (password change, five wrong tries), forget it.
+async function pinOfferMaybe(how){
+  if(!LIVE || !session || how!=='password') return;
+  const who = session.username;
+  const e = pinHere(who);
+  if(e){
+    try{ if(await sbPinStatus(e.dev)) return; }catch(err){ return; }   // can't tell: leave it alone
+    pinForget(who);
+  }
+  if(!session || session.username!==who || pinNoAsk(who)) return;
+  if(document.querySelector && document.querySelector('dialog[open]')) return;   // never on top of something already open
+  openPinDlg('offer');
+}
+
+/* ---------------- welcome, and the dashboard tiles arriving ----------------
+   Both start ONLY from loginDone, i.e. when someone has just signed in. A refresh or a sync
+   restores the session without going through loginDone, so neither can play again until the
+   person signs out and back in. Nothing here is stored. */
+let _welcome = null;      // the welcome on screen: {el, how, data, anim, done}
+let _dashIntro = null;    // {armed, t0, counted}: the tiles arrive once, the first time the dashboard shows after the welcome
+const DASH_INTRO_MS = 2200;
+function reducedMotion(){ try{ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; } }
+function welcomeGreeting(d){
+  let h = 12;
+  try{ h = Number(new Intl.DateTimeFormat('en-GB', {hour:'numeric', hour12:false, timeZone:'Europe/London'}).format(d)) % 24; }catch(e){ h = d.getHours(); }
+  return h<12 ? 'Good morning' : h<18 ? 'Good afternoon' : 'Good evening';
+}
+function welcomeHtml(displayName, d){
+  const first = (String(displayName||'').trim().split(/\s+/)[0] || 'Welcome').slice(0, 22);
+  let day = '';
+  try{ day = d.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', timeZone:'Europe/London'}); }catch(e){}
+  const letters = Array.from(first).map((ch,k)=>`<span style="--k:${k}">${loginEsc(ch)}</span>`).join('');
+  return `<div class="wf-orb a"></div><div class="wf-orb b"></div><div class="wf-ring"></div><div class="wf-ring b"></div>
+    <div class="wf-inner">
+      <div class="wf-logo"><img src="logo.png" alt=""></div>
+      <div class="wf-hi">${welcomeGreeting(d)}</div>
+      <div class="wf-name" aria-label="${loginEsc(first)}">${letters}</div>
+      <div class="wf-rule"></div>
+      <div class="wf-sub">Welcome to Bollin Clinic${day?' · '+loginEsc(day):''}</div>
+    </div>
+    <div class="wf-skip">Click anywhere to continue</div>`;
+}
+function welcomeStart(how){
+  welcomeCancel();
+  _dashIntro = {armed:false, t0:0, counted:false};
+  const w = {el:null, how, data:false, anim:false, done:false};
+  _welcome = w;
+  let el = null;
+  try{
+    el = document.createElement('div');
+    el.id = 'welcomeFx';
+    el.setAttribute('role', 'status');
+    el.innerHTML = welcomeHtml(session && session.displayName, new Date());
+    el.onclick = ()=>welcomeFinish(w);
+    document.body.appendChild(el);       // on the body, outside the .app grid
+  }catch(e){ el = null; }
+  w.el = el;
+  if(!el){ w.anim = true; return w; }    // nothing to show: go straight on once the data is in
+  setTimeout(()=>{ w.anim = true; if(w.data) welcomeFinish(w); }, reducedMotion() ? 900 : 2700);
+  setTimeout(()=>welcomeFinish(w), 9000);                // never hold the screen longer than this
+  return w;
+}
+function welcomeDataReady(w){ if(!w || w.done) return; w.data = true; if(w.anim) welcomeFinish(w); }
+function welcomeFinish(w){
+  if(!w || w.done) return;
+  w.done = true;
+  if(_welcome!==w) return;               // signed out (or in again) meanwhile
+  if(w.el && w.el.classList) w.el.classList.add('out');
+  dashIntroArm();
+  setTimeout(()=>{
+    try{ if(w.el && w.el.remove) w.el.remove(); }catch(e){}
+    if(_welcome!==w) return;
+    _welcome = null;
+    // the PIN offer waits until the tiles have finished arriving, so it never cuts across them
+    const who = session && session.username;
+    setTimeout(()=>{ if(!_welcome && session && session.username===who) pinOfferMaybe(w.how); },
+      (w.el && currentView==='dashboard') ? DASH_INTRO_MS - 400 : 0);
+  }, w.el ? 650 : 0);
+}
+function welcomeCancel(){
+  const w = _welcome; _welcome = null; _dashIntro = null;
+  if(w){ w.done = true; try{ if(w.el && w.el.remove) w.el.remove(); }catch(e){} }
+}
+function dashIntroArm(){
+  if(!_dashIntro || _dashIntro.armed) return;
+  _dashIntro.armed = true;
+  if(currentView==='dashboard') render();
+}
+// For dashboardView: the class and timing for the tiles while they are arriving, else nothing.
+function dashIntro(){
+  const d = _dashIntro, none = {cls:'', style:''};
+  if(!d || !d.armed) return none;
+  const now = Date.now();
+  if(!d.t0) d.t0 = now;
+  const el = now - d.t0;
+  if(el > DASH_INTRO_MS){ _dashIntro = null; return none; }
+  return {cls:' intro', style:` style="--el:${el}ms"`};
+}
+// The tile numbers count up, once. A redraw part-way simply shows the real numbers.
+function dashIntroAfterRender(){
+  const d = _dashIntro;
+  if(!d || !d.t0 || d.counted) return;
+  d.counted = true;
+  // when they have all arrived, take the marker off (and with it the arriving styles)
+  setTimeout(()=>{
+    if(_dashIntro===d) _dashIntro = null;
+    try{ document.querySelectorAll('.tiles.intro').forEach(t=>t.classList.remove('intro')); }catch(e){}
+  }, DASH_INTRO_MS);
+  if(reducedMotion() || typeof requestAnimationFrame!=='function') return;
+  let els = [];
+  try{ els = Array.from(document.querySelectorAll('#main .tiles.intro .n')); }catch(e){ return; }
+  els.forEach((el, i)=>{
+    const txt = String(el.textContent||''), m = txt.match(/^(£?)(\d{1,7})$/);
+    if(!m) return;
+    const to = Number(m[2]); if(!to) return;
+    const start = performance.now() + i*75 + 150, dur = 900;
+    el.textContent = m[1] + '0';
+    const step = now=>{
+      if(!el.isConnected) return;                        // the dashboard was redrawn: the new tiles show the real numbers
+      const t = Math.min(1, Math.max(0, (now - start)/dur));
+      el.textContent = t>=1 ? txt : m[1] + Math.round(to * (1 - Math.pow(1-t, 3)));
+      if(t<1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
 function paintName(){
   const r = role();
   $('#userName').textContent = LIVE
     ? (session ? session.displayName + ' · ' + session.role : 'Not signed in')
     : 'Demo mode';
   $('#pwBtn').style.display = (LIVE && session) ? '' : 'none';
+  $('#pinBtn').style.display = (LIVE && session) ? '' : 'none';
   $('#outBtn').style.display = (LIVE && session) ? '' : 'none';
 }
 function viewAllowed(v){

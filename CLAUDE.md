@@ -62,6 +62,8 @@ theatre lists depend on it. The working mantra throughout the build has been:
   - `create-user` and `manage-user` (reset password, rename) need the service-role key, so
     they run server-side and verify the caller is an active `developer` first.
   - `sms-dispatch` sends rota texts (see "Rota texts pipeline" below).
+  - `pin-login` checks a sign-in PIN and returns a one-time sign-in token (see §4 "Signing
+    in"). It is called before anyone is signed in, so `verify_jwt = false`.
 - **Auth:** Supabase Auth. Staff log in with a **username**; the app turns it into a
   synthetic email `username@bollin.local` (`synthEmail`). Role and active flag live on
   `profiles`. `app_role_rank()` returns -1 for an inactive profile, so deactivation takes
@@ -488,8 +490,14 @@ is ever sent automatically; this is a firm rule from Yasar.**
     job role and status, and sorting by name or role. It covers everyone except surgeons and
     anaesthetists.
     - People can be **added** here or from a rota box. **Edit and Delete are only here.**
-    - It lists names that are on the rota but not in the database, each with an Add button
-      (`rotaUnlistedNames`).
+    - It lists names that are on the rota but not in the database (`rotaUnlistedNames`, which
+      also returns the rota days each name is on and what they are down as).
+      - **Super admin:** each name is a one-click Add button (`staffAddUnlisted`).
+      - **Developer:** clicking a name opens a menu under it (`staffUnlistedClick`,
+        `staffUnlistedMenuHtml`): "Add to the staff database", or a button per rota day that
+        opens that day in Allocation (`staffUnlistedGo` → `rotaGoAlloc`) to correct the name
+        there and save the day. The open name is remembered by name (`window._unlistedOpen`),
+        never by position.
     - **Rename follows through:** `staff_upsert` calls `rota_rename_person`, so a corrected
       name is corrected in every staff box on every rota day, and those days' `updated_at`
       moves. The page blocks a rename while rota days are unsaved, then reloads.
@@ -502,6 +510,48 @@ is ever sent automatically; this is a firm rule from Yasar.**
 
 **Users & roles** (developer only): list users, change role, activate/deactivate, create
 accounts (`create-user`), reset password / rename (`manage-user`).
+
+**Signing in** (November 2026; migration `20261109100000_login_pins.sql`, Edge Function
+`pin-login`):
+- **The sign-in card exists on the page only while someone has to sign in.** `showLogin` writes
+  it into `#loginWrap` and `hideLogin` empties it. The change-password boxes are the same
+  (`openPw` / `closePw`). **Never leave a password box on the page after sign-in, even hidden:**
+  the browser then offers to save the password again on every refresh (§9 #17).
+- **Two ways in:** username + password, or a **4-number PIN** on a computer where that person
+  set one. The card opens on the PIN tab when anyone has a PIN on this computer.
+- **How the PIN is kept safe:**
+  - A PIN belongs to one person on one computer. Setting one makes a long random **device
+    key**, kept in that browser (localStorage `bollin_pins` = `{username: {dev, name}}`). The
+    database stores only the key's SHA-256 and a bcrypt hash of the PIN (`login_pins`, RLS on,
+    no policies). The PIN itself is never stored in the browser.
+  - `pin-login` (no login needed, `verify_jwt = false`) calls `pin_check(username, device, pin)`
+    with the service role. Only when that says yes does it ask Supabase Auth for a one-time
+    token (`generateLink`, no email is sent), which the page exchanges with
+    `verifyOtp({token_hash, type:'email'})` for a normal session.
+  - **Five wrong tries delete the PIN.** So does **changing or resetting the password** (a
+    trigger on `auth.users`). A deactivated account is refused.
+  - The easiest PINs are refused on both sides (`pinTooEasy` / `pin_too_easy`: four the same,
+    1234, 4321, 0123, 2580).
+  - PIN boxes are plain text fields drawn as dots (`.pinbox`), not password fields, so the
+    browser never offers to save them. Typing in the sign-in, PIN or password boxes is never
+    read as a barcode scan.
+- **Offer:** after a **password** sign-in on a computer where the person has no PIN, a box
+  offers one (`pinOfferMaybe`): Save, Not now (asked again next time), or Don't ask again
+  (localStorage `bollin_pin_noask`). The **PIN** button in the header sets, changes or removes
+  it at any time (`openPinDlg('manage')`, RPCs `pin_set` / `pin_clear` / `pin_status`).
+- A sign-in waits for the sign-out before it to finish (`_signOutP`), so a slow sign-out can't
+  undo it.
+- **Welcome and tile animation** (`welcomeStart`, `dashIntro`): a full-screen welcome with the
+  person's first name, then the dashboard tiles arrive one by one with their numbers counting
+  up.
+  - Both start **only from `loginDone`** (a real sign-in, password or PIN). A refresh or sync
+    restores the session without it, so they can't replay until the person signs out and in
+    again. Nothing about them is stored.
+  - The welcome holds until the data has loaded (9 s at most) and a click skips it. It is a
+    body-level overlay, outside the `.app` grid (§9 #1).
+  - The tiles carry `.intro` and `--el` (how far in they are) for about 2 s, so a redraw
+    part-way carries on instead of starting again. The PIN offer waits until they finish.
+  - `prefers-reduced-motion` turns the movement off.
 
 **Sidebar** (`<nav id="nav">`; Checks holds Gas room checks and Clinical monitoring):
 - Eight section headers, in order: Overview, Trackers, Implants, Activity, Checks, **Stock**,
@@ -556,7 +606,7 @@ gate, add it on **both** sides (§9 #6).
 
 ## 6. Data model (Supabase tables)
 
-`profiles`, `items` (all trackers; `tracker` enum incl. `services`), `item_barcodes` (extra scan codes), `barcode_link_events`,
+`profiles`, `login_pins` (sign-in PINs: hashes only, reached only through RPCs), `items` (all trackers; `tracker` enum incl. `services`), `item_barcodes` (extra scan codes), `barcode_link_events`,
 `dispatch_log`, `procedures` (`cart` jsonb, `room`, `surgeon_id`), `procedure_lines` (cost +
 bill snapshots), `surgeons`, `rota_days`, `rota_theatres` (`cases` jsonb of {surgeon, procedure,
 stay}; no PAT), 
@@ -727,6 +777,15 @@ Sheets-era notes and may be out of date; this file is the current reference.
       refresh on the page. Last write wins is never acceptable.
     - **Also found:** reopen read `procedures` directly, which has no read policy, so it
       reported "Could not reopen" after reopening. It now reads through `get_open_procedures`.
+17. **"Save password?" on every refresh (Nov 2026):** the sign-in card was only hidden after
+    sign-in, with the typed password still in its box, so the browser offered to save it at
+    each refresh for anyone who had not saved it. Fixed by building the card (and the
+    change-password boxes) only while they are needed. Two things learned on the way:
+    - A dialog's `close` event arrives a moment late (Chrome sends it with the next drawn
+      frame), possibly after the dialog was reopened. Close and empty a dialog in one function
+      (`closePw`, `closePinDlg`), and make the `onclose` clean-up do nothing while it is open.
+    - Headless Chrome with `--virtual-time-budget` does not show CSS animations faithfully in
+      screenshots. Check animations in real time (DevTools protocol), or on staging.
 
 ---
 
@@ -757,6 +816,12 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
 - sidebar navigation: `tests/nav_browser_tests.js`, which loads a demo-mode copy of the page
   in **headless Chrome** and checks, per role, which links, headers and parents are really
   visible, plus collapsing, icons and highlighting;
+- signing in: `tests/login_browser_tests.js`, in headless Chrome, with the Supabase client
+  replaced by a fake that follows the PIN rules (`login_fake_supabase.js`; checks in
+  `login_page_tests.js`). It covers the password boxes being gone after sign-in, PIN set / use /
+  wrong tries / lock-out / remove, two people on one computer, the welcome and tile animation,
+  and it **really refreshes the page** half-way to prove nothing replays. Database side in
+  `tests/sql/login_pins_db_tests.sql` (staging only);
 - clinical monitoring: `tests/monitor_browser_tests.js`, also in headless Chrome. It puts the
   same entries through a copy of the **old page** (`tests/fixtures/`) and through the new one
   with `fetch` replaced by a recorder, and requires the requests to be identical (URL, mode,
