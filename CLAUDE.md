@@ -320,13 +320,16 @@ same Google Sheet** (his choice over moving it to Supabase).
   - **A problem never blocks sending.** A failed test, an overdue part left unchanged, purple
     soda lime left unchanged or an unticked item is sent with `status:'fail'` ("ACTION NEEDED"
     in the Sheet), lists what in `actionNeeded`, and needs a note. Only missing answers block.
-  - **This is a NEW payload type, `type:'anaesthetic'`,** which the old Apps Script did not
-    know. Its handler is `google-sheet/anaesthetic_checks.gs`, which Yasar pasted into the
-    Sheet's script (the old `doPost` renamed `doPostOther`, a new `doPost` in front of it).
-    It writes the tab "Anaesthetic Checks" and, unlike the old code, answers
-    `{ok:true,…}`, so a test post with curl can be checked. **A field added to the payload
-    needs a column in that file, and the script re-pasted and redeployed as a new version of
-    the same deployment.** `tests/anaes_browser_tests.js` fails if they drift apart.
+  - **This is a NEW payload type, `type:'anaesthetic'`,** which the old Apps Script refused
+    ("Unknown type"). **The whole Apps Script is now in the repo: `google-sheet/App script.txt`**
+    (Yasar supplied it in November 2026, so its code is no longer unseen). It has one extra
+    line in `doPost` and a `writeAnaesthetic` block that writes the tab "Anaesthetic Checks";
+    the older code is unchanged. Yasar copies the whole file into the Sheet's script editor.
+    **A field added to the payload needs a column in `ANAES_COLUMNS` there, and the script
+    re-pasted and redeployed as a new version of the SAME deployment** (a new deployment
+    changes the link). `tests/anaes_browser_tests.js` fails if page and script drift apart.
+    The script answers `{status:"ok"}` or `{status:"error",message}`, so a test post with
+    curl (following redirects) shows whether it accepted a record.
   - **The three last-change dates are also kept in Supabase** (`anaes_dates`, one row per
     theatre, via `anaes_get_dates` / `anaes_set_dates`; migration
     `20261111100000_anaes_dates.sql`), because the app can't read the Sheet and staff must not
@@ -856,8 +859,9 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
   headless Chrome with a fake Supabase client and `fetch` replaced by a recorder. It covers the
   exact records sent, the 21-day rule, problems being sent as "action needed", missing answers,
   no connection, and the dates shared between computers. It then runs the payloads the page
-  really sent through `google-sheet/anaesthetic_checks.gs` with Google's services stubbed, and
-  fails if a field has no column. Database side in `tests/sql/anaes_dates_db_tests.sql`
+  really sent through the whole Sheet script (`google-sheet/App script.txt`) with Google's
+  services stubbed, fails if a field has no column, and checks the older check types are still
+  written as before. Database side in `tests/sql/anaes_dates_db_tests.sql`
   (staging only);
 - clinical monitoring: `tests/monitor_browser_tests.js`, also in headless Chrome. It puts the
   same entries through a copy of the **old page** (`tests/fixtures/`) and through the new one

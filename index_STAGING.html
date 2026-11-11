@@ -10979,8 +10979,8 @@ async function monSubmitNotInUse(){
 
 // ---- anaesthetic checks ----
 // Start of list and end of list, per theatre. Sent to the same monitoring Google Sheet as the
-// other checks (type 'anaesthetic'; the Sheet's script has its own block for it, kept in
-// google-sheet/anaesthetic_checks.gs). The app cannot read the Sheet, so the three "last
+// other checks (type 'anaesthetic'; the Sheet's script, kept whole in
+// "google-sheet/App script.txt", has a writeAnaesthetic block for it). The app cannot read the Sheet, so the three "last
 // changed" dates (circuit, water trap, soda lime) are also kept per theatre in the database
 // (anaes_get_dates / anaes_set_dates) and shown on every computer.
 // Built to be quick: one tap per item, extra questions only when something is wrong. A problem

@@ -1,0 +1,248 @@
+// ============================================================
+// Bollin Clinic — Clinical Monitoring Hub
+// Google Apps Script Web App
+// ------------------------------------------------------------
+// SETUP INSTRUCTIONS (do this once):
+//   1. In your Google Sheet: Extensions → Apps Script
+//   2. Delete any existing code, paste this entire file
+//   3. Click Deploy → New Deployment
+//   4. Type: Web App
+//   5. Execute as: Me
+//   6. Who has access: Anyone
+//   7. Click Deploy → copy the Web App URL
+//   8. Paste that URL into the HTML file where it says
+//      APPS_SCRIPT_URL = '...'
+// ============================================================
+//
+// UPDATING THIS SCRIPT LATER (the web app already exists):
+//   1. Extensions → Apps Script. Select everything, delete it, paste this whole file. Save.
+//   2. Deploy → Manage deployments → the pencil (Edit) → Version: "New version" → Deploy.
+//      Do NOT choose "New deployment": that makes a new link and the app would keep
+//      sending to the old one.
+//
+// November 2026: added "anaesthetic" (Anaesthetic Checks tab). Everything else is unchanged.
+// ============================================================
+
+const SHEET_MAP = {
+  temperature : "Temperature",
+  fridge      : "Fridge",
+  fluid       : "Fluid Warmer",
+  hh          : "HH Raw Data",
+  cleaning    : null,   // dynamic — Theatre 1 Cleaning or Theatre 2 Cleaning
+};
+
+// ── Entry point ──────────────────────────────────────────────
+function doPost(e) {
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    const type    = payload.type;
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    if (type === "temperature")  writeTemperature(ss, payload);
+    else if (type === "fridge")  writeFridge(ss, payload);
+    else if (type === "fluid")   writeFluid(ss, payload);
+    else if (type === "hh")      writeHH(ss, payload);
+    else if (type === "cleaning") writeCleaning(ss, payload);
+    else if (type === "anaesthetic") writeAnaesthetic(ss, payload);
+    else throw new Error("Unknown type: " + type);
+
+    return jsonOk("Record saved successfully");
+  } catch(err) {
+    return jsonError(err.message);
+  }
+}
+
+// Allow preflight CORS from browser
+function doGet(e) {
+  return jsonOk("Bollin Clinic API is running");
+}
+
+// ── Temperature ───────────────────────────────────────────────
+function writeTemperature(ss, d) {
+  const ws = ss.getSheetByName("Temperature");
+  d.readings.forEach(r => {
+    ws.appendRow([
+      d.date,
+      d.day,
+      d.location,
+      r.label,
+      d.time,
+      r.value,
+      r.min,
+      r.max,
+      r.status,
+      d.checkedBy,
+      d.notes
+    ]);
+  });
+}
+
+// ── Fridge ────────────────────────────────────────────────────
+function writeFridge(ss, d) {
+  const ws = ss.getSheetByName("Fridge");
+  d.readings.forEach(r => {
+    ws.appendRow([
+      d.date,
+      d.day,
+      d.location,
+      r.label,
+      d.time,
+      r.value,
+      r.min,
+      r.max,
+      r.status,
+      d.checkedBy,
+      d.notes
+    ]);
+  });
+}
+
+// ── Fluid Warmer ──────────────────────────────────────────────
+function writeFluid(ss, d) {
+  const ws = ss.getSheetByName("Fluid Warmer");
+  ws.appendRow([
+    d.date,
+    d.day,
+    d.time,
+    d.setTemp,
+    d.actualTemp,
+    d.status,
+    d.poweredOn ? "Yes" : "No",
+    d.recordedBy,
+    d.notes
+  ]);
+}
+
+// ── Hand Hygiene ──────────────────────────────────────────────
+function writeHH(ss, d) {
+  const ws = ss.getSheetByName("HH Raw Data");
+  // d.observations is an array of observation objects
+  d.observations.forEach((obs, idx) => {
+    ws.appendRow([
+      d.date,
+      d.shift,
+      d.location,
+      d.auditor,
+      idx + 1,
+      obs.cat,
+      obs.moment,
+      obs.momentLabel,
+      obs.outcome,
+      obs.time
+    ]);
+  });
+}
+
+// ── Theatre Cleaning ──────────────────────────────────────────
+function writeCleaning(ss, d) {
+  // d.theatre is "t1" or "t2"
+  const sheetName = d.theatre === "t1" ? "Theatre 1 Cleaning" : "Theatre 2 Cleaning";
+  const ws = ss.getSheetByName(sheetName);
+
+  if (d.notInUse) {
+    // Mark date range as not in use — one row per date
+    d.dates.forEach(date => {
+      ws.appendRow([date, getDayName(date), "Not in Use", "N/A", "", "", "", "", "", ""]);
+    });
+  } else {
+    ws.appendRow([
+      d.date,
+      d.day,
+      d.phase,       // "Pre-Surgery" or "Post-Surgery"
+      d.status,      // "ok" / "warn" / "fail"
+      d.checkedCount,
+      d.totalItems,
+      d.completionPct + "%",
+      d.completedBy,
+      d.time,
+      d.notes
+    ]);
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function getDayName(isoDate) {
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return days[new Date(isoDate).getDay()];
+}
+
+function jsonOk(msg) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: "ok", message: msg }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonError(msg) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: "error", message: msg }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ── Anaesthetic Checks (start of list / end of list) ─────────
+// One row per check in the tab "Anaesthetic Checks". The tab and its heading row are made
+// automatically the first time a check arrives. Each column takes one named field from what
+// the Stock Manager app sends, so the order here is the order of the columns in the Sheet.
+const ANAES_TAB = "Anaesthetic Checks";
+const ANAES_COLUMNS = [
+  ["Received",                     function (d) { return new Date(); }],
+  ["Date",                         "date"],
+  ["Day",                          "day"],
+  ["Time",                         "time"],
+  ["Theatre",                      "theatre"],
+  ["Check",                        "phase"],            // "Start of list" or "End of list"
+  ["Result",                       function (d) { return d.status === "fail" ? "ACTION NEEDED" : "OK"; }],
+  ["Checked by",                   "checkedBy"],
+  ["Machine test",                 "machineTest"],      // "Passed" or "Failed"
+  ["Escalated to",                 "escalatedTo"],
+  ["Circuit last changed",         "circuitDate"],
+  ["Circuit age found (days)",     "circuitAgeDays"],
+  ["Circuit changed today by",     "circuitChangedBy"],
+  ["Water trap last changed",      "waterTrapDate"],
+  ["Water trap age found (days)",  "waterTrapAgeDays"],
+  ["Water trap changed today by",  "waterTrapChangedBy"],
+  ["Soda lime colour",             "sodaLimeColour"],
+  ["Soda lime last changed",       "sodaLimeDate"],
+  ["Soda lime changed today by",   "sodaLimeChangedBy"],
+  ["Fluid & medication cupboard",  "cupboardStocked"],
+  ["Controlled drugs checked",     "controlledDrugsChecked"],
+  ["CD practitioner 1",            "cdPractitioner1"],
+  ["CD practitioner 2",            "cdPractitioner2"],
+  ["Video laryngoscope",           "videoLaryngoscope"],
+  ["All devices ready",            "devicesReady"],
+  ["End of list: done",            "endDone"],
+  ["End of list: not done",        "endNotDone"],
+  ["Action needed",                "actionNeeded"],
+  ["Notes",                        "notes"],
+  ["Signed in as",                 "sentBy"]
+];
+
+function writeAnaesthetic(ss, d) {
+  // one at a time, so two theatres sending together cannot clash while the tab is being made
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    let ws = ss.getSheetByName(ANAES_TAB);
+    if (!ws) {
+      ws = ss.insertSheet(ANAES_TAB);
+      ws.appendRow(ANAES_COLUMNS.map(c => c[0]));
+      ws.getRange(1, 1, 1, ANAES_COLUMNS.length)
+        .setFontWeight("bold").setBackground("#2B6168").setFontColor("#FFFFFF");
+      ws.setFrozenRows(1);
+    }
+    ws.appendRow(ANAES_COLUMNS.map(c => {
+      const v = (typeof c[1] === "function") ? c[1](d) : d[c[1]];
+      if (v === true)  return "Yes";
+      if (v === false) return "No";
+      if (v === null || v === undefined) return "";
+      if (Array.isArray(v)) return v.join("; ");
+      return v;
+    }));
+    // a check with a problem gets a red row
+    if (d.status === "fail") {
+      ws.getRange(ws.getLastRow(), 1, 1, ANAES_COLUMNS.length).setBackground("#FCE9E7");
+    }
+  } finally {
+    lock.releaseLock();
+  }
+}
