@@ -436,6 +436,43 @@
     .digital{font-size:28px}
   }
 
+  /* ---------- clinical monitoring: anaesthetic checks (big one-tap rows) ---------- */
+  .anseg{display:flex;gap:10px;flex-wrap:wrap}
+  .anseg + .anseg{margin-top:10px}
+  .anopt{flex:1;min-width:140px;padding:16px 14px;border:2px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);
+    font:inherit;font-size:16px;font-weight:700;cursor:pointer;text-align:center;transition:background-color .18s,border-color .18s,color .18s,transform .12s}
+  .anopt:hover{border-color:var(--pine)}
+  .anopt:active{transform:scale(.98)}
+  .anopt small{display:block;font-weight:500;font-size:12px;color:var(--ink-soft);margin-top:3px}
+  .anopt.on{border-color:var(--pine);background:var(--pine);color:#fff;box-shadow:0 6px 18px rgba(20,60,55,.18)}
+  .anopt.on small{color:rgba(255,255,255,.82)}
+  .anhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  .anprog{flex:1;min-width:120px;height:10px;border-radius:99px;background:var(--mist);border:1px solid var(--line);overflow:hidden}
+  .anprog i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--pine),var(--gold));transition:width .35s ease}
+  .anrow{display:flex;gap:14px;align-items:flex-start;padding:14px;border:1.5px solid var(--line);border-radius:14px;margin-top:10px;
+    background:var(--card);transition:background-color .2s,border-color .2s}
+  .anrow.tap{cursor:pointer;user-select:none}
+  .anrow.tap:hover{border-color:var(--pine)}
+  .anrow.done{border-color:var(--ok);background:var(--ok-bg)}
+  .anrow.bad{border-color:var(--red);background:var(--red-bg)}
+  .antick{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);background:var(--card);flex-shrink:0;display:flex;
+    align-items:center;justify-content:center;font-size:18px;font-weight:700;line-height:1;color:#fff;transition:background-color .2s,border-color .2s,transform .2s}
+  .anrow.done .antick{background:var(--ok);border-color:var(--ok);transform:scale(1.06)}
+  .anrow.bad .antick{background:var(--red);border-color:var(--red)}
+  .anbody{flex:1;min-width:0}
+  .antitle{font-weight:700;font-size:15.5px;line-height:1.3;padding-top:6px}
+  .ansub{font-size:13px;color:var(--ink-soft);margin-top:3px;line-height:1.4}
+  .anrow.done .antitle,.anrow.done .ansub{color:var(--ok)}
+  .anrow.bad .ansub{color:var(--red);font-weight:600}
+  .anctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .anctl .monin{width:auto;flex:1;min-width:150px;max-width:280px}
+  .anbtn{padding:0 18px;height:46px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);
+    font:inherit;font-size:14.5px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background-color .18s,border-color .18s,color .18s}
+  .anbtn:hover{border-color:var(--pine)}
+  .anbtn.on.good{background:var(--ok);border-color:var(--ok);color:#fff}
+  .anbtn.on.warn{background:var(--red);border-color:var(--red);color:#fff}
+  @media (prefers-reduced-motion:reduce){.anopt,.anrow,.antick,.anbtn,.anprog i{transition:none}}
+
   /* ---------- login ---------- */
   #loginWrap{position:fixed;inset:0;background:var(--mist);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
   .logincard{background:#fff;border:1px solid var(--line);border-top:4px solid var(--gold);border-radius:14px;
@@ -10538,6 +10575,7 @@ const mon = {
   fluid:  {r:{}, powered:false, name:null, time:'', notes:''},
   hh:     {auditor:null, location:'', date:'', shift:'', cat:'', moment:'', outcome:'', obs:[], lastSent:null},
   clean:  {theatre:'', phase:'pre', checks:{pre:{}, post:{}}, date:'', name:null, time:'', notes:'', niuFrom:'', niuTo:''},
+  an:     {theatre:'', phase:'start', parts:null, name:null, time:'', notes:'', dates:{}, datesState:'', datesAt:0},   // the rest is filled by monAnBlankForm
   sentDay:'', sent:[]
 };
 
@@ -10609,6 +10647,7 @@ async function monSend(payload){
 function monTab(t){
   mon.tab = t;
   if(t==='fluid' && !Object.keys(mon.fluid.r).some(k=>mon.fluid.r[k]!=='')) mon.fluid.time = monNowHM();
+  if(t==='an') monAnOpen();
   render();
 }
 function monSet(kind, field, val){ mon[kind][field] = val; }
@@ -10938,6 +10977,308 @@ async function monSubmitNotInUse(){
   render();
 }
 
+// ---- anaesthetic checks ----
+// Start of list and end of list, per theatre. Sent to the same monitoring Google Sheet as the
+// other checks (type 'anaesthetic'; the Sheet's script has its own block for it, kept in
+// google-sheet/anaesthetic_checks.gs). The app cannot read the Sheet, so the three "last
+// changed" dates (circuit, water trap, soda lime) are also kept per theatre in the database
+// (anaes_get_dates / anaes_set_dates) and shown on every computer.
+// Built to be quick: one tap per item, extra questions only when something is wrong. A problem
+// never blocks sending; it is sent as "Action needed" with a note.
+const MON_AN_THEATRES = ['Theatre 1', 'Theatre 2'];
+const MON_AN_DUE_DAYS = 21;
+const MON_AN_ESC = ['EBME / Biomedical Engineering', 'Consultant Anaesthetist', 'Theatre Coordinator', 'Other'];
+const MON_AN_PARTS = [['circuit', 'Anaesthetic circuit'], ['trap', 'Water trap'], ['soda', 'Soda lime']];
+const MON_AN_TICKS = {cupboard:'Fluid and medication cupboard checked and stocked',
+                      cd:'Controlled drugs checked', video:'Video laryngoscope checked and working'};
+const MON_AN_START_ROWS = ['test', 'circuit', 'trap', 'soda', 'cupboard', 'cd', 'video'];
+const MON_AN_END = ['Gas scavenging switched off', 'Vaporisers secured', 'Anaesthetic machine powered down / on standby',
+                    'Suction canisters emptied or changed', 'Anaesthetic area cleaned and tidied'];
+
+function monAnBlankForm(){
+  const a = mon.an;
+  a.test = ''; a.esc = ''; a.escOther = '';
+  a.parts = {circuit:{date:null, changed:false}, trap:{date:null, changed:false}, soda:{date:null, changed:false}};
+  a.sodaColour = ''; a.cupboard = false; a.cd = false; a.cd1 = null; a.cd2 = ''; a.video = false;
+  a.end = {}; a.notes = ''; a.time = monNowHM();
+}
+function monAnShortDate(iso){
+  const d = new Date(iso + 'T12:00:00');
+  return isNaN(d) ? '' : d.toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short'});
+}
+// whole days from a date to today; null when there is no (valid) date
+function monAnAge(iso){
+  if(!iso) return null;
+  const a = Date.parse(String(iso) + 'T00:00:00Z'), b = Date.parse(todayISO() + 'T00:00:00Z');
+  return (isNaN(a) || isNaN(b)) ? null : Math.round((b - a) / 864e5);
+}
+// One of circuit / trap / soda: the date on record (typed here, else the stored one), and what
+// it means today. "changed" = changed today during this check.
+function monAnPart(part){
+  const a = mon.an, p = a.parts[part];
+  const stored = String(((a.dates || {})[a.theatre] || {})[part] || '');
+  const found = p.date !== null ? String(p.date || '') : stored;
+  const foundAge = monAnAge(found);
+  const future = foundAge !== null && foundAge < 0;
+  const date = p.changed ? todayISO() : found;
+  return {found, foundAge, date, changed: !!p.changed, future,
+    missing: !p.changed && (!found || foundAge === null),
+    due: part !== 'soda' && !p.changed && foundAge !== null && foundAge >= MON_AN_DUE_DAYS};
+}
+function monAnEscText(){ const a = mon.an; return (a.esc === 'Other' ? String(a.escOther || '') : String(a.esc || '')).trim(); }
+function monAnCdNames(){ const a = mon.an; return [(a.cd1 === null ? String(myName || '') : String(a.cd1)).trim(), String(a.cd2 || '').trim()]; }
+// {done, bad} for a start-of-list row. done = answered; bad = answered, but something needs action.
+function monAnRow(k){
+  const a = mon.an;
+  if(k === 'test') return {done: a.test === 'Passed' || (a.test === 'Failed' && !!monAnEscText()), bad: a.test === 'Failed'};
+  if(k === 'circuit' || k === 'trap'){ const p = monAnPart(k); return {done: !p.missing && !p.future, bad: p.due || p.future}; }
+  if(k === 'soda'){ const p = monAnPart('soda'); const ex = a.sodaColour === 'Purple' && !p.changed;
+    return {done: !!a.sodaColour && !p.missing && !p.future, bad: ex || p.future}; }
+  if(k === 'cd'){ const n = monAnCdNames(); return {done: !!a.cd && !!n[0] && !!n[1] && n[0].toLowerCase() !== n[1].toLowerCase(), bad: false}; }
+  return {done: !!a[k], bad: false};
+}
+function monAnRowClass(k){ const r = monAnRow(k); return 'anrow' + (r.bad ? ' bad' : r.done ? ' done' : ''); }
+function monAnTickChar(k){ const r = monAnRow(k); return r.bad ? '!' : r.done ? '✓' : ''; }
+function monAnProgress(){
+  const a = mon.an;
+  if(a.phase === 'end'){ const n = MON_AN_END.filter((_, i) => a.end[i]).length; return {n, of: MON_AN_END.length}; }
+  return {n: MON_AN_START_ROWS.filter(k => monAnRow(k).done).length, of: MON_AN_START_ROWS.length};
+}
+// Typing in a box must not redraw the page (the cursor would jump): patch the row and the bar.
+function monAnRefresh(){
+  ['test', 'cd'].forEach(k => {
+    const row = document.getElementById('an-row-' + k); if(row) row.className = monAnRowClass(k) + (k === 'cd' ? ' tap' : '');
+    const t = document.getElementById('an-tick-' + k); if(t) t.textContent = monAnTickChar(k);
+  });
+  const p = monAnProgress();
+  const txt = document.getElementById('an-prog-txt'); if(txt) txt.textContent = p.n + ' of ' + p.of;
+  const bar = document.getElementById('an-prog-bar'); if(bar && bar.style) bar.style.width = Math.round(p.n / p.of * 100) + '%';
+}
+function monAnSet(field, val, redraw){ mon.an[field] = val; if(redraw) render(); else monAnRefresh(); }
+
+// ---- the three last-change dates, shared by every computer ----
+async function monAnLoadDates(){
+  const a = mon.an;
+  if(!LIVE){ a.datesState = 'ok'; return; }
+  try{
+    const {data, error} = await sb.rpc('anaes_get_dates');
+    if(error) throw new Error(error.message);
+    a.dates = (data && typeof data === 'object') ? data : {};
+    a.datesState = 'ok'; a.datesAt = Date.now();
+  }catch(e){ a.datesState = 'err'; }
+  if(currentView === 'monitor' && mon.tab === 'an' && !mon.busy) render();
+}
+function monAnOpen(){
+  const a = mon.an;
+  if(!a.parts) monAnBlankForm();
+  if(!a.theatre){
+    let t = ''; try{ t = String(localStorage.getItem('bollin_an_theatre') || ''); }catch(e){}
+    if(MON_AN_THEATRES.includes(t)){ a.theatre = t; a.phase = monAnGuessPhase(t); }
+  }
+  if(!a.time) a.time = monNowHM();
+  monAnLoadDates();
+}
+// A start-of-list check already sent from this computer today for this theatre: offer End of list.
+function monAnGuessPhase(theatre){
+  return monSentRows().some(r => r.type === 'Anaesthetic' && r.location === theatre && r.phase === 'Start of list') ? 'end' : 'start';
+}
+function monAnPickTheatre(t){
+  if(!MON_AN_THEATRES.includes(t)) return;
+  const a = mon.an;
+  if(a.theatre !== t){ a.theatre = t; monAnBlankForm(); a.phase = monAnGuessPhase(t); }
+  try{ localStorage.setItem('bollin_an_theatre', t); }catch(e){}
+  render(); monAnStale();
+}
+function monAnPickPhase(ph){ mon.an.phase = ph === 'end' ? 'end' : 'start'; if(!mon.an.time) mon.an.time = monNowHM(); render(); monAnStale(); }
+function monAnStale(){ if(LIVE && Date.now() - (mon.an.datesAt || 0) > 5*60*1000) monAnLoadDates(); }
+function monAnTest(v){ const a = mon.an; a.test = a.test === v ? '' : v; if(a.test !== 'Failed'){ a.esc = ''; a.escOther = ''; } render(); }
+function monAnTick(k){ mon.an[k] = !mon.an[k]; render(); }
+function monAnSetDate(part, v){ mon.an.parts[part].date = String(v || ''); render(); }
+function monAnChanged(part){ const p = mon.an.parts[part]; p.changed = !p.changed; render(); }
+function monAnSoda(c){ mon.an.sodaColour = mon.an.sodaColour === c ? '' : c; render(); }
+function monAnEndTick(i){ mon.an.end[i] = !mon.an.end[i]; render(); }
+function monAnKnownNames(){
+  try{ const l = JSON.parse(localStorage.getItem('bollin_an_names') || '[]'); return Array.isArray(l) ? l.filter(x => typeof x === 'string').slice(0, 30) : []; }
+  catch(e){ return []; }
+}
+function monAnRememberName(n){
+  n = String(n || '').trim(); if(!n) return;
+  const l = monAnKnownNames().filter(x => x.toLowerCase() !== n.toLowerCase()); l.unshift(n);
+  try{ localStorage.setItem('bollin_an_names', JSON.stringify(l.slice(0, 30))); }catch(e){}
+}
+
+// ---- screen ----
+function monAnPartRow(part, label){
+  const a = mon.an, p = monAnPart(part), isSoda = part === 'soda';
+  const who = monName(a).trim();
+  let sub;
+  if(p.changed) sub = 'Changed today' + (who ? ' by ' + monEsc(who) : '');
+  else if(p.future) sub = 'That date is in the future. Correct it.';
+  else if(p.missing) sub = 'No date recorded yet. Enter when it was last changed, or tap “Changed today”.';
+  else {
+    const ago = p.foundAge === 0 ? 'today' : p.foundAge === 1 ? 'yesterday' : p.foundAge + ' days ago';
+    sub = 'Last changed ' + monEsc(monAnShortDate(p.found)) + ' · ' + ago;
+    if(p.due) sub += ' — due for change (every ' + MON_AN_DUE_DAYS + ' days). Change it, then tap “Changed today”.';
+    else if(!isSoda) sub += ' · due in ' + (MON_AN_DUE_DAYS - p.foundAge) + ' day' + (MON_AN_DUE_DAYS - p.foundAge === 1 ? '' : 's');
+  }
+  if(isSoda && a.sodaColour === 'Purple' && !p.changed) sub = 'Purple = exhausted. Change it, then tap “Changed today”.' + (p.missing ? '' : ' (' + sub + ')');
+  if(isSoda && !a.sodaColour && !p.changed) sub = 'What colour is it? ' + (p.missing ? '' : sub);
+  return `<div class="${monAnRowClass(part)}" id="an-row-${part}">
+    <div class="antick" id="an-tick-${part}">${monAnTickChar(part)}</div>
+    <div class="anbody">
+      <div class="antitle">${label}${isSoda ? ' checked' : part === 'trap' ? ' checked' : ''}</div>
+      <div class="ansub">${sub}</div>
+      <div class="anctl">
+        ${isSoda ? `<button class="anbtn ${a.sodaColour === 'White' ? 'on good' : ''}" id="an-soda-white" onclick="monAnSoda('White')">⚪ White</button>
+          <button class="anbtn ${a.sodaColour === 'Purple' ? 'on warn' : ''}" id="an-soda-purple" onclick="monAnSoda('Purple')">🟣 Purple</button>` : ''}
+        <input type="date" class="monin" id="an-date-${part}" title="Date last changed" max="${todayISO()}" value="${monEsc(p.changed ? todayISO() : p.found)}" ${p.changed ? 'disabled' : ''} onchange="monAnSetDate('${part}',this.value)">
+        <button class="anbtn ${p.changed ? 'on good' : ''}" id="an-changed-${part}" onclick="monAnChanged('${part}')">${p.changed ? '✓ Changed today' : 'Changed today'}</button>
+      </div>
+    </div></div>`;
+}
+function monAnTickRow(k){
+  const a = mon.an;
+  let extra = '';
+  if(k === 'cd' && a.cd){
+    const n = monAnCdNames(), same = n[0] && n[1] && n[0].toLowerCase() === n[1].toLowerCase();
+    extra = `<div class="anctl" onclick="event.stopPropagation()">
+      <input type="text" class="monin" id="an-cd1" placeholder="First practitioner" value="${monEsc(a.cd1 === null ? String(myName || '') : a.cd1)}" oninput="monAnSet('cd1',this.value)">
+      <input type="text" class="monin" id="an-cd2" list="an-names" placeholder="Second practitioner" value="${monEsc(a.cd2)}" oninput="monAnSet('cd2',this.value)">
+      <datalist id="an-names">${monAnKnownNames().map(x => `<option value="${monEsc(x)}"></option>`).join('')}</datalist>
+    </div><div class="ansub">${same ? 'The two practitioners must be different people.' : 'Two qualified practitioners.'}</div>`;
+  }
+  return `<div class="${monAnRowClass(k)} tap" id="an-row-${k}" onclick="monAnTick('${k}')">
+    <div class="antick" id="an-tick-${k}">${monAnTickChar(k)}</div>
+    <div class="anbody"><div class="antitle">${MON_AN_TICKS[k]}</div>${extra}</div></div>`;
+}
+function monAnTab(){
+  const a = mon.an;
+  if(!a.parts) monAnBlankForm();
+  const picker = `<div class="gaspanel">
+    <div class="anseg" id="an-theatres">${MON_AN_THEATRES.map(t => `<button class="anopt ${a.theatre === t ? 'on' : ''}" onclick="monAnPickTheatre('${t}')">${t}</button>`).join('')}</div>
+    ${a.theatre ? `<div class="anseg" id="an-phases">
+      <button class="anopt ${a.phase === 'start' ? 'on' : ''}" onclick="monAnPickPhase('start')">☀ Start of the list<small>Before the first patient</small></button>
+      <button class="anopt ${a.phase === 'end' ? 'on' : ''}" onclick="monAnPickPhase('end')">🌙 End of the list<small>After the last patient</small></button></div>` : ''}
+  </div>`;
+  if(!a.theatre) return picker + `<div class="gaspanel" style="color:var(--ink-soft)">Choose the theatre to begin. This computer will remember it.</div>`;
+  const p = monAnProgress();
+  const head = `<div class="anhead"><h2 style="margin:0">${a.theatre} · ${a.phase === 'end' ? 'End of the list' : 'Start of the list'}</h2>
+      <div class="anprog"><i id="an-prog-bar" style="width:${Math.round(p.n / p.of * 100)}%"></i></div>
+      <strong id="an-prog-txt" style="font-size:13.5px;white-space:nowrap">${p.n} of ${p.of}</strong></div>`;
+  if(a.phase === 'end'){
+    return picker + `<div class="gaspanel">${head}
+      <div class="ansub" style="margin-bottom:2px">Tap what has been done. Leave anything that does not apply.</div>
+      ${MON_AN_END.map((it, i) => `<div class="anrow tap ${a.end[i] ? 'done' : ''}" id="an-end-${i}" onclick="monAnEndTick(${i})">
+        <div class="antick">${a.end[i] ? '✓' : ''}</div><div class="anbody"><div class="antitle">${it}</div></div></div>`).join('')}
+      ${monMeta('an', 'Checked by')}
+    </div>
+    ${monSendBtn('✓ Send end-of-list check', 'monSubmitAnaes()')}`;
+  }
+  const escPick = a.test === 'Failed' ? `<div class="anctl">
+      ${monSelect('an-esc', '— Who was this escalated to? —', MON_AN_ESC.map(x => [x, x]), a.esc, "monAnSet('esc',this.value,true)")}
+      ${a.esc === 'Other' ? `<input type="text" class="monin" id="an-esc-other" placeholder="Name or role" value="${monEsc(a.escOther)}" oninput="monAnSet('escOther',this.value)">` : ''}
+    </div>` : '';
+  return picker + `<div class="gaspanel">${head}
+    ${a.datesState === 'err' ? `<div class="note" style="margin:0 0 4px">The last-change dates could not be loaded. Check the dates below before sending.</div>` : ''}
+    <div class="${monAnRowClass('test')}" id="an-row-test">
+      <div class="antick" id="an-tick-test">${monAnTickChar('test')}</div>
+      <div class="anbody">
+        <div class="antitle">Anaesthetic machine checked — self-test result</div>
+        <div class="ansub">${a.test === 'Failed' ? 'Failed. Do not use until it is cleared. Say who it was escalated to.' : 'Machine check run, no errors showing?'}</div>
+        <div class="anctl">
+          <button class="anbtn ${a.test === 'Passed' ? 'on good' : ''}" id="an-test-pass" onclick="monAnTest('Passed')">✓ Passed</button>
+          <button class="anbtn ${a.test === 'Failed' ? 'on warn' : ''}" id="an-test-fail" onclick="monAnTest('Failed')">✗ Failed</button>
+        </div>${escPick}
+      </div></div>
+    ${MON_AN_PARTS.map(x => monAnPartRow(x[0], x[1])).join('')}
+    ${monAnTickRow('cupboard')}${monAnTickRow('cd')}${monAnTickRow('video')}
+    ${monMeta('an', 'Checked by')}
+  </div>
+  ${monSendBtn('✓ All medical devices ready and checked — send', 'monSubmitAnaes()')}`;
+}
+
+// ---- sending ----
+// Works out what would be sent. block = something must be answered first; problems = things that
+// make it "Action needed" (it can still be sent, with a note).
+function monAnBuild(){
+  const a = mon.an, name = monName(a).trim();
+  if(!MON_AN_THEATRES.includes(a.theatre)) return {block:'Choose the theatre first'};
+  if(!name) return {block:'Enter who checked it'};
+  const shell = {type:'anaesthetic', date:todayISO(), day:monDayShort(), time:a.time, theatre:a.theatre};
+  const sentBy = String((session && session.username) || '');
+  if(a.phase === 'end'){
+    const done = MON_AN_END.filter((_, i) => a.end[i]), not = MON_AN_END.filter((_, i) => !a.end[i]);
+    if(!done.length) return {block:'Tap at least one item that has been done'};
+    return {problems:[], unticked:[], payload:Object.assign(shell, {phase:'End of list', status:'ok', checkedBy:name, sentBy,
+      endDone:done, endNotDone:not, checkedCount:done.length, totalItems:MON_AN_END.length, actionNeeded:'', notes:a.notes})};
+  }
+  if(!a.test) return {block:'Machine test: tap Passed or Failed'};
+  const esc = monAnEscText();
+  if(a.test === 'Failed' && !esc) return {block:'Machine test failed: say who it was escalated to'};
+  const P = {}; let block = '';
+  MON_AN_PARTS.forEach(x => {
+    const p = P[x[0]] = monAnPart(x[0]);
+    if(block) return;
+    if(p.future) block = x[1] + ': the date cannot be in the future';
+    else if(p.missing) block = x[1] + ': enter when it was last changed, or tap “Changed today”';
+  });
+  if(block) return {block};
+  if(!a.sodaColour) return {block:'Soda lime: tap White or Purple'};
+  const cdn = monAnCdNames();
+  if(a.cd && (!cdn[0] || !cdn[1])) return {block:'Controlled drugs: enter the two practitioners'};
+  if(a.cd && cdn[0].toLowerCase() === cdn[1].toLowerCase()) return {block:'Controlled drugs: the two practitioners must be different people'};
+  const problems = [], unticked = [];
+  if(a.test === 'Failed') problems.push('Machine test FAILED (escalated to ' + esc + ')');
+  if(P.circuit.due) problems.push('Circuit ' + P.circuit.foundAge + ' days old, not changed');
+  if(P.trap.due) problems.push('Water trap ' + P.trap.foundAge + ' days old, not changed');
+  if(a.sodaColour === 'Purple' && !P.soda.changed) problems.push('Soda lime exhausted (purple), not changed');
+  ['cupboard', 'cd', 'video'].forEach(k => { if(!a[k]){ unticked.push(MON_AN_TICKS[k]); problems.push('Not confirmed: ' + MON_AN_TICKS[k]); } });
+  const by = p => p.changed ? name : '';
+  const payload = Object.assign(shell, {phase:'Start of list', status: problems.length ? 'fail' : 'ok', checkedBy:name, sentBy,
+    machineChecked:true, machineTest:a.test, escalatedTo: a.test === 'Failed' ? esc : '',
+    circuitDate:P.circuit.date, circuitAgeDays:P.circuit.foundAge, circuitChangedToday:P.circuit.changed, circuitChangedBy:by(P.circuit),
+    waterTrapDate:P.trap.date, waterTrapAgeDays:P.trap.foundAge, waterTrapChangedToday:P.trap.changed, waterTrapChangedBy:by(P.trap),
+    sodaLimeColour:a.sodaColour, sodaLimeDate:P.soda.date, sodaLimeAgeDays:P.soda.foundAge, sodaLimeChangedToday:P.soda.changed, sodaLimeChangedBy:by(P.soda),
+    cupboardStocked:!!a.cupboard, controlledDrugsChecked:!!a.cd, cdPractitioner1: a.cd ? cdn[0] : '', cdPractitioner2: a.cd ? cdn[1] : '',
+    videoLaryngoscope:!!a.video, devicesReady: !problems.length, actionNeeded:problems.join('; '), notes:a.notes});
+  return {problems, unticked, payload, parts:P};
+}
+async function monSubmitAnaes(){
+  const a = mon.an;
+  if(mon.busy) return;
+  const b = monAnBuild();
+  if(b.block){ toast(b.block); return; }
+  if(b.unticked.length && !confirm('Not ticked:\n\n• ' + b.unticked.join('\n• ') + '\n\nSend anyway? It will be recorded as “Action needed”.')) return;
+  if(b.problems.length && !String(a.notes || '').trim()){
+    toast('Add a note saying what is being done about it, then send');
+    const n = document.querySelector('#main textarea.monin'); if(n && n.focus) n.focus();
+    return;
+  }
+  const pl = b.payload, theatre = pl.theatre, isEnd = pl.phase === 'End of list';
+  if(!await monSend(pl)) return;
+  monLogSent({type:'Anaesthetic', location:theatre, status:pl.status, phase:pl.phase, time:pl.time, date:monDateLong(),
+    completion: isEnd ? pl.checkedCount + '/' + pl.totalItems + ' done' : (b.problems.length ? 'Action needed' : 'All checked')});
+  let datesSaved = true;
+  if(!isEnd){
+    if(pl.cdPractitioner2) monAnRememberName(pl.cdPractitioner2);
+    const d = (a.dates[theatre] = Object.assign({}, a.dates[theatre]));
+    d.circuit = pl.circuitDate; d.trap = pl.waterTrapDate; d.soda = pl.sodaLimeDate;     // this computer shows them at once
+    if(LIVE){
+      try{
+        const {data, error} = await sb.rpc('anaes_set_dates', {p_theatre:theatre, p_circuit:pl.circuitDate, p_trap:pl.waterTrapDate, p_soda:pl.sodaLimeDate,
+          p_circuit_by:pl.circuitChangedBy || null, p_trap_by:pl.waterTrapChangedBy || null, p_soda_by:pl.sodaLimeChangedBy || null});
+        if(error) throw new Error(error.message);
+        if(data && typeof data === 'object') a.dates = data;
+      }catch(e){ datesSaved = false; }
+    }
+  }
+  monAnBlankForm();
+  a.phase = isEnd ? 'start' : 'end';
+  toast('Sent to the monitoring sheet ✓ — ' + theatre + ' ' + pl.phase.toLowerCase() + (b.problems.length ? ' — ACTION NEEDED' : '')
+    + (datesSaved ? '' : '. The change dates were not saved for other computers; check them next time'));
+  render();
+}
+
 // ---- sent today ----
 function monSentTab(){
   const rows = monSentRows();
@@ -10952,16 +11293,16 @@ function monSentTab(){
 }
 
 function monitorView(){
-  const tabs = [['temp','🌡 Temperature'],['fridge','🧊 Fridge'],['fluid','💧 Fluid warmer'],['hh','🖐 Hand hygiene'],['clean','🧹 Theatre cleaning']];
+  const tabs = [['an','🫁 Anaesthetic checks'],['temp','🌡 Temperature'],['fridge','🧊 Fridge'],['fluid','💧 Fluid warmer'],['hh','🖐 Hand hygiene'],['clean','🧹 Theatre cleaning']];
   const n = monSentRows().length;
   if(mon.tab==='fluid' && !mon.fluid.time) mon.fluid.time = monNowHM();
   const t = mon.tab;
   const body = t==='temp' ? monReadingsTab('temp') : t==='fridge' ? monReadingsTab('fridge') : t==='fluid' ? monFluidTab()
-             : t==='hh' ? monHHTab() : t==='clean' ? monCleanTab() : monSentTab();
+             : t==='hh' ? monHHTab() : t==='clean' ? monCleanTab() : t==='an' ? monAnTab() : monSentTab();
   const isStaging = String(CONFIG.SUPABASE_URL||'').indexOf('ozlskwtbgblfmqjgcrmf') >= 0;
   return `
     <h1>Clinical monitoring</h1>
-    <div class="sub">Temperature, fridge and fluid warmer checks · hand hygiene audit · theatre cleaning record. Saved to the clinic's monitoring Google Sheet.</div>
+    <div class="sub">Anaesthetic checks · temperature, fridge and fluid warmer checks · hand hygiene audit · theatre cleaning record. Saved to the clinic's monitoring Google Sheet.</div>
     ${isStaging ? `<div class="note"><strong>Staging:</strong> anything submitted here goes into the REAL monitoring Google Sheet. Write TEST in the notes and delete the row afterwards.</div>` : ''}
     ${LIVE ? '' : `<div class="note">Demo mode — nothing is sent from here.</div>`}
     <div class="toolrow">

@@ -279,7 +279,8 @@ report is the **canonical PDF style** (§8).
 stand-alone "Clinical Monitoring Hub" page (`temperature-checklist.html` in the public repo
 `bollinclinic/bollinclinic`) rebuilt inside the app at Yasar's request, **still saving to the
 same Google Sheet** (his choice over moving it to Supabase).
-- **Tabs:** Temperature (5 rooms), Fridge (5 fridges), Fluid warmer, Hand hygiene audit
+- **Tabs:** Anaesthetic checks (first; see below), Temperature (5 rooms, still the tab the page
+  opens on), Fridge (5 fridges), Fluid warmer, Hand hygiene audit
   (observations by staff category and the 5 moments, compliance %, CSV backup), Theatre
   cleaning (pre/post-surgery checklists per theatre, plus "not in use" date ranges), and
   Sent today.
@@ -303,6 +304,35 @@ same Google Sheet** (his choice over moving it to Supabase).
   Reading boxes are patched in place (`monReading`), not re-rendered, to keep the cursor.
 - **Staging posts to the REAL Sheet** (as Theatre & Ward does with SharePoint); the page says
   so on staging. Demo mode never posts (`monCanSend`).
+- **Anaesthetic checks** (November 2026; `monAnTab`, form state `mon.an`; Theatre 1 and
+  Theatre 2 only, Yasar's choice):
+  - **Built to be quick, at Yasar's request:** theatre and Start / End of the list are big
+    buttons on the page (no pop-up), the computer remembers its theatre, each item is one tap,
+    and extra questions appear only when something is wrong.
+  - **Start of the list** (`MON_AN_START_ROWS`): machine self-test Passed / Failed (Failed
+    needs "escalated to"), circuit, water trap, soda lime (White / Purple), fluid and medication
+    cupboard, controlled drugs (two different practitioners), video laryngoscope. The Send
+    button is the final "all medical devices ready and checked".
+  - **End of the list** (`MON_AN_END`): five items, tick what applies (at least one).
+  - **21-day rule** (`MON_AN_DUE_DAYS`): a circuit or water trap 21 or more days old is due;
+    "Changed today" records today and the checker's name. Purple soda lime is exhausted until
+    "Changed today".
+  - **A problem never blocks sending.** A failed test, an overdue part left unchanged, purple
+    soda lime left unchanged or an unticked item is sent with `status:'fail'` ("ACTION NEEDED"
+    in the Sheet), lists what in `actionNeeded`, and needs a note. Only missing answers block.
+  - **This is a NEW payload type, `type:'anaesthetic'`,** which the old Apps Script did not
+    know. Its handler is `google-sheet/anaesthetic_checks.gs`, which Yasar pasted into the
+    Sheet's script (the old `doPost` renamed `doPostOther`, a new `doPost` in front of it).
+    It writes the tab "Anaesthetic Checks" and, unlike the old code, answers
+    `{ok:true,…}`, so a test post with curl can be checked. **A field added to the payload
+    needs a column in that file, and the script re-pasted and redeployed as a new version of
+    the same deployment.** `tests/anaes_browser_tests.js` fails if they drift apart.
+  - **The three last-change dates are also kept in Supabase** (`anaes_dates`, one row per
+    theatre, via `anaes_get_dates` / `anaes_set_dates`; migration
+    `20261111100000_anaes_dates.sql`), because the app can't read the Sheet and staff must not
+    have to retype them. They are saved after a start-of-list check is sent. A date not sent is
+    kept, never blanked (§9 #15). The check record itself is only in the Sheet.
+  - Text boxes patch the row in place (`monAnRefresh`), never re-render.
 
 **Theatre & Ward timings** (all roles):
 - **Theatre** form: patient, procedure, surgeon(s), SFA, anaesthetist/type, and the timing
@@ -606,7 +636,7 @@ gate, add it on **both** sides (§9 #6).
 
 ## 6. Data model (Supabase tables)
 
-`profiles`, `login_pins` (sign-in PINs: hashes only, reached only through RPCs), `items` (all trackers; `tracker` enum incl. `services`), `item_barcodes` (extra scan codes), `barcode_link_events`,
+`profiles`, `login_pins` (sign-in PINs: hashes only, reached only through RPCs), `anaes_dates` (when each theatre's circuit, water trap and soda lime were last changed; RPCs only), `items` (all trackers; `tracker` enum incl. `services`), `item_barcodes` (extra scan codes), `barcode_link_events`,
 `dispatch_log`, `procedures` (`cart` jsonb, `room`, `surgeon_id`), `procedure_lines` (cost +
 bill snapshots), `surgeons`, `rota_days`, `rota_theatres` (`cases` jsonb of {surgeon, procedure,
 stay}; no PAT), 
@@ -822,6 +852,13 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
   wrong tries / lock-out / remove, two people on one computer, the welcome and tile animation,
   and it **really refreshes the page** half-way to prove nothing replays. Database side in
   `tests/sql/login_pins_db_tests.sql` (staging only);
+- anaesthetic checks: `tests/anaes_browser_tests.js` (checks in `anaes_page_tests.js`), in
+  headless Chrome with a fake Supabase client and `fetch` replaced by a recorder. It covers the
+  exact records sent, the 21-day rule, problems being sent as "action needed", missing answers,
+  no connection, and the dates shared between computers. It then runs the payloads the page
+  really sent through `google-sheet/anaesthetic_checks.gs` with Google's services stubbed, and
+  fails if a field has no column. Database side in `tests/sql/anaes_dates_db_tests.sql`
+  (staging only);
 - clinical monitoring: `tests/monitor_browser_tests.js`, also in headless Chrome. It puts the
   same entries through a copy of the **old page** (`tests/fixtures/`) and through the new one
   with `fetch` replaced by a recorder, and requires the requests to be identical (URL, mode,
