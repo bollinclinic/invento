@@ -542,7 +542,14 @@ is ever sent automatically; this is a firm rule from Yasar.**
     `{roles}` `{start}`, never patient details), a test text, and the recent-texts log.
 
 **Users & roles** (developer only): list users, change role, activate/deactivate, create
-accounts (`create-user`), reset password / rename (`manage-user`).
+accounts (`create-user`), reset password / set password / rename (`manage-user`).
+- **Reset password** makes a random password and shows it once. **Set password** (`openSetPw`,
+  action `setPassword`, November 2026) gives the person one the developer types: 6 to 72
+  characters, no space at either end. Either way the person's sign-in PINs are dropped (the
+  `auth.users` trigger).
+- The Set password boxes are plain text boxes drawn as dots (`.maskbox`), built only while the
+  dialog is open, so the browser never offers to save them (§9 #17). The dialog remembers the
+  person by username, never by row number.
 
 **Signing in** (November 2026; migration `20261109100000_login_pins.sql`, Edge Function
 `pin-login`):

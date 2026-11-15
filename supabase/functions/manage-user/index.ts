@@ -1,4 +1,5 @@
-// Developer-only account management: reset a user's password (generates a fresh one and
+// Developer-only account management: set a user's password to one the developer chooses
+// ("setPassword"), reset a user's password (generates a fresh one and
 // reveals it once -- Supabase Auth stores only a bcrypt hash, so an existing password that's
 // already been changed by its owner can never actually be "seen" again, only replaced) and
 // change a user's username (which also has to repoint their synthetic login email, hence the
@@ -59,6 +60,20 @@ Deno.serve(async (req) => {
       const { error } = await adminClient.auth.admin.updateUserById(target.id, { password: newPassword });
       if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders });
       return new Response(JSON.stringify({ ok: true, username: targetUsername, password: newPassword }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // A password chosen by the developer (as well as "resetPassword", which makes a random one).
+    // Supabase stores only its hash. The database drops the person's sign-in PINs when a
+    // password changes (trigger pins_drop_on_password_change).
+    if (action === "setPassword") {
+      const chosen = typeof body.password === "string" ? body.password : "";
+      if (chosen.length < 6) return new Response(JSON.stringify({ error: "The password must be at least 6 characters" }), { status: 400, headers: corsHeaders });
+      if (chosen.length > 72) return new Response(JSON.stringify({ error: "The password can be at most 72 characters" }), { status: 400, headers: corsHeaders });
+      if (chosen !== chosen.trim()) return new Response(JSON.stringify({ error: "The password cannot start or end with a space" }), { status: 400, headers: corsHeaders });
+      const { error } = await adminClient.auth.admin.updateUserById(target.id, { password: chosen });
+      if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ ok: true, username: targetUsername }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 

@@ -436,6 +436,10 @@
     .digital{font-size:28px}
   }
 
+  /* typed text shown as dots without being a password box (the browser must not offer to save it) */
+  input.maskbox{-webkit-text-security:disc}
+  input.maskbox.shown{-webkit-text-security:none}
+
   /* ---------- clinical monitoring: anaesthetic checks (big one-tap rows) ---------- */
   .anseg{display:flex;gap:10px;flex-wrap:wrap}
   .anseg + .anseg{margin-top:10px}
@@ -1027,6 +1031,17 @@
   </div>
 </dialog>
 
+<!-- Developer: give someone a password of the developer's choice. Its boxes exist only while it
+     is open, and are plain text boxes drawn as dots, so the browser never offers to save them. -->
+<dialog id="setPwDlg" onclose="setPwDlgClear()" style="max-width:460px">
+  <div class="m-head" id="setPwTitle">Set password</div>
+  <div class="m-body" id="setPwBody"></div>
+  <div class="m-actions">
+    <button class="btn" onclick="closeSetPw()">Cancel</button>
+    <button class="btn primary" id="setPwSaveBtn" onclick="saveSetPw()">Set password</button>
+  </div>
+</dialog>
+
 <dialog id="bulkEditDlg">
   <div class="m-head">Bulk edit — <span id="beCount">0</span> item(s)</div>
   <div class="m-body">
@@ -1237,7 +1252,7 @@ let buf='', lastKey=0;
 document.addEventListener('keydown', e => {
   if(e.target.id === 'scanInput') return;          // handled by its own listener
   // a PIN or password typed quickly must never be read as a barcode
-  if(e.target.closest && e.target.closest('#loginWrap,#pinDlg,#pwDlg')) return;
+  if(e.target.closest && e.target.closest('#loginWrap,#pinDlg,#pwDlg,#setPwDlg')) return;
   if(e.target.matches('input,select,textarea')) {
     // typing in a form field: still allow scans — bursts are distinguishable,
     // but keep it simple in v1: ignore while a dialog is open
@@ -6883,12 +6898,13 @@ function usersView(){
     <td data-label="Role"><select onchange="changeUserRole(${i},this)" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px">
       ${['common','staff','admin','superadmin','developer'].map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}
     </select></td>
-    <td data-label=""><button class="btn" style="padding:5px 10px;font-size:12.5px" onclick="resetUserPassword(${i})" title="Generate a new password and reveal it once">🔑 Reset password</button></td>
+    <td data-label=""><button class="btn" style="padding:5px 10px;font-size:12.5px" onclick="resetUserPassword(${i})" title="Generate a new password and reveal it once">🔑 Reset password</button>
+      <button class="btn" style="padding:5px 10px;font-size:12.5px" onclick="openSetPw(${i})" title="Give this person a password you choose">✎ Set password</button></td>
     </tr>`).join('');
   return `<h1>Users &amp; roles</h1>
     <div class="sub">Developer-only area. Appoint the <strong>super admins</strong> here (target: 3). Super admins can do everything admins can, plus the <strong>Rota</strong>. Role changes apply from the user's next reload or sign-in.</div>
     <div class="sub">Current super admins: <strong>${supers}</strong> of 3</div>
-    <div class="sub" style="color:var(--ink-soft)">Passwords can't be viewed once a user has changed theirs — they're never stored anywhere in readable form. "Reset password" generates a brand-new one and shows it once, to pass on directly.</div>
+    <div class="sub" style="color:var(--ink-soft)">Passwords can't be viewed once a user has changed theirs — they're never stored anywhere in readable form. "Reset password" generates a brand-new one and shows it once, to pass on directly. "Set password" gives them one you choose. Either way their sign-in PIN is removed, and they can change the password themselves afterwards.</div>
     <div class="toolrow"><button class="btn primary" onclick="openAddUser()">＋ Add user</button></div>
     <table><thead><tr><th>User</th><th>Active</th><th>Role</th><th>Password</th></tr></thead>
     <tbody>${rows||'<tr><td colspan="4" style="color:var(--ink-soft)">No users loaded — reload the app.</td></tr>'}</tbody></table>`;
@@ -6963,6 +6979,44 @@ async function openEditUsername(i){
     const res = await api({action:'updateUsername', username:u.username, newUsername});
     u.username = res.newUsername; render(); toast('Username updated');
   }catch(err){ toast('Could not update username — '+err.message); }
+}
+/* Set password: the developer types the password to give someone. The person is remembered by
+   username (never by row number, which a reload can change). */
+let _setPwUser = null, _setPwBusy = false;
+function setPwDlgClear(){ const d = document.getElementById('setPwDlg'); if(d && d.open) return; const b = document.getElementById('setPwBody'); if(b) b.innerHTML = ''; _setPwUser = null; }
+function closeSetPw(){ const d = document.getElementById('setPwDlg'); try{ if(d && d.open) d.close(); }catch(e){} setPwDlgClear(); }
+function setPwErr(msg){ const el = document.getElementById('setPwErr'); if(el) el.textContent = msg||''; }
+function openSetPw(i){
+  const u = (state.users||[])[i]; if(!u || !isDeveloper()) return;
+  _setPwUser = {username:String(u.username), name:String(u.name||u.username)};
+  const box = (id, label)=>`<div class="m-row"><label for="${id}">${label}</label><input id="${id}" class="maskbox" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+      data-lpignore="true" data-1p-ignore maxlength="72" oninput="setPwErr('')" onkeydown="if(event.key==='Enter'){event.preventDefault();saveSetPw();}"></div>`;
+  $('#setPwTitle').textContent = 'Set password — ' + _setPwUser.name;
+  $('#setPwBody').innerHTML = `
+    <div class="sub" style="margin:0 0 10px">Type the password to give <strong>${loginEsc(_setPwUser.name)}</strong> (username <span style="font-family:var(--mono)">${loginEsc(_setPwUser.username)}</span>). At least 6 characters.</div>
+    ${box('setPwNew','New password')}${box('setPwNew2','Repeat it')}
+    <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-soft);cursor:pointer"><input type="checkbox" id="setPwShow" onchange="['setPwNew','setPwNew2'].forEach(id=>document.getElementById(id).classList.toggle('shown',this.checked))"> Show what I typed</label>
+    <div class="sub" style="margin:8px 0 0">Their old password stops working at once and their sign-in PIN is removed from every computer. Tell them the new password directly; they can change it after signing in.</div>
+    <div id="setPwErr" style="color:var(--red);font-size:13px;min-height:18px;margin-top:6px"></div>`;
+  setPwDlg.showModal();
+  setTimeout(()=>{ const el = document.getElementById('setPwNew'); if(el && el.focus) el.focus(); }, 50);
+}
+async function saveSetPw(){
+  if(_setPwBusy || !_setPwUser || !isDeveloper()) return;
+  const who = _setPwUser;
+  const a = String(($('#setPwNew')||{}).value||''), b = String(($('#setPwNew2')||{}).value||'');
+  if(a.length < 6){ setPwErr('The password must be at least 6 characters'); return; }
+  if(a !== a.trim()){ setPwErr('The password cannot start or end with a space'); return; }
+  if(a !== b){ setPwErr('The two passwords do not match'); return; }
+  if(a.toLowerCase() === who.username.toLowerCase()){ setPwErr('The password cannot be the same as the username'); return; }
+  _setPwBusy = true; setPwErr('Saving…');
+  try{
+    await api({action:'setUserPassword', username:who.username, password:a});
+    if(session && String(session.username).toLowerCase() === who.username.toLowerCase()) pinForget(who.username);   // my own: the database dropped my PINs too
+    closeSetPw();
+    toast('Password set for ' + who.name + '. Tell them directly');
+  }catch(err){ setPwErr('Not changed — ' + (err.message||'try again')); }
+  finally{ _setPwBusy = false; }
 }
 async function resetUserPassword(i){
   const u = (state.users||[])[i]; if(!u || !isDeveloper()) return;
@@ -12020,6 +12074,16 @@ async function api(payload){
     }
     if(data && data.error) throw new Error(data.error);
     return {ok:true, newUsername: data.newUsername};
+  }
+  if(a==='setUserPassword'){
+    const { data, error } = await sb.functions.invoke('manage-user', { body: { action:'setPassword', username: low(payload.username), password: String(payload.password==null?'':payload.password) } });
+    if(error){
+      let msg = error.message;
+      try{ const body = await error.context.json(); if(body && body.error) msg = body.error; }catch(e){}
+      throw new Error(msg);
+    }
+    if(data && data.error) throw new Error(data.error);
+    return {ok:true};
   }
   if(a==='resetUserPassword'){
     const { data, error } = await sb.functions.invoke('manage-user', { body: { action:'resetPassword', username: low(payload.username) } });
