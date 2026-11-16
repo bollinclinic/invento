@@ -464,36 +464,35 @@
   @media (prefers-reduced-motion:reduce){.kpdots.shake{animation:none}.kpkey,.kpdot{transition:none}}
 
   /* ---------- dashboard tiles (soft tinted cards) ---------- */
-  .tile.dt{--tc:#E0A126;position:relative;overflow:hidden;min-height:150px;padding:14px 16px 14px 18px;border-radius:18px;border:1px solid color-mix(in srgb,var(--tc) 22%,var(--line));
-    border-left:5px solid var(--tc);background:linear-gradient(135deg,color-mix(in srgb,var(--tc) 15%,var(--card)) 0%,var(--card) 62%);
+  .tile.dt{--tc:#E0A126;position:relative;overflow:hidden;min-height:108px;padding:11px 12px 11px 13px;border-radius:14px;border:1px solid color-mix(in srgb,var(--tc) 22%,var(--line));
+    border-left:4px solid var(--tc);background:linear-gradient(135deg,color-mix(in srgb,var(--tc) 15%,var(--card)) 0%,var(--card) 62%);
     box-shadow:0 6px 18px color-mix(in srgb,var(--tc) 12%,transparent);transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
   .tile.dt:hover{transform:translateY(-2px);box-shadow:0 12px 26px color-mix(in srgb,var(--tc) 22%,transparent);border-color:color-mix(in srgb,var(--tc) 55%,var(--line))}
   .tile.dt.t-amber{--tc:#E0A126} .tile.dt.t-red{--tc:#E0483F} .tile.dt.t-blue{--tc:#3B82D6} .tile.dt.t-green{--tc:#1E9E62}
-  .dt-badge{display:inline-flex;width:30px;height:30px;border-radius:50%;align-items:center;justify-content:center;background:var(--tc);color:#fff;font-size:15px;font-weight:800;
+  .dt-badge{display:inline-flex;width:22px;height:22px;border-radius:50%;align-items:center;justify-content:center;background:var(--tc);color:#fff;font-size:11.5px;font-weight:800;
     box-shadow:0 3px 8px color-mix(in srgb,var(--tc) 40%,transparent)}
-  .tile.dt .ic{position:absolute;top:10px;right:12px;font-size:44px;line-height:1;opacity:1;filter:drop-shadow(0 6px 8px rgba(0,0,0,.14))}
-  .tile.dt .ic::before{content:"";position:absolute;inset:-12px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--tc) 22%,transparent),transparent 70%);z-index:-1}
-  .dt-num{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;padding-right:58px}
-  .tile.dt .n{font-size:34px;font-weight:800;font-family:var(--sans);letter-spacing:-.02em;line-height:1.05;color:var(--ink)}
-  .dt-pill{display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;background:color-mix(in srgb,var(--tc) 24%,var(--card));color:color-mix(in srgb,var(--tc) 45%,var(--ink))}
+  .tile.dt .ic{position:absolute;top:8px;right:9px;font-size:27px;line-height:1;opacity:1;filter:drop-shadow(0 6px 8px rgba(0,0,0,.14))}
+  .tile.dt .ic::before{content:"";position:absolute;inset:-8px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--tc) 22%,transparent),transparent 70%);z-index:-1}
+  .dt-num{display:flex;align-items:center;gap:7px;margin-top:5px;flex-wrap:wrap;padding-right:34px}
+  .tile.dt .n{font-size:26px;font-weight:800;font-family:var(--sans);letter-spacing:-.02em;line-height:1.05;color:var(--ink)}
+  .dt-pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:700;white-space:nowrap;background:color-mix(in srgb,var(--tc) 24%,var(--card));color:color-mix(in srgb,var(--tc) 45%,var(--ink))}
   .tile.dt.t-red .dt-pill{background:var(--tc);color:#fff}
   .dt-pill.ok{background:color-mix(in srgb,#1E9E62 20%,var(--card));color:color-mix(in srgb,#1E9E62 55%,var(--ink))}
-  .tile.dt .l{font-size:13.5px;color:var(--ink);margin-top:4px;padding-right:44px;line-height:1.3}
-  .dt-viz{margin-top:10px;padding-right:44px;min-height:22px}
-  .dt-seg{display:flex;gap:2px;height:8px;border-radius:99px;overflow:hidden;background:color-mix(in srgb,var(--tc) 14%,var(--mist))}
+  .tile.dt .l{font-size:12px;color:var(--ink);margin-top:2px;padding-right:30px;line-height:1.3}
+  .dt-viz{margin-top:7px;padding-right:30px;min-height:14px}
+  .dt-seg{display:flex;gap:2px;height:6px;border-radius:99px;overflow:hidden;background:color-mix(in srgb,var(--tc) 14%,var(--mist))}
   .dt-seg i{display:block;background:var(--tc);min-width:3px}
-  .dt-cap{font-size:11px;color:var(--ink-soft);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .dt-barrow{display:flex;align-items:center;gap:8px} .dt-barrow span{font-size:12px;font-weight:700;color:var(--ink-soft)}
-  .dt-bar{flex:1;height:9px;border-radius:99px;background:color-mix(in srgb,var(--tc) 14%,var(--mist));overflow:hidden}
+  .dt-cap{font-size:10px;color:var(--ink-soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dt-barrow{display:flex;align-items:center;gap:6px} .dt-barrow span{font-size:10.5px;font-weight:700;color:var(--ink-soft)}
+  .dt-bar{flex:1;height:6px;border-radius:99px;background:color-mix(in srgb,var(--tc) 14%,var(--mist));overflow:hidden}
   .dt-bar i{display:block;height:100%;border-radius:99px;background:var(--tc)}
-  .dt-cols{display:flex;gap:5px;align-items:flex-end;height:34px}
+  .dt-cols{display:flex;gap:4px;align-items:flex-end;height:24px}
   .dt-cols span{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px}
   .dt-cols i{display:block;width:100%;min-height:2px;border-radius:3px 3px 0 0;background:var(--tc)}
-  .dt-cols em{font-style:normal;font-size:9.5px;color:var(--ink-soft);line-height:1}
-  .dt-go{position:absolute;right:12px;bottom:12px;width:30px;height:30px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
-    font-size:19px;font-weight:700;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.08);transition:transform .16s ease,background-color .16s}
+  .dt-cols em{font-style:normal;font-size:8.5px;color:var(--ink-soft);line-height:1}
+  .dt-go{position:absolute;right:9px;bottom:9px;width:22px;height:22px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:700;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.08);transition:transform .16s ease,background-color .16s}
   .tile.dt:hover .dt-go{transform:translateX(3px);background:var(--tc);color:#fff;border-color:var(--tc)}
-  .tiles:has(.dt){grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px}
   #twDischargeTileWrap{display:flex} #twDischargeTileWrap>.tile{flex:1}
   @media (prefers-reduced-motion:reduce){.tile.dt,.dt-go{transition:none}.tile.dt:hover{transform:none}}
 
