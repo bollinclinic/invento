@@ -551,6 +551,53 @@ accounts (`create-user`), reset password / set password / rename (`manage-user`)
   dialog is open, so the browser never offers to save them (§9 #17). The dialog remembers the
   person by username, never by row number.
 
+**Security group** (developer only; view `security`, `securityView`; an indented child item under
+Users & roles; November 2026, migrations `20261116100000_security_groups.sql` and
+`20261116110000_security_my_ticks.sql`). Yasar asked for the inventory app's Security Groups
+screen here, with a way to change **one person's** access without changing their role.
+- **What it is:** a table of 38 named permissions (rows, grouped) against the five roles
+  (columns). **The role columns are locked** (Yasar's choice): they show what each role has.
+  Choosing a person (search by name, username or role) adds a column of ticks for them alone.
+  A tick that differs from their role is "given" or "taken away"; "Reset to role" removes them
+  all. Ticking a Manage permission also ticks the View it needs, and unticking a View unticks
+  what depends on it (`PERM_NEEDS`).
+- **It applies from the person's next open or refresh** (the page reads `my_ticks()` in
+  `loadAll` and keeps them on `session.ticks`, saved with the session).
+- **Where the truth lives: the server.** Every server rule that used to ask "is the ROLE high
+  enough" (`app_role_rank() >= N`) now asks `app_can('permission')`:
+  - `app_permissions` is the catalogue; each permission's `min_rank` is exactly the level the
+    rule used before. `user_permissions` holds one row per person per changed tick.
+  - `app_can(key)`: inactive → no; unknown permission → no; developer → always yes; a locked
+    permission → the role only; otherwise the person's own tick if there is one, else the role.
+  - **With no rows in `user_permissions` nothing behaves differently from before.** The
+    migration converts the live functions and table rules in place with a text swap, and
+    refuses to run unless each rule's old level equals its permission's `min_rank`.
+  - **Rules that only ask "is this an active account" were left alone on purpose** (the reads
+    every screen needs to load), so unticking a page for someone can never stop the app loading
+    for them: their page is hidden and the server refuses their writes there.
+  - `tw.view`, `monitor.view`, `dashboard.view`, `log.view` and `stocktake.sheet` have
+    `server = false`: nothing in this database stands behind them (SharePoint, the Google
+    Sheet, or a page-only feature), so a tick there only hides or shows the page.
+  - `users.manage` is locked: Users & roles and the Security group can never be ticked for
+    anyone. A developer's own access can never be reduced.
+  - `security_get()` and `security_set_user(user, ticks)` are developer-only; every change is
+    written to `activity_log` ("Access changed").
+- **On the page:** `isAdmin('proc.manage')`, `isSuperadmin('rota.view')` and so on. Each role
+  helper takes the permission it stands for; `permTick(key)` returns the signed-in person's own
+  tick, which decides, and with no tick the old role test runs unchanged. `can('edit')` maps
+  through `CAN_KEY`, pages through `VIEW_KEY` in `viewAllowed`. `PERM_MIN` mirrors
+  `min_rank` (a test compares it with the migration). 22 checks stay on the role on purpose
+  (Users & roles, the consumables supplier filter, sticker margin presets).
+- **A NEW role check must name its permission on both sides**: `isAdmin('x.y')` on the page
+  and `app_can('x.y')` in the function or rule. A new permission is a new row in
+  `app_permissions` (a new migration) plus `PERM_MIN`.
+- **Rota for a viewer:** `rota.view` without `rota.manage` opens the grid and Allocation
+  read-only ("You can view the rota but not change it"); `rota.staff` is the Staff database,
+  mobiles and texts. The two rota tables' single super-admin rule was split into read
+  (`rota.view`) and write (`rota.manage`).
+- **Marking obsolete** goes through `item_update`, which accepts `stock.manage`, or
+  `obsolete.manage` when only the obsolete fields are sent.
+
 **Signing in** (November 2026; migration `20261109100000_login_pins.sql`, Edge Function
 `pin-login`):
 - **The sign-in card exists on the page only while someone has to sign in.** `showLogin` writes
@@ -605,7 +652,8 @@ accounts (`create-user`), reset password / set password / rename (`manage-user`)
   Surgeon billing report, Item usage search. **Item usage search is in both on purpose**
   (Yasar listed it under each), so one page can have two links: `navMarkActive` (called by
   `nav()`) highlights both; the second has `navdup` and is hidden in the phone layout.
-- The only indented child items are Rota > Allocation and Rota > Staff database (`a.navsub`).
+- The indented child items are Rota > Allocation, Rota > Staff database and Users & roles >
+  Security group (`a.navsub`; the last is always shown to developers, with no caret).
 - `applyNavGroups()` hides a header when `viewAllowed` is false for every link in its group.
   Role gates are still only `viewAllowed`; moving a link never changes who sees it.
 - Every link has a mask icon (`--icn`, 24px grid, stroke 2, drawn 18px). A new sidebar item
@@ -638,15 +686,19 @@ policies and RPCs.
 | Theatre rota, rota texts & staff mobiles, bulk item edit, physical stock-take sheet | | | | ✓ | ✓ |
 | Users & roles, billing report, item usage, procedure pre-fill | | | | | ✓ |
 
-Enforced in **two places**: `viewAllowed(view)` / `can()` on the frontend, and RLS + RPC rank
-checks in Postgres (the real gate). Never rely on the frontend alone. When adding a role
+**The table above is what each ROLE has. Since November 2026 a developer can also give or
+take away single permissions for one person (see §4 "Security group"),** so a person may have
+more or less than their role. The server test is `app_can('permission')`, not the role level.
+
+Enforced in **two places**: `viewAllowed(view)` / `can()` on the frontend, and RLS + RPC
+`app_can` checks in Postgres (the real gate). Never rely on the frontend alone. When adding a role
 gate, add it on **both** sides (§9 #6).
 
 ---
 
 ## 6. Data model (Supabase tables)
 
-`profiles`, `login_pins` (sign-in PINs: hashes only, reached only through RPCs), `anaes_dates` (when each theatre's circuit, water trap and soda lime were last changed; RPCs only), `items` (all trackers; `tracker` enum incl. `services`), `item_barcodes` (extra scan codes), `barcode_link_events`,
+`profiles`, `app_permissions` and `user_permissions` (Security group: the catalogue and each person's own ticks; RPCs only), `login_pins` (sign-in PINs: hashes only, reached only through RPCs), `anaes_dates` (when each theatre's circuit, water trap and soda lime were last changed; RPCs only), `items` (all trackers; `tracker` enum incl. `services`), `item_barcodes` (extra scan codes), `barcode_link_events`,
 `dispatch_log`, `procedures` (`cart` jsonb, `room`, `surgeon_id`), `procedure_lines` (cost +
 bill snapshots), `surgeons`, `rota_days`, `rota_theatres` (`cases` jsonb of {surgeon, procedure,
 stay}; no PAT), 
@@ -870,6 +922,13 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
   services stubbed, fails if a field has no column, and checks the older check types are still
   written as before. Database side in `tests/sql/anaes_dates_db_tests.sql`
   (staging only);
+- Security group: `tests/security_browser_tests.js` (checks in `security_page_tests.js`, fake
+  database in `security_fake_supabase.js`), in headless Chrome with the REAL loader. It proves
+  that with no ticks every check equals the role, that a tick changes the tabs and what the page
+  asks the server for from the next load, and it drives the Security group page. It also fails
+  if `PERM_MIN` or any permission named on the page differs from the migration. Database side
+  in `tests/sql/security_db_tests.sql` (staging only): all 38 permissions x 5 roles equal the
+  old levels, ticks really open and close the server rules, and only a developer can change them;
 - clinical monitoring: `tests/monitor_browser_tests.js`, also in headless Chrome. It puts the
   same entries through a copy of the **old page** (`tests/fixtures/`) and through the new one
   with `fetch` replaced by a recorder, and requires the requests to be identical (URL, mode,

@@ -121,6 +121,7 @@
   nav a[data-view=services]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='7' width='18' height='13' rx='2'/%3E%3Cpath d='M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18'/%3E%3C/svg%3E")}
   nav a[data-view=billing]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z'/%3E%3Cpath d='M9 8h6M9 12h6M9 16h4'/%3E%3C/svg%3E")}
   nav a[data-view=itemusage]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3'/%3E%3C/svg%3E")}
+  nav a[data-view=security]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z'/%3E%3Cpath d='M9 12l2 2 4-4'/%3E%3C/svg%3E")}
   nav a[data-view=users]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3.5'/%3E%3Cpath d='M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18.5 20a6 6 0 0 0-2.5-5'/%3E%3C/svg%3E")}
   nav a[data-view=rota]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E")}
   nav a[data-view=rotastaff]{--icn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Ccircle cx='9' cy='11' r='2.2'/%3E%3Cpath d='M5.8 16a3.4 3.4 0 0 1 6.4 0M14 10h4M14 14h4'/%3E%3C/svg%3E")}
@@ -436,6 +437,34 @@
     .digital{font-size:28px}
   }
 
+  /* ---------- Security group ---------- */
+  .secpeople{display:flex;gap:6px;flex-wrap:wrap;max-height:176px;overflow-y:auto;padding:2px}
+  .secperson{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:7px 12px;border:1.5px solid var(--line);border-radius:10px;
+    background:var(--card);color:var(--ink);font:inherit;cursor:pointer;text-align:left;transition:border-color .15s,background-color .15s}
+  .secperson strong{font-size:13.5px} .secperson span{font-size:11.5px;color:var(--ink-soft)} .secperson span b{color:var(--gold)}
+  .secperson:hover{border-color:var(--pine)}
+  .secperson.on{border-color:var(--pine);background:var(--pine);color:#fff} .secperson.on span,.secperson.on span b{color:rgba(255,255,255,.85)}
+  .secperson.off{opacity:.6}
+  .secbar{position:sticky;top:0;z-index:3}
+  .secgiven,.sectaken{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:700}
+  .secgiven{background:var(--ok-bg);color:var(--ok)} .sectaken{background:var(--red-bg);color:var(--red)}
+  .secwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+  table.sectable{margin:0;min-width:760px;border:none}
+  table.sectable th{position:sticky;top:0;background:var(--card);z-index:1;font-size:12.5px;white-space:nowrap}
+  table.sectable td,table.sectable th{padding:9px 10px}
+  table.sectable .seccell{text-align:center;width:92px}
+  table.sectable .secmine{background:var(--mist)}
+  table.sectable .secperson-col{width:132px;border-left:2px solid var(--pine)}
+  table.sectable td.given{background:var(--ok-bg)} table.sectable td.taken{background:var(--red-bg)}
+  table.sectable td.given small{color:var(--ok)} table.sectable td.taken small{color:var(--red)}
+  table.sectable td.secperson-col small{display:block;font-size:10.5px;font-weight:700;margin-top:1px}
+  table.sectable tr.secgrp td{background:var(--mist);font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);padding:7px 10px}
+  .secname small{display:block;font-size:12px;color:var(--ink-soft);margin-top:1px;line-height:1.35}
+  .seckind{display:inline-block;font-size:10.5px;font-weight:700;color:var(--ink-soft);border:1px solid var(--line);border-radius:99px;padding:0 6px;margin-left:4px;vertical-align:middle;white-space:nowrap}
+  .secbox{display:inline-flex;width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line);align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
+  .secbox.on{background:var(--ink-soft);border-color:var(--ink-soft);opacity:.55}
+  input.sectick{width:21px;height:21px;accent-color:var(--pine);cursor:pointer}
+
   /* typed text shown as dots without being a password box (the browser must not offer to save it) */
   input.maskbox{-webkit-text-security:disc}
   input.maskbox.shown{-webkit-text-security:none}
@@ -719,6 +748,7 @@
       <a href="#assets" data-view="assets">Assets</a>
       <a href="#stickers" data-view="stickers">Sticker printer</a>
       <a href="#users" data-view="users">Users &amp; roles</a>
+      <a href="#security" data-view="security" class="navsub" id="navSecurity">Security group</a>
       <a href="#rota" data-view="rota">Rota <span id="rotaBadge" style="display:none;background:var(--red);color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:6px"></span><span class="navcaret" id="rotaSubCaret" role="button" aria-label="Show or hide Allocation and Staff database" title="Show / hide Allocation and Staff database" onclick="toggleRotaSub(event)">▸</span></a>
       <a href="#rotaalloc" data-view="rotaalloc" class="navsub navsub-hidden" id="navRotaAlloc">Allocation</a>
       <a href="#rotastaff" data-view="rotastaff" class="navsub navsub-hidden" id="navRotaStaff">Staff database</a>
@@ -1443,7 +1473,7 @@ function escapeAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt
 // computed display value (from qty/reorder/dispatch state), not a stored field to edit.
 let _itemEditCell = null; // {i, field} — i is the index into state.items
 function itemStartEditCell(i, field){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('stock.bulk')) return;
   _itemEditCell = {i, field}; render();
   requestAnimationFrame(()=>{ const el=document.getElementById('itemEditInput'); if(el){ el.focus(); if(el.select) el.select(); } });
 }
@@ -1485,8 +1515,8 @@ function itemEditableCell(it, i, field, displayHtml, inputType){
 function tableFor(items, opts={}){
   const showExp = opts.expiry!==false;
   const showSupplier = !!opts.supplier;
-  const superEdit = !!opts.superEdit && isSuperadmin();
-  const bulkSelect = !!opts.bulkSelect && isSuperadmin();
+  const superEdit = !!opts.superEdit && isSuperadmin('stock.bulk');
+  const bulkSelect = !!opts.bulkSelect && isSuperadmin('stock.bulk');
   const head = `<thead><tr>
       ${bulkSelect?'<th></th>':''}<th>Item</th><th>Code</th><th>Category</th>${showSupplier?'<th>Supplier</th>':''}<th>Location</th>
       ${showExp?'<th>Expiry</th>':''}<th class="qty">Qty</th><th>Status</th><th></th></tr></thead>`;
@@ -1538,7 +1568,7 @@ function trackerView(key){
       (!q || i.name.toLowerCase().includes(q) || (i.code||'').toLowerCase().includes(q)) &&
       (!st || i.loc===st) && (!ct || i.cat===ct) && (!sup || i.supplier===sup))
     .sort((a,b)=>a.name.localeCompare(b.name));
-  const bulk = isSuperadmin();
+  const bulk = isSuperadmin('stock.bulk');
   const shownIxs = items.map(i=>state.items.indexOf(i));
   const allTicked = shownIxs.length && shownIxs.every(ix=>selTrack.has(ix));
   return `
@@ -1561,7 +1591,7 @@ function trackerView(key){
       </select>`:''}
       ${can('add')?`<button class="btn" onclick="openAdd('')">＋ Add item</button>`:''}
     </div>
-    ${isSuperadmin() ? '<div class="sub">Double-click name, code, category, location, expiry or qty to correct it directly.</div>' : ''}
+    ${isSuperadmin('stock.bulk') ? '<div class="sub">Double-click name, code, category, location, expiry or qty to correct it directly.</div>' : ''}
     ${bulk ? `
     <div class="toolrow" style="background:var(--mist);border-radius:10px;padding:10px 12px">
       <label style="display:flex;gap:8px;align-items:center;font-size:14px">
@@ -1606,7 +1636,7 @@ function selAllTrack(key, on){
 }
 let _bulkEditKey = null;
 function openBulkEdit(key){
-  if(!isSuperadmin() || !selTrack.size) return;
+  if(!isSuperadmin('stock.bulk') || !selTrack.size) return;
   _bulkEditKey = key;
   ['beCat','beLoc','beSupplier'].forEach(id=>$('#'+id).value='');
   $('#beCount').textContent = selTrack.size;
@@ -1631,7 +1661,7 @@ async function saveBulkEdit(){
   }
 }
 async function bulkObsolete(key){
-  if(!isSuperadmin() || !selTrack.size) return;
+  if(!isSuperadmin('stock.bulk') || !selTrack.size) return;
   const items = [...selTrack].map(ix=>state.items[ix]).filter(it=>it && it.tracker===key);
   if(!items.length) return;
   if(!confirm('Move '+items.length+' item(s) to obsolete stock? They will disappear from all lists and alerts, but stay saved and can be restored anytime.')) return;
@@ -1645,7 +1675,7 @@ async function bulkObsolete(key){
   }
 }
 async function bulkGenerateBarcodes(key){
-  if(!isSuperadmin() || !selTrack.size) return;
+  if(!isSuperadmin('stock.bulk') || !selTrack.size) return;
   const items = [...selTrack].map(ix=>state.items[ix]).filter(it=>it && it.tracker===key && it._row);
   if(!items.length){ toast('Nothing selected'); return; }
   if(!confirm('Generate new barcodes for '+items.length+' item(s)? Their current barcodes will be replaced with new, unused ones.')) return;
@@ -2496,7 +2526,7 @@ function sterilOnHandTab(){
     const where = `<span class="badge ${cur.cls}">${cur.label}</span>`;
     const gi = state.items.indexOf(it);
     return `<tr style="${d!=null&&d<=60?'background:#FFF7F0':''};cursor:pointer" onclick="openOnHand(${gi})"
-        title="Click for details${(session&&isAdmin())?' / edit':''}">
+        title="Click for details${(session&&isAdmin('steril.manage'))?' / edit':''}">
       <td data-label=""><strong>${it.name}</strong> <span class="code" style="font-family:var(--mono);font-size:12px">${it.code||it.barcode||''}</span></td>
       <td data-label="Type">${it.cat||'—'}</td>
       <td class="qty" data-label="In tray">${it.qtyTray!=null?it.qtyTray:(it.qty||1)}</td>
@@ -2537,7 +2567,7 @@ function openOnHand(i){
   const it = state.items[i];
   if(!it || it.tracker!=='instruments') return;
   ohEditIx = i;
-  const admin = session && isAdmin();
+  const admin = session && isAdmin('steril.manage');
   $('#ohTitle').textContent = it.name;
   $('#ohName').value = it.name||'';
   $('#ohCode').value = it.code||'';
@@ -2560,7 +2590,7 @@ function openOnHand(i){
 }
 async function saveOnHandEdit(){
   const it = state.items[ohEditIx];
-  if(!it || !(session&&isAdmin())) return;
+  if(!it || !(session&&isAdmin('steril.manage'))) return;
   const name = $('#ohName').value.trim();
   if(!name){ toast('Name is required'); return; }
   if(LIVE && !it._row){ toast('Still syncing this item — try again in a moment'); loadAll(); return; }
@@ -2682,7 +2712,7 @@ function implantsView(){
         ${im.status==='Pending'?`<button onclick="setImplantStatus(${ix},'Ordered')">Mark ordered</button>`:''}
         ${im.status!=='Delivered'?`<button onclick="openReceive(${ix},'')">Mark delivered</button>`:''}
         ${im.status==='Delivered'&&!im.returnDetails?`<button onclick="openReturn(${ix})">Return extras</button>`:''}
-        ${isStaffPlus()?`<button onclick="openEditImplant(${ix})">Edit</button>`:''}
+        ${isStaffPlus('implants.view')?`<button onclick="openEditImplant(${ix})">Edit</button>`:''}
       </td></tr>`;
   const rows = state.implants.map(row).join('');
   return `
@@ -2732,7 +2762,7 @@ function openImplant(){
 // order. Restricted to staff+ (the same threshold as the implantUpdate RLS policy already
 // enforces server-side, so the button never promises something the backend would then refuse).
 function openEditImplant(ix){
-  if(!isStaffPlus()) return;
+  if(!isStaffPlus('implants.view')) return;
   const im = state.implants[ix];
   editImplant = im;
   $('#imInit').value = im.initials||''; $('#imPat').value = im.pat||'';
@@ -2759,7 +2789,7 @@ async function saveImplant(){
     ImplantDetails:details, Qty:qty, Remarks:remarks, DateOrdered:dateOrdered, OrderedBy:orderedBy, Status:status};
 
   if(editImplant){                                  // ----- edit existing -----
-    if(!isStaffPlus()){ toast('Not permitted'); return; }
+    if(!isStaffPlus('implants.view')){ toast('Not permitted'); return; }
     if(LIVE && !editImplant._row){ toast('Still syncing this order — please wait a moment and save again'); loadAll(); return; }
     Object.assign(editImplant, {initials, pat, surgeon, surgeryDate, details, qty, remarks, dateOrdered, orderedBy, status});
     impDlg.close(); render(); toast('Updated: '+initials);
@@ -3102,7 +3132,7 @@ function stocktakeView(){
         ${stores.map(s=>`<option ${s===stk.store?'selected':''}>${s}</option>`).join('')}
       </select>
     </div>
-    ${isSuperadmin() ? `
+    ${isSuperadmin('stocktake.sheet') ? `
     <div class="toolrow" style="border-top:1px solid var(--line);padding-top:12px;margin-top:2px;flex-wrap:wrap">
       <strong style="font-size:13px;color:var(--ink-soft)">Physical stock take sheet — ${stkFilterLabel()}, to walk the clinic with pen and paper:</strong>
     </div>
@@ -3251,7 +3281,7 @@ function stockTakeSheetGroups(){
   }));
 }
 async function stockTakeSheetPDF(){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('stocktake.sheet')) return;
   const groups = stockTakeSheetGroups();
   const total = groups.reduce((n,g)=>n+g.items.length,0);
   if(!total){ toast('No items to print'); return; }
@@ -3310,7 +3340,7 @@ async function stockTakeSheetPDF(){
   toast('PDF downloaded');
 }
 function stockTakeSheetCSV(){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('stocktake.sheet')) return;
   const groups = stockTakeSheetGroups();
   const rows = [];
   groups.forEach(g=>{
@@ -3387,7 +3417,7 @@ function openEdit(i){
   // Delete is developer-only, and only for Consumables/Medicines here -- Instruments already
   // has its own dedicated (identity-guarded) on-hand delete flow, and this wasn't asked to
   // extend to Garments/Linen/Services.
-  const showDelete = isDeveloper() && (it.tracker==='consumables' || it.tracker==='meds');
+  const showDelete = isDeveloper('stock.delete') && (it.tracker==='consumables' || it.tracker==='meds');
   $('#addDlgDeleteWrap').innerHTML = showDelete
     ? '<button class="btn" style="color:var(--red)" onclick="deleteItemFromEdit()">Delete</button>' : '';
   paintExtraCodes();
@@ -3433,7 +3463,7 @@ async function removeExtraCode(n){
   toast('Code removed');
 }
 async function deleteItemFromEdit(){
-  if(!editItem || !isDeveloper()) return;
+  if(!editItem || !isDeveloper('stock.delete')) return;
   const it = editItem;
   if(!(it.tracker==='consumables' || it.tracker==='meds')) return;
   if(!confirm('Permanently delete "'+it.name+'" and its recorded stocktake counts? This cannot be undone.')) return;
@@ -3832,7 +3862,7 @@ async function restoreItem(ix){
 }
 function obsoleteView(){
   const items = state.items.map((it,ix)=>({it,ix})).filter(x=>x.it.obsolete);
-  const showDelete = isDeveloper();
+  const showDelete = isDeveloper('stock.delete');
   const rows = items.map(({it,ix})=>`<tr>
       <td data-label=""><strong>${it.name}</strong> <span class="code" style="font-family:var(--mono);font-size:11.5px">${it.code||''}</span></td>
       <td data-label="Tracker">${TRACKER_LABEL[it.tracker]}</td>
@@ -3848,7 +3878,7 @@ function obsoleteView(){
     <tbody>${rows||'<tr><td colspan="7" style="color:var(--ink-soft)">Nothing marked obsolete.</td></tr>'}</tbody></table>`;
 }
 async function deleteObsoleteItem(ix){
-  if(!isDeveloper()) return;
+  if(!isDeveloper('stock.delete')) return;
   const it = state.items[ix];
   if(!it) return;
   if(!confirm('Permanently delete "'+it.name+'" and its recorded stocktake counts? This cannot be undone.')) return;
@@ -4713,7 +4743,7 @@ function gasConsumptionHTML(){
     <tbody>${rows}</tbody></table>`;
 }
 function gasHistoryHTML(){
-  const editable = isAdmin();
+  const editable = isAdmin('gas.manage');
   const indexed = state.gasChecks.map((g,ix)=>({g,ix})).slice(0,14);   // state.gasChecks is already newest-first
   const rows = indexed.map(({g,ix})=>`<tr ${editable?`style="cursor:pointer" onclick="openGasEdit(${ix})" title="Click to fix date/readings"`:''}>
     <td data-label="">${new Date(g.date).toLocaleDateString('en-GB')} · ${g.by||''}</td>
@@ -4733,7 +4763,7 @@ function gasHistoryHTML(){
 
 let editGas = null;
 function openGasEdit(ix){
-  if(!isAdmin()) return;
+  if(!isAdmin('gas.manage')) return;
   const g = state.gasChecks[ix];
   if(!g || !g._row){ toast('This check hasn\'t finished saving yet — try again shortly'); return; }
   editGas = g;
@@ -5251,7 +5281,7 @@ function procPollTick(){
 // Admin+: save the theatre of a running case that had none recorded (shown with a warning).
 async function procConfirmRoom(){
   const p = activeProc;
-  if(!p || !p._roomGuessed || !(session&&isAdmin())) return;
+  if(!p || !p._roomGuessed || !(session&&isAdmin('proc.manage'))) return;
   const room = procRoomOf(p);
   if(!room) return;
   if(!LIVE || String(p.procedureId).startsWith('PROC-LOCAL')){ p.room = room; p._roomGuessed = false; render(); return; }
@@ -5392,7 +5422,7 @@ function procStartPanel(open){
 // ---- developer-only: pre-fill a new case from the surgeon's most recent matching closed case ----
 let _procPrefillMatch = null;   // {procedure_id, date, lines} | null -- lines: [{tracker,code,name,qty}]
 async function checkProcPrefill(){
-  if(!isDeveloper()){ _procPrefillMatch = null; return; }
+  if(!isDeveloper('proc.prefill')){ _procPrefillMatch = null; return; }
   const surgeonId = window._surgeonPick['pcSurgeon'] ? window._surgeonPick['pcSurgeon'].id : null;
   const procedure = ($('#pcProc').value||'').trim();
   if(!LIVE || !surgeonId || !procedure){ _procPrefillMatch = null; refreshProcPrefillArea(); return; }
@@ -5407,7 +5437,7 @@ function refreshProcPrefillArea(){
   if(el) el.outerHTML = procPrefillAreaHtml();
 }
 function procPrefillAreaHtml(){
-  if(!isDeveloper() || !_procPrefillMatch) return `<div id="procPrefillArea"></div>`;
+  if(!isDeveloper('proc.prefill') || !_procPrefillMatch) return `<div id="procPrefillArea"></div>`;
   const n = (_procPrefillMatch.lines||[]).length;
   return `<div id="procPrefillArea" class="sub" style="color:var(--pine);display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
     <span>Found a previous closed case for this surgeon &amp; procedure (${_procPrefillMatch.date?new Date(_procPrefillMatch.date).toLocaleDateString('en-GB'):'—'}) — ${n} item line(s).</span>
@@ -5415,7 +5445,7 @@ function procPrefillAreaHtml(){
   </div>`;
 }
 async function copyItemsFromPreviousCase(){
-  if(!isDeveloper() || !_procPrefillMatch) return;
+  if(!isDeveloper('proc.prefill') || !_procPrefillMatch) return;
   if(_procByRoom[_procRoom]){ toast(_procRoom+' already has a case running — end it or switch rooms first'); return; }
   const match = _procPrefillMatch;
   await startProc();
@@ -5450,7 +5480,7 @@ async function copyItemsFromPreviousCase(){
 function procConsolePanel(){
   const p = activeProc;
   const cart = procCart();
-  const showMoney = (session && isAdmin());   // financials ADMIN ONLY (#3)
+  const showMoney = (session && isAdmin('proc.manage'));   // financials ADMIN ONLY (#3)
   const total = cart.reduce((s,l)=>s+((l.unitCost===''||l.unitCost==null)?0:(Number(l.unitCost)||0)*(Number(l.qty)||0)),0);
   const missingCost = showMoney && cart.some(l=>l.unitCost===''||l.unitCost==null);
   const stockOf = l => { const it = state.items.find(i=>i.tracker===l.tracker &&
@@ -5475,13 +5505,13 @@ function procConsolePanel(){
         style="position:absolute;top:10px;right:12px;width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--red);font-size:16px;font-weight:700;cursor:pointer;line-height:1">✕</button>
       <h2><span class="led green"></span>${procRoomOf(p)||_procRoom} — procedure in progress, scan to add items</h2>
       ${p._roomGuessed ? `<div class="note" style="margin:0 0 12px">⚠ This case had <strong>no theatre recorded</strong>, so it is shown in ${procRoomOf(p)||_procRoom}. Check that is right.
-        ${(session&&isAdmin()) ? `<button class="btn" style="margin-left:8px;padding:5px 12px" onclick="procConfirmRoom()">Yes, it is in ${procRoomOf(p)||_procRoom}</button>` : 'An admin can confirm it.'}</div>` : ''}
+        ${(session&&isAdmin('proc.manage')) ? `<button class="btn" style="margin-left:8px;padding:5px 12px" onclick="procConfirmRoom()">Yes, it is in ${procRoomOf(p)||_procRoom}</button>` : 'An admin can confirm it.'}</div>` : ''}
       <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-bottom:8px">
         <div><div style="font-size:12px;color:var(--ink-soft)">Surgeon</div><strong>${p.surgeon||'—'}</strong></div>
         <div><div style="font-size:12px;color:var(--ink-soft)">Procedure</div><strong>${p.procedure||'—'}</strong></div>
         <div><div style="font-size:12px;color:var(--ink-soft)">Date</div><strong>${p.date?new Date(p.date).toLocaleDateString('en-GB'):'—'}</strong></div>
         ${p.patientRef?`<div><div style="font-size:12px;color:var(--ink-soft)">Patient</div><strong>${p.patientRef}</strong></div>`:''}
-        ${(session&&isAdmin())?`<button class="btn" style="padding:6px 12px;font-size:12.5px;align-self:center" onclick="procEditMeta()" title="Correct surgeon / procedure / date / patient ref">✎ Edit details</button>`:''}
+        ${(session&&isAdmin('proc.manage'))?`<button class="btn" style="padding:6px 12px;font-size:12.5px;align-self:center" onclick="procEditMeta()" title="Correct surgeon / procedure / date / patient ref">✎ Edit details</button>`:''}
         ${showMoney?`<div style="margin-left:auto;text-align:right;padding-top:26px">
           <div style="font-size:12px;color:var(--ink-soft)">Running total</div>
           <strong style="font-size:22px;color:var(--pine)">£${total.toFixed(2)}</strong></div>`:''}
@@ -5499,7 +5529,7 @@ function procConsolePanel(){
       <div class="toolrow" style="margin-top:14px">
         <button class="btn" style="padding:12px 20px" onclick="procTempSave(false)" title="Save your progress to the server without ending. Stock is NOT touched.">💾 Save progress</button>
         <button class="btn primary" style="padding:12px 24px" onclick="endProc()">■ End procedure &amp; consume stock</button>
-        ${(session&&isAdmin())?`<button class="btn" onclick="downloadProcPDF('${p.procedureId}')">Download case sheet PDF</button>`:''}
+        ${(session&&isAdmin('proc.manage'))?`<button class="btn" onclick="downloadProcPDF('${p.procedureId}')">Download case sheet PDF</button>`:''}
         <span id="procSaveState" style="color:var(--ink-soft);font-size:12.5px">${procSaveStateText(p)}</span>
         <span style="margin-left:auto;color:var(--ink-soft);font-size:13px">${cart.length} line(s)</span>
       </div>
@@ -5510,7 +5540,7 @@ function procConsolePanel(){
 // Uses the existing plain procUpdateMeta action (a metadata-only UPDATE, no status/stock
 // involvement) so bulk date/surgeon cleanup never touches consumed stock or line items.
 function procStartEditCell(id, field){
-  if(!(session&&isAdmin())) return;
+  if(!(session&&isAdmin('proc.manage'))) return;
   _procEditCell = {id, field}; render();
   requestAnimationFrame(()=>{ const el=document.getElementById('procEditInput'); if(el){ el.focus(); if(el.select) el.select(); } });
 }
@@ -5603,7 +5633,7 @@ function procCloseView(){ _procViewing=null; render(); }
 function procViewBlockHtml(){
   if(!_procViewing) return '';
   const {p, lines} = _procViewing;
-  const showMoney = (session && isAdmin());
+  const showMoney = (session && isAdmin('proc.manage'));
   const total = lines.length ? lines.reduce((s,l)=>s+(Number(l.lineCost)||0),0) : (Number(p.totalCost)||0);
   const rows = lines.length ? lines.map(l=>`<tr>
       <td data-label="">${l.name}</td>
@@ -5654,7 +5684,7 @@ async function addServiceToProcedure(procId){
 function procHistGoPage(n){ _procHistPage = n; render(); }
 function procClearListFilter(){ _procListFilter=null; _procHistPage=1; render(); }
 function procHistoryPanel(){
-  const showMoney = (session && isAdmin());    // financials ADMIN ONLY (#3)
+  const showMoney = (session && isAdmin('proc.manage'));    // financials ADMIN ONLY (#3)
   const source = _procListFilter ? _procListFilter.rows : state.procedures.filter(p=>p.status!=='Open');
   const closedAll = source.slice()
     .sort((a,b)=> new Date(b.date||0)-new Date(a.date||0) || new Date(b.endTime||b.startTime||0)-new Date(a.endTime||a.startTime||0));
@@ -5681,7 +5711,7 @@ function procHistoryPanel(){
     <td data-label="Theatre">${procEditableCell(p,'room', p.room||'—', 'text')}</td>
     <td data-label="Status">${p.status}</td>
     ${showMoney?`<td class="qty" data-label="Total £">£${(Number(p.totalCost)||0).toFixed(2)}</td>`:''}
-    ${(session&&isAdmin())?`<td class="rowbtns" data-label="">
+    ${(session&&isAdmin('proc.manage'))?`<td class="rowbtns" data-label="">
         <button onclick="procViewOnScreen('${p.procedureId}')" title="View this case's items on screen — read-only, no reopen">View</button>
         <button onclick="downloadProcPDF('${p.procedureId}')">PDF</button>
         <button onclick="procEditClosed('${p.procedureId}')" title="Reopen this procedure for editing — its consumed stock is returned until you end it again">Edit</button>
@@ -6009,7 +6039,7 @@ async function cancelProc(){
 
 // ---- #1: admin corrects surgeon / procedure / date / patient ref ----
 async function procEditMeta(){
-  if(!activeProc || !(session&&isAdmin())) return;
+  if(!activeProc || !(session&&isAdmin('proc.manage'))) return;
   const surgeon = prompt('Surgeon:', activeProc.surgeon||''); if(surgeon===null) return;
   const procedure = prompt('Procedure:', activeProc.procedure||''); if(procedure===null) return;
   const date = prompt('Date (YYYY-MM-DD):', activeProc.date? String(activeProc.date).slice(0,10):todayISO()); if(date===null) return;
@@ -6039,7 +6069,7 @@ async function procEditMeta(){
 
 // ---- #1: admin reopens a closed procedure; consumed stock is returned until re-ended ----
 async function procEditClosed(procId){
-  if(!(session&&isAdmin())) return;
+  if(!(session&&isAdmin('proc.manage'))) return;
   if(activeProc){ toast('Finish or cancel the current procedure first'); return; }
   if(!confirm('Reopen this procedure for editing?\n\nEverything it consumed will be RETURNED to stock now, and consumed again (with your corrections) when you end it. The case sheet will reflect the corrected list.')) return;
   if(!LIVE){ toast('Not available in demo mode'); return; }
@@ -6069,7 +6099,7 @@ async function procEditClosed(procId){
 
 // ---- #1: admin deletes a procedure; consumed stock returns to the inventories ----
 async function procDeleteClosed(procId){
-  if(!(session&&isAdmin())) return;
+  if(!(session&&isAdmin('proc.manage'))) return;
   const p = state.procedures.find(x=>x.procedureId===procId);
   const label = p ? (p.surgeon||'—')+' — '+(p.procedure||'') : procId;
   if(!confirm('Delete procedure "'+label+'"?\n\nAll stock it consumed will be RETURNED to the inventories, its cost lines will be removed, and it will disappear from history and surgeon totals.')) return;
@@ -6206,7 +6236,7 @@ async function procReportFetch(){
 // separate preview block; the actual list changes. Everything but "Missing items only" is
 // already in state.procedures, so only that mode needs a (lightweight) fetch.
 async function procApplyFilter(){
-  if(!(session&&isAdmin())) return;
+  if(!(session&&isAdmin('proc.manage'))) return;
   const data = procReportRows();
   if(!data) return;
   let {rows, label} = data;
@@ -6227,7 +6257,7 @@ async function procApplyFilter(){
   toast(rows.length+' procedure(s) matching — list filtered below');
 }
 async function procReportPDF(){
-  if(!(session&&isAdmin())) return;
+  if(!(session&&isAdmin('proc.manage'))) return;
   const result = await procReportFetch();
   if(!result){ render(); return; }
   const {rows, label, withLines, missingOnly} = result;
@@ -6406,7 +6436,7 @@ function stkQty(d){
 
 async function ohDelete(){
   // admin: remove an on-hand instrument that was added by mistake
-  if(!(session&&isAdmin())) return;
+  if(!(session&&isAdmin('steril.manage'))) return;
   const it = state.items[ohEditIx];
   if(!it) return;
   if(!confirm('DELETE "'+it.name+'" from the on-hand register?\n\nUse this only for items added by mistake. The instrument row is removed entirely and cannot be undone.')) return;
@@ -6737,7 +6767,7 @@ function stkCodesTab(){
         <input type="checkbox" ${allSel?'checked':''} onchange="stkSelAll(this.checked)" style="width:18px;height:18px">
         Tick all shown (${list.length})</label>
       <span style="color:var(--ink-soft);font-size:13px">${stkSel.size} selected</span>
-      ${isSuperadmin() && shownNoBc ? `<button class="btn" onclick="stkAssignMissing()" title="Creates a new, unused code for each item shown that has no barcode. Items that already have one are not touched.">＋ Give the ${shownNoBc} without a barcode a code</button>` : ''}
+      ${isSuperadmin('stock.bulk') && shownNoBc ? `<button class="btn" onclick="stkAssignMissing()" title="Creates a new, unused code for each item shown that has no barcode. Items that already have one are not touched.">＋ Give the ${shownNoBc} without a barcode a code</button>` : ''}
       <button class="btn primary" style="margin-left:auto" onclick="printCodeStickers()">🖨 Print sheet (21/page)</button>
       <button class="btn" onclick="downloadCodePDF()">Download PDF</button>
     </div>
@@ -6758,7 +6788,7 @@ function refreshStkCodes(){
 // item_assign_missing_barcodes, which never replaces an existing barcode). The same code prints
 // as a barcode or as a QR code. Afterwards those items are ticked, ready to print.
 async function stkAssignMissing(){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('stock.bulk')) return;
   const items = stkCodesList().filter(i=>!stkHasBarcode(i));
   if(!items.length){ toast('Every item shown already has a barcode'); return; }
   if(!LIVE){ toast('Demo mode — cannot create live barcodes'); return; }
@@ -7025,6 +7055,170 @@ async function resetUserPassword(i){
     const res = await api({action:'resetUserPassword', username:u.username});
     alert('New password for '+u.username+':\n\n'+res.password+'\n\nGive this to them directly — it will not be shown again. They should change it after signing in.');
   }catch(err){ toast('Could not reset password — '+err.message); }
+}
+
+/* ---------------- Security group (developer only; view 'security', a child of Users & roles) ----------------
+   Who can see and do what. The five role columns show what each role has (locked: they are the
+   server's defaults). Pick a person to get a column of ticks for them alone; a tick that differs
+   from their role is stored (migration 20261116100000_security_groups.sql) and the SERVER enforces
+   it (app_can). The page only shows or hides things to match; it is never the gate.
+   A change reaches the person the next time they open or refresh the app. */
+const SEC_ROLES = [['common','Common'],['staff','Staff'],['admin','Admin'],['superadmin','Super admin'],['developer','Developer']];
+const sec = {loaded:false, loading:false, err:'', perms:[], users:[], userId:'', draft:null, q:'', pq:'', busy:false};
+function secEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function secUser(){ return sec.users.find(u=>u.id===sec.userId) || null; }
+function secUserName(u){ return String((u && (u.name || u.username)) || ''); }
+function secRoleHas(role, p){ return (ROLE_RANK[role]||0) >= p.min_rank; }
+// what this person has now, tick by tick (saved state): their own tick if there is one, else the role
+function secSaved(u){
+  const m = {};
+  sec.perms.forEach(p=>{
+    const dev = u.role==='developer';
+    m[p.key] = dev ? true : (p.locked || !Object.prototype.hasOwnProperty.call(u.ticks||{}, p.key)) ? secRoleHas(u.role, p) : !!u.ticks[p.key];
+  });
+  return m;
+}
+function secDirty(){
+  const u = secUser(); if(!u || !sec.draft) return false;
+  const s = secSaved(u);
+  return sec.perms.some(p=>!!sec.draft[p.key] !== !!s[p.key]);
+}
+// ticks that differ from the role, as the server stores them
+function secDiff(u, map){
+  const d = {};
+  sec.perms.forEach(p=>{ if(!p.locked && !!map[p.key] !== secRoleHas(u.role, p)) d[p.key] = !!map[p.key]; });
+  return d;
+}
+function secCustomCount(u){ return u.role==='developer' ? 0 : Object.keys(u.ticks||{}).length; }
+async function secLoad(force){
+  if(!isDeveloper() || !LIVE) return;
+  if(sec.loading || (sec.loaded && !force)) return;
+  sec.loading = true; sec.err = '';
+  try{
+    const {data, error} = await sb.rpc('security_get');
+    if(error) throw new Error(error.message);
+    sec.perms = Array.isArray(data && data.perms) ? data.perms : [];
+    sec.users = (Array.isArray(data && data.users) ? data.users : []).map(u=>({id:String(u.id), username:String(u.username||''),
+      name:String(u.name||''), role:String(u.role||'common'), active:u.active!==false, ticks:(u.ticks && typeof u.ticks==='object') ? u.ticks : {}}));
+    sec.loaded = true;
+    if(sec.userId && !secUser()){ sec.userId = ''; sec.draft = null; }
+    else if(secUser() && !secDirty()) sec.draft = secSaved(secUser());
+  }catch(e){ sec.err = e.message || 'Could not load'; }
+  sec.loading = false;
+  if(currentView==='security') render();
+}
+function secPick(id){
+  if(id===sec.userId) return;
+  if(secDirty() && !confirm('You have unsaved changes for ' + secUserName(secUser()) + '. Discard them?')){ render(); return; }
+  sec.userId = String(id||'');
+  const u = secUser();
+  sec.draft = u ? secSaved(u) : null;
+  render();
+}
+function secTick(key, on){
+  const u = secUser(), p = sec.perms.find(x=>x.key===key);
+  if(!u || !p || !sec.draft || p.locked || u.role==='developer' || sec.busy) return;
+  sec.draft[key] = !!on;
+  // ticking something also ticks what it needs; unticking something unticks what needs it
+  if(on) (PERM_NEEDS[key]||[]).forEach(k=>{ sec.draft[k] = true; });
+  else Object.keys(PERM_NEEDS).forEach(k=>{ if(PERM_NEEDS[k].includes(key)) sec.draft[k] = false; });
+  secRefresh();
+}
+function secResetToRole(){
+  const u = secUser(); if(!u || sec.busy || u.role==='developer') return;
+  sec.perms.forEach(p=>{ sec.draft[p.key] = secRoleHas(u.role, p); });
+  secRefresh();
+}
+function secDiscard(){ const u = secUser(); if(u){ sec.draft = secSaved(u); secRefresh(); } }
+async function secSave(){
+  const u = secUser(); if(!u || sec.busy || !isDeveloper() || !secDirty()) return;
+  const ticks = secDiff(u, sec.draft);
+  sec.busy = true; secRefresh();
+  try{
+    const {data, error} = await sb.rpc('security_set_user', {p_user:u.id, p_ticks:ticks});
+    if(error) throw new Error(error.message);
+    u.ticks = (data && data.ticks && typeof data.ticks==='object') ? data.ticks : ticks;
+    sec.draft = secSaved(u);
+    const n = Object.keys(u.ticks).length;
+    toast('Saved. ' + secUserName(u) + (n ? ' now has ' + n + ' change' + (n===1?'':'s') + ' on top of the ' + u.role + ' role' : ' is back to what the ' + u.role + ' role gives')
+      + '. It applies when they next open or refresh the app');
+  }catch(e){ toast('Not saved — ' + (e.message||'try again')); }
+  sec.busy = false;
+  secRefresh();
+}
+function secSetQ(field, v){ sec[field] = String(v||''); secRefresh(); }
+// redraw only the parts below the search boxes, so typing keeps its place
+function secRefresh(){
+  const a = document.getElementById('secPeople'); if(a) a.innerHTML = secPeopleHtml();
+  const b = document.getElementById('secBar'); if(b) b.innerHTML = secBarHtml();
+  const c = document.getElementById('secTable'); if(c) c.innerHTML = secTableHtml();
+}
+function secPeopleHtml(){
+  const q = sec.q.trim().toLowerCase();
+  const list = sec.users.filter(u=>!q || secUserName(u).toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || u.role.toLowerCase().includes(q));
+  if(!list.length) return '<div class="sub" style="margin:6px 0 0">Nobody matches that search.</div>';
+  return `<div class="secpeople">${list.map(u=>{
+    const n = secCustomCount(u);
+    return `<button class="secperson ${u.id===sec.userId?'on':''} ${u.active?'':'off'}" data-user="${secEsc(u.username)}" onclick="secPick('${secEsc(u.id)}')" title="${secEsc(u.username)} · ${secEsc(u.role)}${u.active?'':' · not active'}">
+      <strong>${secEsc(secUserName(u))}</strong><span>${secEsc(u.role)}${n?` · <b>${n} own tick${n===1?'':'s'}</b>`:''}${u.active?'':' · not active'}</span></button>`; }).join('')}</div>`;
+}
+function secBarHtml(){
+  const u = secUser();
+  if(!u) return '<div class="sub" style="margin:0">Choose a person above to see their ticks next to the roles and change them.</div>';
+  if(u.role==='developer') return `<div class="sub" style="margin:0"><strong>${secEsc(secUserName(u))}</strong> is a developer and always has full access. To limit them, change their role on the Users &amp; roles page first.</div>`;
+  const dirty = secDirty(), d = secDiff(u, sec.draft||{}), n = Object.keys(d).length;
+  const given = Object.keys(d).filter(k=>d[k]).length, taken = n - given;
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <div style="flex:1;min-width:220px;font-size:13.5px"><strong>${secEsc(secUserName(u))}</strong> · ${secEsc(u.role)} role${n ? ` · <span class="secgiven">${given} given</span> <span class="sectaken">${taken} taken away</span>` : ' · exactly as the role'}${dirty?' · <strong style="color:var(--amber)">not saved yet</strong>':''}</div>
+    <button class="btn" id="secResetBtn" ${n&&!sec.busy?'':'disabled'} onclick="secResetToRole()" title="Untick every change, so this person has exactly what the ${secEsc(u.role)} role gives">Reset to role</button>
+    <button class="btn" id="secDiscardBtn" ${dirty&&!sec.busy?'':'disabled'} onclick="secDiscard()">Discard</button>
+    <button class="btn primary" id="secSaveBtn" ${dirty&&!sec.busy?'':'disabled'} onclick="secSave()">${sec.busy?'Saving…':'Save changes'}</button></div>`;
+}
+function secTableHtml(){
+  const u = secUser(), dev = !!u && u.role==='developer';
+  const pq = sec.pq.trim().toLowerCase();
+  const rows = sec.perms.filter(p=>!pq || (p.label+' '+p.grp+' '+p.detail).toLowerCase().includes(pq));
+  if(!rows.length) return '<div class="sub" style="margin-top:8px">No permission matches that search.</div>';
+  const box = (on, extra)=>`<span class="secbox ${on?'on':''} ${extra||''}" aria-hidden="true">${on?'✓':''}</span>`;
+  let grp = null, html = '';
+  rows.forEach(p=>{
+    if(p.grp!==grp){ grp = p.grp;
+      html += `<tr class="secgrp"><td colspan="${6 + (u?1:0)}">${secEsc(grp)}</td></tr>`; }
+    const roleHas = u ? secRoleHas(u.role, p) : false;
+    const cur = u && sec.draft ? !!sec.draft[p.key] : false;
+    const diff = u && !dev && !p.locked && cur!==roleHas;
+    html += `<tr data-perm="${secEsc(p.key)}">
+      <td class="secname"><div><strong>${secEsc(p.label)}</strong>${p.kind==='manage'?' <span class="seckind">manage</span>':''}${p.locked?' <span class="seckind" title="Developers only">🔒</span>':''}${p.server?'':' <span class="seckind" title="Not kept in this database: unticking hides the page only">hides page only</span>'}</div>
+        ${p.detail?`<small>${secEsc(p.detail)}</small>`:''}</td>
+      ${SEC_ROLES.map(r=>`<td class="seccell ${u&&u.role===r[0]?'secmine':''}">${box(secRoleHas(r[0], p), 'lock')}</td>`).join('')}
+      ${u ? `<td class="seccell secperson-col ${diff?(cur?'given':'taken'):''}">${(p.locked || dev)
+          ? box(dev ? true : roleHas, 'lock')
+          : `<input type="checkbox" class="sectick" data-key="${secEsc(p.key)}" ${cur?'checked':''} ${sec.busy?'disabled':''} onchange="secTick('${secEsc(p.key)}',this.checked)" aria-label="${secEsc(p.label)} for ${secEsc(secUserName(u))}">`}
+          ${diff?`<small>${cur?'given':'taken away'}</small>`:''}</td>` : ''}
+    </tr>`;
+  });
+  return `<div class="secwrap"><table class="sectable"><thead><tr><th>Permission</th>
+    ${SEC_ROLES.map(r=>`<th class="seccell ${u&&u.role===r[0]?'secmine':''}">${r[1]} <span title="Set by the role. Cannot be changed here">🔒</span></th>`).join('')}
+    ${u?`<th class="seccell secperson-col">${secEsc(secUserName(u))}</th>`:''}</tr></thead><tbody>${html}</tbody></table></div>`;
+}
+function securityView(){
+  if(!isDeveloper()) return '<h1>Security group</h1><div class="sub">Developers only.</div>';
+  if(!LIVE) return '<h1>Security group</h1><div class="note">Demo mode — the Security group needs the live database.</div>';
+  if(!sec.loaded && !sec.loading && !sec.err) secLoad();
+  const head = `<h1>Security group</h1>
+    <div class="sub">What each role can see and do, and ticks for one person on top of their role. The five role columns are fixed. Pick a person to give them something their role does not have, or take something away. <a href="#users" onclick="navGo('users');return false" style="color:var(--pine);font-weight:600">People get their role on the Users &amp; roles page.</a></div>
+    <div class="sub">A change applies the next time that person opens or refreshes the app. Developers always have full access.</div>`;
+  if(sec.err) return head + `<div class="note" style="background:var(--red-bg);border-color:var(--red);color:var(--red)">Could not load the Security group — ${secEsc(sec.err)} <button class="btn" style="margin-left:8px" onclick="sec.err='';secLoad(true)">Try again</button></div>`;
+  if(!sec.loaded) return head + '<div class="gaspanel" style="color:var(--ink-soft)">Loading…</div>';
+  const inp = 'padding:9px 10px;border:1px solid var(--line);border-radius:8px;flex:1;min-width:200px';
+  return head + `
+    <div class="gaspanel">
+      <div class="toolrow" style="margin:0 0 4px"><input id="secQ" type="search" placeholder="Find a person: name, username or role…" value="${secEsc(sec.q)}" oninput="secSetQ('q',this.value)" style="${inp}">
+        <input id="secPQ" type="search" placeholder="Find a permission…" value="${secEsc(sec.pq)}" oninput="secSetQ('pq',this.value)" style="${inp}"></div>
+      <div id="secPeople">${secPeopleHtml()}</div>
+    </div>
+    <div class="gaspanel secbar" id="secBar">${secBarHtml()}</div>
+    <div id="secTable">${secTableHtml()}</div>`;
 }
 
 /* ---------------- theatre rota (superadmin only) ---------------- */
@@ -7398,7 +7592,7 @@ function rotaIsLocked(date, day){
   return !_rotaUnlockedDays[date];
 }
 function rotaUnlockDay(date){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('rota.manage')){ toast('You can view the rota but not change it'); return; }
   _rotaUnlockedDays[date] = true;
   render(); rotaCellPaint();
 }
@@ -7417,7 +7611,7 @@ function rotaDayPayload(d){
 }
 async function rotaSaveDay(date, opts){
   opts = opts || {};
-  if(!isSuperadmin()) return false;
+  if(!isSuperadmin('rota.manage')) return false;
   const d = rotaDraft(date);
   const nice = rotaNice(date,{day:'numeric',month:'short'});
   const done = obj=>{
@@ -7479,7 +7673,7 @@ function rotaCopyPrev(date){
 }
 function updateRotaBadge(){
   const el = document.getElementById('rotaBadge'); if(!el) return;
-  if(!isSuperadmin()){ el.style.display='none'; return; }
+  if(!isSuperadmin('rota.view')){ el.style.display='none'; return; }
   const mon = rotaMonday(0); let n=0;
   for(let i=0;i<7;i++) n += rotaOpenGaps(rotaDayObj(rotaISO(new Date(mon.getTime()+i*864e5)))).length;
   el.textContent = n;
@@ -7686,7 +7880,7 @@ function rotaStaffRoleFor(role, shift){
 
 /* ---- day header: button + status chips ---- */
 function rotaSmsButton(date, unsaved){
-  if(!isSuperadmin()) return '';
+  if(!isSuperadmin('rota.staff')) return '';
   const saved = !!rotaSaved(date);
   const can = LIVE && saved && !unsaved;
   const why = !LIVE ? 'Texts need the live system' : (can ? 'Text confirmed staff about this day' : 'Save the day first');
@@ -7754,7 +7948,7 @@ function rotaSmsPersonStarts(day, nameLower){
   return [...out].sort();
 }
 function rotaSmsChips(date){
-  if(!isSuperadmin()) return '';
+  if(!isSuperadmin('rota.staff')) return '';
   const ms = (state.sms||[]).filter(m=>m.rota_date===date && m.kind!=='test');
   const aff = rotaSmsLocalAffected(date).length;
   if(!ms.length && !aff) return '';
@@ -7828,7 +8022,7 @@ function smsRolesText(roles, withStars){
 }
 
 async function rotaSmsOpen(date){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('rota.staff')) return;
   if(!LIVE){ toast('Texts need the live system'); return; }
   if(_rotaDrafts[date] || !rotaSaved(date)){ toast('Save the day first'); return; }
   _sms = {date, mode:'confirm', pv:null, sel:{}, selAff:{}, when:'now', at:'', nightAsk:null, nightOk:false, busy:false};
@@ -7861,7 +8055,7 @@ async function rotaSmsOpen(date){
 // After a successful day save: ASK about anyone already texted who is no longer confirmed.
 // Never sends anything by itself, and never affects the save (which has already succeeded).
 async function rotaSmsAfterSave(date){
-  if(!LIVE || !isSuperadmin()) return;
+  if(!LIVE || !isSuperadmin('rota.staff')) return;
   try{
     const affected = await api({action:'smsAffected', date});
     if(!Array.isArray(affected) || !affected.length) return;
@@ -8087,7 +8281,7 @@ function smsFixPerson(i){
    The Staff database itself is its own page (rotaStaffView), a child of Rota in the sidebar. ---- */
 function rotaStaffDirPanel(){ return rotaUnlistedNotice() + rotaSmsSettingsPanel(); }
 function rotaUnlistedNotice(){
-  if(!isSuperadmin()) return '';
+  if(!isSuperadmin('rota.staff')) return '';
   const n = rotaUnlistedNames().length;
   if(!n) return '';
   return `<div class="note" id="rotaUnlistedNote" style="margin-top:10px;background:var(--red-bg);border-color:var(--red);color:var(--red)">
@@ -8148,7 +8342,7 @@ function staffDbSet(k, v, full){ staffDbState()[k] = v; if(full) render(); else 
 // The Staff database PAGE (view 'rotastaff'): a child of Rota in the sidebar, not a section of
 // the rota page.
 function rotaStaffView(){
-  if(!isSuperadmin())
+  if(!isSuperadmin('rota.staff'))
     return '<h1>Staff database</h1><div class="sub">Only super admins can see the staff database.</div>';
   const staff = state.staff || [];
   const f = staffDbState();
@@ -8173,7 +8367,7 @@ function rotaStaffView(){
       <strong style="font-size:13px">On the rota but not in the database</strong>
       <div class="sub" style="margin:2px 0 8px">These names were typed on the rota. Add each one (or, if it's a misspelling of someone already listed, correct it on the rota).</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">${unlisted.map((u,i)=>{
-        const dev = isSuperadmin(), on = dev && staffUnlistedOpenKey()===u.name.toLowerCase();
+        const dev = isSuperadmin('rota.staff'), on = dev && staffUnlistedOpenKey()===u.name.toLowerCase();
         return `<button class="btn${on?' primary':''}" style="padding:5px 10px;font-size:12.5px" onclick="staffUnlistedClick(${i})" ${dev?`aria-expanded="${on}" title="Add to the staff database, or open the rota day"`:'title="Add to the staff database"'}>${dev?'':'＋ '}${smsEsc(u.name)} <span style="font-weight:400;${on?'opacity:.85':'color:var(--ink-soft)'}">(${u.days} day${u.days>1?'s':''})</span>${dev?(on?' ▴':' ▾'):''}</button>`; }).join('')}</div>
       ${staffUnlistedMenuHtml(unlisted)}</div>`:''}
   </div>`;
@@ -8188,14 +8382,14 @@ function staffAddUnlisted(i){
 function staffUnlistedOpenKey(){ return String(window._unlistedOpen||''); }
 function staffUnlistedClick(i){
   const u = rotaUnlistedNames()[i]; if(!u) return;
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('rota.staff')) return;
   const k = u.name.toLowerCase();
   window._unlistedOpen = staffUnlistedOpenKey()===k ? '' : k;
   window._unlistedAll = false;
   render();
 }
 function staffUnlistedMenuHtml(unlisted){
-  if(!isSuperadmin()) return '';
+  if(!isSuperadmin('rota.staff')) return '';
   const i = unlisted.findIndex(u=>u.name.toLowerCase()===staffUnlistedOpenKey());
   if(i<0) return '';
   const u = unlisted[i], today = todayISO();
@@ -8218,12 +8412,12 @@ function staffUnlistedMenuHtml(unlisted){
   </div>`;
 }
 function staffUnlistedGo(date){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('rota.staff')) return;
   window._unlistedOpen = '';
   rotaGoAlloc(date);
 }
 async function staffDelete(id){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('rota.staff')) return;
   const s = (state.staff||[]).find(x=>x.id===id); if(!s) return;
   if(!confirm(`Delete ${s.name} from the staff database?\n\nTheir name stays on any rota day as typed, but they can no longer be picked or texted. This can't be undone.`)) return;
   try{
@@ -8236,7 +8430,7 @@ async function staffDelete(id){
 }
 
 function rotaSmsSettingsPanel(){
-  if(!isSuperadmin()) return '';
+  if(!isSuperadmin('rota.staff')) return '';
   const open = !!window._rotaSmsSetOpen;
   const staff = state.staff || [];
   const textable = staff.filter(s=>s.active && s.mobile && s.optIn).length;
@@ -8295,7 +8489,7 @@ function smsKeepDays(){
   return (n>=7 && n<=365) ? n : 30;
 }
 async function smsSaveKeepDays(){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('rota.staff')) return;
   const n = parseInt(($('#smsKeepDays')||{}).value, 10);
   if(!(n>=7 && n<=365)){ toast('Choose between 7 and 365 days'); return; }
   try{
@@ -8649,7 +8843,7 @@ function refreshRotaStaffSearch(){
 
 // The Allocation page (view 'rotaalloc'): week / month / custom range of day cards.
 function rotaAllocView(){
-  if(!isSuperadmin())
+  if(!isSuperadmin('rota.view'))
     return '<h1>Allocation</h1><div class="sub">Only super admins can see the theatre rota.</div>';
   const mon = rotaMonday(_rotaWk);
   const days=[]; for(let i=0;i<7;i++) days.push(rotaISO(new Date(mon.getTime()+i*864e5)));
@@ -8756,7 +8950,7 @@ function rotaGridCell(date, row){
   return html;
 }
 function rotaGridView(){
-  if(!isSuperadmin())
+  if(!isSuperadmin('rota.view'))
     return '<h1>Rota</h1><div class="sub">Only super admins can see the theatre rota.</div>';
   const dates = rotaGridDates();
   let open = 0, unplaced = 0;
@@ -8788,7 +8982,7 @@ function rotaGridView(){
    edits the Allocation draft (Save day). ---- */
 let _rc = null;   // {date, row, ctx, focus}
 function rotaCellOpen(date, row, ctx, focusId){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('rota.manage')){ toast('You can view the rota but not change it'); return; }
   _rc = {date, row, ctx: ctx||'grid', focus: focusId||null};
   if(typeof rotaCellDlg==='undefined') return;
   rotaCellPaint();
@@ -8966,7 +9160,7 @@ function rotaJsArg(s){ return JSON.stringify(String(s)).replace(/&/g,'&amp;').re
 /* ---- the name picker: tick one or more people (multi-select) for a row; 'replace' swaps one ---- */
 let _rp = null;   // {date, role, ctx, rooms, shift, sel:{name:true}, q, all, replaceId}
 function rotaPickOpen(date, role, ctx, rooms, shift, replaceId){
-  if(!isSuperadmin() || !ROTA_ROLE[role]) return;
+  if(!isSuperadmin('rota.manage') || !ROTA_ROLE[role]) return;
   const day = rotaDayObj(date), R = ROTA_ROLE[role], run = rotaRoomsRunning(day);
   const rr = Array.isArray(rooms) && rooms.length ? rooms.slice() : (R.theatre && run.length===1 ? [run[0]] : []);
   _rp = {date, role, ctx: ctx||'grid', rooms: rr, shift: (R.shifts && R.shifts.includes(shift)) ? shift : (R.shifts ? R.shifts[0] : null),
@@ -9138,7 +9332,7 @@ const ROTA_THEATRE_TABLE_HEAD = ['Theatre','Surgeon(s)','Anaesthetist','SFA','Sc
 const ROTA_THEATRE_COL_STYLES = {0:{cellWidth:16},1:{cellWidth:30},2:{cellWidth:22},3:{cellWidth:18},4:{cellWidth:26},5:{cellWidth:16},6:{cellWidth:22},7:{cellWidth:22},8:{cellWidth:48},9:{cellWidth:20}};
 const ROTA_DAYCOVER_TABLE_HEAD = ['HCA Ward','Ward Nurse','Night Nurse','HCA Night','RMO Day','RMO Night','Housekeeping AM','Housekeeping PM','Reception AM','Reception PM'];
 async function rotaExport(dates, title, fname){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('rota.view')) return;
   if(typeof window.jspdf==='undefined'){ toast('PDF engine still loading — try again'); return; }
   const running = dates.map(iso=>({iso, day:rotaDayObj(iso)})).filter(x=>rotaIsRunning(x.day));
   if(!running.length){ toast('No lists in this range'); return; }
@@ -9195,7 +9389,7 @@ function rotaCustomPDF(){ const cv=window._rotaCust||{}; if(!(cv.from&&cv.to)) r
 
 // ---- single-day PDF for the Recovery room TV screen: one page, high contrast, large type ----
 async function rotaDayPDF(date){
-  if(!isSuperadmin()) return;
+  if(!isSuperadmin('rota.view')) return;
   if(typeof window.jspdf==='undefined'){ toast('PDF engine still loading — try again'); return; }
   const day = rotaDayObj(date);
   const { jsPDF } = window.jspdf;
@@ -9356,7 +9550,7 @@ function samplesView(){
   list.forEach(s=>{ const k = (s.pat||'')+'|'+(s.date||'')+'|'+(s.initials||''); (groups[k]=groups[k]||[]).push(s); });
   const keys = Object.keys(groups).sort((a,b)=>{
     const da=(groups[b][0].date||''), db=(groups[a][0].date||''); return da.localeCompare(db); });
-  const canEdit = isStaffPlus();
+  const canEdit = isStaffPlus('samples.edit');
   const catBadge = c => c ? `<span class="badge" style="background:var(--mist);color:var(--ink)">${c}</span>` : '';
   const dateCell = d => d ? new Date(d+'T12:00').toLocaleDateString('en-GB') : '<span style="color:var(--ink-soft)">—</span>';
   const statusBadge = s => {
@@ -9369,7 +9563,7 @@ function samplesView(){
       <td data-label="Specimen"><strong>${s.details||'—'}</strong>${s.specimenNo?` <span class="code" style="font-family:var(--mono);font-size:11px">#${s.specimenNo}</span>`:''}</td>
       <td data-label="Category">${catBadge(s.category)}</td>
       <td data-label="Formalin">${String(s.formalin).toLowerCase()==='yes'?'<span class="badge b-ok">Yes</span>':(String(s.formalin).toLowerCase()==='no'?'<span class="badge b-out">No</span>':'—')}</td>
-      ${canEdit?`<td class="rowbtns" data-label=""><button onclick="editSampleGroup('${k.replace(/'/g,"\\'")}')">Edit</button>${isAdmin()?` <button onclick="deleteSample('${s.id}')" style="color:var(--red)">✕</button>`:''}</td>`:''}
+      ${canEdit?`<td class="rowbtns" data-label=""><button onclick="editSampleGroup('${k.replace(/'/g,"\\'")}')">Edit</button>${isAdmin('samples.delete')?` <button onclick="deleteSample('${s.id}')" style="color:var(--red)">✕</button>`:''}</td>`:''}
     </tr>`).join('');
     const next = SAMPLE_NEXT_STATUS[h.status];
     const advanceBtn = next ? `<button class="btn primary" onclick="advanceSampleStatus('${h.collectionId}','${h.status}')">Mark as ${next}</button>` : '';
@@ -9516,7 +9710,7 @@ async function advanceSampleStatus(collectionId, currentStatus){
   }
 }
 async function deleteSample(id){
-  if(!isAdmin()) return;
+  if(!isAdmin('samples.delete')) return;
   if(!confirm('Delete this specimen record? This cannot be undone.')) return;
   state.samples = (state.samples||[]).filter(s=>s.id!==id);
   render(); toast('Specimen deleted');
@@ -9530,7 +9724,7 @@ function sampleRowsInRange(from, to){
     .sort((a,b)=> (a.date||'').localeCompare(b.date||'') || (a.pat||'').localeCompare(b.pat||''));
 }
 async function sampleExport(rows, subtitle, fname){
-  if(!isStaffPlus()) return;
+  if(!isStaffPlus('samples.edit')) return;
   if(typeof window.jspdf==='undefined'){ toast('PDF engine still loading — try again'); return; }
   if(!rows.length){ toast('No specimens in this range'); return; }
   const { jsPDF } = window.jspdf;
@@ -11375,15 +11569,22 @@ function goHome(e){
   const d=document.querySelector('nav a[data-view=dashboard]'); if(d) d.classList.add('active');
   nav('dashboard');
 }
+function navFirstAllowed(){
+  if(viewAllowed('dashboard')) return 'dashboard';
+  let v = '';
+  try{ document.querySelectorAll('nav a').forEach(a=>{ if(!v && a.dataset && a.dataset.view && viewAllowed(a.dataset.view)) v = a.dataset.view; }); }catch(e){}
+  return v || 'dashboard';
+}
 function nav(view){
-  if(!viewAllowed(view)) view='dashboard';
+  if(!viewAllowed(view)) view = navFirstAllowed();
   currentView=view; window._q=''; window._store=''; window._cat=''; window._supplier='';
   window._llTracker=''; window._llStore=''; window._llCat='';
   navMarkActive(view);   // highlight this page's sidebar link(s), however we got here
   if(typeof applyRotaSub==='function') applyRotaSub();   // Rota's child item opens while you're in that section
   if(typeof applyNavGroups==='function') applyNavGroups();
   render();
-  if(view==='procedures' && typeof procPoll==='function') procPoll(); }   // bring the running cases up to date
+  if(view==='procedures' && typeof procPoll==='function') procPoll();   // bring the running cases up to date
+  if(view==='security' && typeof secLoad==='function') secLoad(true); }   // always the latest ticks
 // Item usage search sits under both Stock and Records, so a page can have two links: mark both.
 function navMarkActive(view){
   document.querySelectorAll('nav a').forEach(x=>{
@@ -11433,6 +11634,7 @@ function render(){
   else if(v==='samples') m.innerHTML = samplesView();
   else if(v==='theatreward') m.innerHTML = theatreWardView();
   else if(v==='users') m.innerHTML = usersView();
+  else if(v==='security') m.innerHTML = securityView();
   else if(v==='rota') m.innerHTML = rotaGridView();
   else if(v==='rotaalloc') m.innerHTML = rotaAllocView();
   else if(v==='rotastaff') m.innerHTML = rotaStaffView();
@@ -11607,7 +11809,7 @@ function alertToSheetRow(a){
   return {_row: a.id, Timestamp: a.ts, Type: a.type, Tracker: a.tracker, Code: a.code, Item: a.name,
     Detail: a.detail, Status: a.status};
 }
-function assetGuard(){ if(!isAdmin()) throw new Error('Admin access required'); }
+function assetGuard(){ if(!isAdmin('assets.manage')) throw new Error('Admin access required'); }
 
 /* ---- auth ---- */
 async function sbSignIn(username, password){
@@ -11685,6 +11887,8 @@ async function api(payload){
     // extra scan codes per item. Tolerated if it fails, so the page still loads against a
     // database that hasn't had the item_barcodes migration yet (extra codes just don't scan).
     const xcP = (async()=>sb.rpc('get_item_barcodes'))().then(r=>r, ()=>null);
+    // my own Security group ticks. Never fatal: without them the page simply follows the role.
+    const tickP = (async()=>sb.rpc('my_ticks'))().then(r=>(r && !r.error && r.data && typeof r.data==='object' && !Array.isArray(r.data)) ? r.data : {}, ()=>({}));
     const [itemsRes, txRes, reqRes, alertRes, impRes, dispRes, storesRes, gasRes, setRes,
            profRes, sampRes, surgRes] = await Promise.all([
       sb.rpc('get_items'),
@@ -11705,11 +11909,14 @@ async function api(payload){
     });
     const role = profRes.data.role;
     const rank = ROLE_RANK[role]||0;
+    const ticks = rank>=4 ? {} : await tickP;
+    // does this person have the permission? (their tick if there is one, else their role)
+    const has = k => Object.prototype.hasOwnProperty.call(ticks, k) ? !!ticks[k] : rank >= (PERM_MIN[k]||0);
     const items = {Consumables:[], Meds:[], Garments:[], Instruments:[], Linen:[], Services:[]};
     (itemsRes.data||[]).forEach(it=>{
       const tab = TRACKER_TAB[it.tracker]; if(!tab) return;
       const row = itemToSheetRow(it);
-      if(rank<1) delete row.UnitCost;
+      if(!has('costs.view')) delete row.UnitCost;
       items[tab].push(row);
     });
     let procedures = [], procLines = [];
@@ -11717,7 +11924,7 @@ async function api(payload){
       // every case, a page of 1000 at a time: Supabase returns at most 1000 rows per request, and
       // a cut-off list would silently drop running cases from every screen
       procedures = (await sbRpcAllRows('get_procedures')).map(procRowToSheet);
-      if(rank>=2){
+      if(has('proc.manage')){
         const {data: lineData, error: lineErr} = await sb.from('procedure_lines').select('*')
           .order('ts',{ascending:false}).limit(500);
         if(lineErr) throw new Error(lineErr.message);
@@ -11726,7 +11933,7 @@ async function api(payload){
       }
     }
     let rota = [];
-    if(rank>=3){
+    if(has('rota.view')){
       const [{data: days, error: dErr}, {data: theatres, error: tErr}] = await Promise.all([
         sb.from('rota_days').select('*'), sb.from('rota_theatres').select('*')
       ]);
@@ -11755,8 +11962,11 @@ async function api(payload){
         By:c.logged_by, Notes:s.notes};
     });
     let assets = [], users = [];
-    if(rank>=2){
-      const [assetsRes, usersRes] = await Promise.all([sb.from('assets').select('*'), sb.from('profiles').select('*')]);
+    {
+      // the assets register follows its permission; the list of people stays with the role
+      const [assetsRes, usersRes] = await Promise.all([
+        has('assets.manage') ? sb.from('assets').select('*') : Promise.resolve({data:[], error:null}),
+        rank>=2 ? sb.from('profiles').select('*') : Promise.resolve({data:[], error:null})]);
       if(assetsRes.error) throw new Error(assetsRes.error.message);
       if(usersRes.error) throw new Error(usersRes.error.message);
       assets = (assetsRes.data||[]).map(assetToSheetRow);
@@ -11766,7 +11976,7 @@ async function api(payload){
     // if the SMS tables aren't there (e.g. this page reached a database before its migration),
     // the rest of the app must still load; the rota just shows no text status.
     let staff = [], sms = [];
-    if(rank>=3){
+    if(has('rota.staff')){
       const [staffRes, smsRes] = await Promise.all([
         sb.from('staff').select('*').order('name',{ascending:true}),
         sb.from('sms_messages').select(SMS_COLS).order('created_at',{ascending:false}).limit(1000)
@@ -11774,7 +11984,7 @@ async function api(payload){
       if(staffRes.error) console.warn('staff not loaded:', staffRes.error.message); else staff = staffRes.data||[];
       if(smsRes.error) console.warn('texts not loaded:', smsRes.error.message); else sms = smsRes.data||[];
     }
-    return {ok:true, role, displayName: profRes.data.display_name, items, staff, sms,
+    return {ok:true, role, ticks, displayName: profRes.data.display_name, items, staff, sms,
       transactions: (txRes.data||[]).map(t=>({Timestamp:t.ts, Direction:t.direction, Tracker:t.tracker,
         Code:t.code, Name:t.name, Qty:t.qty, By:t.by, Batch:t.batch, Expiry:t.expiry, Note:t.note, Activity:t.activity})),
       requests: (reqRes.data||[]).map(requestToSheetRow),
@@ -12420,6 +12630,7 @@ async function loadAll(){
       if(it && !it.extraCodes.includes(String(b.Barcode))) it.extraCodes.push(String(b.Barcode));
     });
     if(session && data.role){ session.role = data.role; session.displayName = data.displayName || session.displayName;
+      session.ticks = (data.ticks && typeof data.ticks==='object') ? data.ticks : {};   // Security group: applies from this load on
       myName = session.displayName;
       try{ localStorage.setItem('bollin_session', JSON.stringify(session)); }catch(e){}
       paintName(); applyNavPerms(); }
@@ -12454,12 +12665,32 @@ let myName = '';
 try { session = JSON.parse(localStorage.getItem('bollin_session')||'null'); } catch(e){}
 if(session) myName = session.displayName || '';
 
-function isAdmin(){ const r = session && session.role; return r==='admin' || r==='superadmin' || r==='developer'; }
-function isSuperadmin(){ return roleRank()>=3; }   // superadmin AND developer -- developer sits above superadmin, never below it
-function isDeveloper(){ return roleRank()>=4; }
+/* Security group (migration 20261116100000_security_groups.sql). Each check below may name the
+   permission it stands for. If a developer has ticked or unticked THAT permission for the
+   signed-in person, the tick decides; otherwise the role decides exactly as it always has.
+   So with no ticks nothing here behaves differently. The server enforces the same thing
+   (app_can); these only keep the page in step with it.
+   PERM_MIN mirrors app_permissions.min_rank (the tests compare it with the migration). */
+const PERM_MIN = {'dashboard.view':0, 'stock.view':0, 'stock.manage':2, 'costs.view':1, 'stock.bulk':3, 'stock.delete':4, 'steril.view':0, 'steril.dispatch':1, 'steril.manage':2, 'stores.manage':2, 'obsolete.manage':2, 'stocktake.view':1, 'stocktake.sheet':3, 'alerts.view':1, 'assets.manage':2, 'implants.view':1, 'implants.manage':2, 'requests.use':0, 'requests.respond':1, 'requests.delete':2, 'log.view':0, 'proc.use':0, 'proc.manage':2, 'proc.prefill':4, 'billing.view':4, 'itemusage.view':4, 'samples.view':0, 'samples.edit':1, 'samples.delete':2, 'tw.view':0, 'gas.view':0, 'gas.manage':2, 'monitor.view':0, 'stickers.view':0, 'rota.view':3, 'rota.manage':3, 'rota.staff':3, 'users.manage':4};
+// ticking the left one also ticks the right ones; unticking a right one unticks the left
+const PERM_NEEDS = {'stock.manage':['stock.view'], 'stock.bulk':['stock.view'], 'stock.delete':['stock.view'], 'steril.dispatch':['steril.view'],
+  'steril.manage':['steril.view'], 'stocktake.sheet':['stocktake.view'], 'implants.manage':['implants.view'], 'requests.respond':['requests.use'],
+  'requests.delete':['requests.use'], 'proc.manage':['proc.use'], 'proc.prefill':['proc.use'], 'samples.edit':['samples.view'],
+  'samples.delete':['samples.view'], 'gas.manage':['gas.view'], 'rota.manage':['rota.view'], 'rota.staff':['rota.view']};
+// my own tick for a permission: true / false, or null when the role decides
+function permTick(key){
+  if(!key || !session || !session.ticks || typeof session.ticks!=='object') return null;
+  if(((ROLE_RANK[session.role])||0) >= 4) return null;          // developers always have everything
+  return Object.prototype.hasOwnProperty.call(session.ticks, key) ? !!session.ticks[key] : null;
+}
+// a permission by name, for places that had no role check before
+function perm(key){ const t = permTick(key); return t!==null ? t : roleRank() >= (PERM_MIN[key]||0); }
+function isAdmin(key){ const t = permTick(key); if(t!==null) return t; const r = session && session.role; return r==='admin' || r==='superadmin' || r==='developer'; }
+function isSuperadmin(key){ const t = permTick(key); if(t!==null) return t; return roleRank()>=3; }   // superadmin AND developer -- developer sits above superadmin, never below it
+function isDeveloper(key){ const t = permTick(key); if(t!==null) return t; return roleRank()>=4; }
 const ROLE_RANK = { common:0, staff:1, admin:2, superadmin:3, developer:4 };
 function roleRank(){ return (session && ROLE_RANK[session.role]) || 0; }
-function isStaffPlus(){ return roleRank()>=1; }
+function isStaffPlus(key){ const t = permTick(key); if(t!==null) return t; return roleRank()>=1; }
 const PERMS = {
   admin:  {add:1, edit:1, labels:1, values:1, stocktake:1, implants:1, dispatch:1, receive:1, respond:1, ack:1, alerts:1, instr:1, reports:1, obsolete:1, stores:1, assets:1, useedit:1, sticker:1},
   superadmin: {add:1, edit:1, labels:1, values:1, stocktake:1, implants:1, dispatch:1, receive:1, respond:1, ack:1, alerts:1, instr:1, reports:1, obsolete:1, stores:1, assets:1, useedit:1, sticker:1},
@@ -12468,7 +12699,11 @@ const PERMS = {
   common: {add:0, edit:0, labels:0, values:0, stocktake:0, implants:0, dispatch:0, receive:0, respond:0, ack:0, alerts:0, instr:0, reports:0, obsolete:0, stores:0, assets:0, useedit:0, sticker:1}
 };
 function role(){ return LIVE ? (session ? session.role : null) : 'admin'; }
-function can(p){ const r = role(); return !!(r && PERMS[r] && PERMS[r][p]); }
+// the older feature flags, each tied to its permission ('reports' has none: the role decides)
+const CAN_KEY = {add:'stock.manage', edit:'stock.manage', labels:'stock.manage', values:'costs.view', stocktake:'stocktake.view', implants:'implants.view',
+  dispatch:'steril.dispatch', receive:'steril.dispatch', instr:'steril.dispatch', respond:'requests.respond', ack:'alerts.view', alerts:'alerts.view',
+  obsolete:'obsolete.manage', stores:'stores.manage', assets:'assets.manage', useedit:'steril.manage', sticker:'stickers.view'};
+function can(p){ const t = permTick(CAN_KEY[p]); if(t!==null) return t; const r = role(); return !!(r && PERMS[r] && PERMS[r][p]); }
 
 /* ---------------- signing in ----------------
    The sign-in card exists on the page ONLY while someone has to sign in: showLogin writes it,
@@ -12855,7 +13090,17 @@ function paintName(){
   $('#pinBtn').style.display = (LIVE && session) ? '' : 'none';
   $('#outBtn').style.display = (LIVE && session) ? '' : 'none';
 }
+// each page's permission. A tick for the signed-in person decides; otherwise the old rules below.
+const VIEW_KEY = {dashboard:'dashboard.view', 'dash-low':'dashboard.view', 'dash-out':'dashboard.view', 'dash-exp':'dashboard.view',
+  consumables:'stock.view', meds:'stock.view', garments:'stock.view', linen:'stock.view', instruments:'steril.view',
+  implants:'implants.view', log:'log.view', requests:'requests.use', alerts:'alerts.view', gas:'gas.view', monitor:'monitor.view',
+  stocktake:'stocktake.view', values:'costs.view', itemusage:'itemusage.view', obsolete:'obsolete.manage', stores:'stores.manage',
+  offsite:'stores.manage', services:'stores.manage', procedures:'proc.use', samples:'samples.view', theatreward:'tw.view',
+  billing:'billing.view', assets:'assets.manage', stickers:'stickers.view', labels:'stock.manage',
+  rota:'rota.view', rotaalloc:'rota.view', rotastaff:'rota.staff'};
 function viewAllowed(v){
+  if(v==='security') return isDeveloper();   // Security group: developers only, never tickable
+  { const t = permTick(VIEW_KEY[v]); if(t!==null) return t; }
   if(v==='stocktake') return can('stocktake');
   if(v==='labels') return can('labels');
   if(v==='implants') return can('implants');
