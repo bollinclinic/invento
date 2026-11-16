@@ -177,6 +177,14 @@ Stock moved to `MS Offsite Store` is **invisible everywhere in active inventory*
 dashboard, stock value, procedure scanning, stocktake) until moved back. It appears only in
 the Offsite tab. Applies to the 4 non-instrument trackers.
 
+**Dashboard tiles** (`dashTile`; Yasar's design, November 2026): each tile is a soft tinted card
+with a coloured edge (`t-amber` / `t-red` / `t-blue` / `t-green`), a round badge, the number
+with a status pill ("Needs action", "Critical", "Due soon", "Clear", …), a label, a small bar or
+columns, a picture and an arrow. **Every bar and column is drawn from real figures on the
+screen** (`dashSeg` by tracker, `dashCols` by expiry, `dashBar` for a share). His sketch had
+trend lines; there is no history of past counts, so none is invented. The old pulsing glow
+(`attn`) is gone from the dashboard. Tests rely on `<div class="n">N</div>` and the label text.
+
 **Dashboard**: low / out / expiring-within-90-days counts, plus a "Theatre & Ward today"
 shortcut. Also: stock requests, alerts, stock value explorer, obsolete stock, activity log
 (filterable PDF), stocktake (month-end/annual; a physical stock-take sheet for superadmin+),
@@ -261,6 +269,23 @@ expiry = dispatch date + 1 year.
   ("No barcode yet" / "Has a barcode", meaning the item's own `barcode` field is filled). One
   function, `stkCodesList()`, feeds the list, the count and "Tick all shown". A sticker encodes
   `barcode || code`, and a code is generated only when an item has neither.
+
+- **Print order** for Barcode / QR (`stkCodeOrder`, `stkCodesPicked`): as ticked (default),
+  name A → Z or Z → A, location then name, or code. It changes the print-out only, not the ticks.
+- **Free-form labels** (`stkFreeTab`; asked for when the label printer broke): your own text,
+  pictures and logos on the 3 × 7 sheet.
+  - A sheet is a list of labels, each with a number of copies, and a **start position** (1–21)
+    so a part-used sheet can be finished. "Fill the sheet" prints one label on every remaining
+    position. A small map shows where each label lands.
+  - A label has a heading, text and small print (each with its own size, bold, italic), an
+    optional picture or logo (text only / picture left / right / on top / picture only), text
+    alignment, lettering, colour, an outline, and an optional barcode or QR code.
+  - **One layout function, `freeOps(label, W, H, measure)`, in millimetres.** The PDF
+    (`freeCell`) and the on-screen preview (`freePaint`, a canvas) both draw from its answer,
+    so the preview is what prints. Too much text is made smaller until it fits, never cut off.
+  - Labels are remembered **on this computer only** (localStorage `bollin_free_labels`,
+    cleaned by `freeClean` on load; a picture is scaled to 900 px at most and must be a real
+    image data URL). Typing never re-renders the editor (`freeSet`), only the preview.
 
 Text that can overflow auto-shrinks rather than clipping.
 
@@ -604,28 +629,52 @@ screen here, with a way to change **one person's** access without changing their
   it into `#loginWrap` and `hideLogin` empties it. The change-password boxes are the same
   (`openPw` / `closePw`). **Never leave a password box on the page after sign-in, even hidden:**
   the browser then offers to save the password again on every refresh (§9 #17).
-- **Two ways in:** username + password, or a **4-number PIN** on a computer where that person
-  set one. The card opens on the PIN tab when anyone has a PIN on this computer.
-- **How the PIN is kept safe:**
-  - A PIN belongs to one person on one computer. Setting one makes a long random **device
-    key**, kept in that browser (localStorage `bollin_pins` = `{username: {dev, name}}`). The
-    database stores only the key's SHA-256 and a bcrypt hash of the PIN (`login_pins`, RLS on,
-    no policies). The PIN itself is never stored in the browser.
-  - `pin-login` (no login needed, `verify_jwt = false`) calls `pin_check(username, device, pin)`
-    with the service role. Only when that says yes does it ask Supabase Auth for a one-time
-    token (`generateLink`, no email is sent), which the page exchanges with
-    `verifyOtp({token_hash, type:'email'})` for a normal session.
-  - **Five wrong tries delete the PIN.** So does **changing or resetting the password** (a
-    trigger on `auth.users`). A deactivated account is refused.
-  - The easiest PINs are refused on both sides (`pinTooEasy` / `pin_too_easy`: four the same,
-    1234, 4321, 0123, 2580).
-  - PIN boxes are plain text fields drawn as dots (`.pinbox`), not password fields, so the
-    browser never offers to save them. Typing in the sign-in, PIN or password boxes is never
-    read as a barcode scan.
-- **Offer:** after a **password** sign-in on a computer where the person has no PIN, a box
-  offers one (`pinOfferMaybe`): Save, Not now (asked again next time), or Don't ask again
-  (localStorage `bollin_pin_noask`). The **PIN** button in the header sets, changes or removes
-  it at any time (`openPinDlg('manage')`, RPCs `pin_set` / `pin_clear` / `pin_status`).
+- **Two ways in:** username + password, or a **4-number PIN** typed on an on-screen **keypad**
+  (Yasar's Apple-style design; `keypadHtml`, `kpPress`, state `_kp`). A PIN is never in a text
+  box, so the browser has nothing to save or fill in. Number keys on a real keyboard work too.
+- **Second version of the PIN** (migration `20261117100000_pin_everywhere.sql`, Yasar's request):
+  - **One PIN per person, set once, usable on any clinic computer** (`user_pins`). The first
+    version (a PIN per person per computer, `login_pins`) is left in the database only so
+    pages not yet refreshed keep working; `pin-login` uses the new rules when sent `v: 2`.
+  - **A developer can see, set and remove anyone's PIN** (Users & roles, PIN column:
+    `usersPinCell`, `pins_admin_list`, `pin_admin_set`; hidden until "Show"; every change is
+    logged without the PIN). So the PIN is **stored as typed, not hashed**: it is a convenience
+    code, and the password remains the real secret.
+  - **What still protects it** (this site is on the public internet):
+    - A PIN is accepted only from a **trusted browser**: one where somebody has signed in with
+      a full **password** at least once (`deviceKey()` in localStorage `bollin_device`,
+      `device_trust`, table `trusted_devices`, hash only). An unknown browser gets
+      `new_device` whatever is typed, and those tries are not counted, so nobody outside can
+      guess PINs or lock staff out. Only a password session can trust a browser (the token's
+      `amr`), never a PIN session.
+    - **Exactly 4 numbers** (page, function and a table CHECK). The easiest are refused
+      (`pinTooEasy` / `pin_too_easy`). **Five wrong tries delete the PIN.** So does changing
+      or resetting the password. A deactivated account is refused.
+- **Three sign-in screens** (`_loginMode`, `loginCardHtml`):
+  - `pin`: the **last person who signed in on this browser**, by name, with the keypad. It is
+    what opens whenever that person has a PIN (localStorage `bollin_last` = `{u, name, pin}`).
+  - `password`: "Use my password instead".
+  - `other`: "Sign in as someone else": a username box, then the keypad.
+- **Closing the browser signs you out** (Yasar's request: staff were carrying on in whoever's
+  account was left open). When every tab of the app has been closed and it is opened again,
+  the saved session is dropped before anything is drawn and the last person's keypad comes up
+  (`tabStart` → `tabWasClosed`, `_bootSignedOut`; Supabase's own saved sign-in is cleared with
+  `signOut({scope:'local'})`, so other computers are not signed out).
+  - **A refresh, or a second tab while one is open, is not a close.** Each tab keeps an id in
+    sessionStorage and a line in localStorage `bollin_tabs` that it refreshes; closing stamps
+    the line "closed"; a refresh is the same tab back within `TAB_REFRESH_MS` (20 s); another
+    tab counts as open for `TAB_ALIVE_MS` (150 s, because background tabs are slowed down).
+  - **Never revive a closing tab:** the browser fires `visibilitychange` after `pagehide`; a
+    beat there made a closed tab look open (caught by the tests). `tabBeat` does nothing once
+    `_tabClosing` is set.
+  - A test page that starts "already signed in" must look like an open tab (set
+    `sessionStorage.bollin_tab` and its line in `bollin_tabs`), or it is signed out at start.
+- **Offer:** after a **password** sign-in by someone with no PIN, the keypad dialog offers one
+  (`pinOfferMaybe`, `openPinDlg`): chosen and then entered again; Not now (asked again next
+  time) or Don't ask again (localStorage `bollin_pin_noask`). The **PIN** button in the header
+  sets, changes or removes it (`pin_set_mine` / `pin_clear_mine` / `pin_mine`).
+- Typing in the sign-in, PIN or password boxes, or on the keypad, is never read as a barcode
+  scan.
 - A sign-in waits for the sign-out before it to finish (`_signOutP`), so a slow sign-out can't
   undo it.
 - **Welcome and tile animation** (`welcomeStart`, `dashIntro`): a full-screen welcome with the
@@ -698,7 +747,7 @@ gate, add it on **both** sides (§9 #6).
 
 ## 6. Data model (Supabase tables)
 
-`profiles`, `app_permissions` and `user_permissions` (Security group: the catalogue and each person's own ticks; RPCs only), `login_pins` (sign-in PINs: hashes only, reached only through RPCs), `anaes_dates` (when each theatre's circuit, water trap and soda lime were last changed; RPCs only), `items` (all trackers; `tracker` enum incl. `services`), `item_barcodes` (extra scan codes), `barcode_link_events`,
+`profiles`, `user_pins` (one sign-in PIN per person, readable only by a developer through an RPC) and `trusted_devices` (browsers a password sign-in has trusted, hash only), `app_permissions` and `user_permissions` (Security group: the catalogue and each person's own ticks; RPCs only), `login_pins` (sign-in PINs: hashes only, reached only through RPCs), `anaes_dates` (when each theatre's circuit, water trap and soda lime were last changed; RPCs only), `items` (all trackers; `tracker` enum incl. `services`), `item_barcodes` (extra scan codes), `barcode_link_events`,
 `dispatch_log`, `procedures` (`cart` jsonb, `room`, `surgeon_id`), `procedure_lines` (cost +
 bill snapshots), `surgeons`, `rota_days`, `rota_theatres` (`cases` jsonb of {surgeon, procedure,
 stay}; no PAT), 
@@ -910,10 +959,14 @@ Regression suites live in **`tests/`** and run with `node tests/run_all.js`:
   visible, plus collapsing, icons and highlighting;
 - signing in: `tests/login_browser_tests.js`, in headless Chrome, with the Supabase client
   replaced by a fake that follows the PIN rules (`login_fake_supabase.js`; checks in
-  `login_page_tests.js`). It covers the password boxes being gone after sign-in, PIN set / use /
-  wrong tries / lock-out / remove, two people on one computer, the welcome and tile animation,
-  and it **really refreshes the page** half-way to prove nothing replays. Database side in
-  `tests/sql/login_pins_db_tests.sql` (staging only);
+  `login_page_tests.js`). Four phases with real page loads between them: password sign-in,
+  welcome, tiles and choosing a PIN on the keypad; a REAL refresh (still signed in) and the
+  developer's PIN column; the browser "closed" (signed out, the last person's keypad, someone
+  else signing in with their own PIN); and a second tab while one is open (not signed out).
+  Database side in `tests/sql/pin_v2_db_tests.sql` and `login_pins_db_tests.sql` (staging only);
+- free-form labels, sticker print order and dashboard tiles (`labels_tests.js`): the label
+  layout with a fake ruler (wrapping, shrinking, pictures, codes), the sheet (copies, start
+  position), what is remembered, the PDF, the five print orders, and each tile's figures;
 - anaesthetic checks: `tests/anaes_browser_tests.js` (checks in `anaes_page_tests.js`), in
   headless Chrome with a fake Supabase client and `fetch` replaced by a recorder. It covers the
   exact records sent, the 21-day rule, problems being sent as "action needed", missing answers,

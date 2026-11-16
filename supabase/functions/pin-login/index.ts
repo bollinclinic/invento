@@ -1,4 +1,7 @@
-// Sign in with a 4-digit PIN on a computer where the person set one up.
+// Sign in with a 4-digit PIN.
+// Since November 2026 ("v": 2 in the request) a PIN belongs to the PERSON and is accepted from
+// any browser a password sign-in has trusted (pin_check_v2). Without "v" it is the first
+// version, a PIN per person per computer (pin_check), kept for pages not yet refreshed.
 //
 // The page sends {username, device, pin}. `device` is the long random key that computer's
 // browser was given when the PIN was set. The database function pin_check (service role only)
@@ -27,14 +30,19 @@ Deno.serve(async (req) => {
     const username = String(body.username || "").trim().toLowerCase();
     const device = String(body.device || "");
     const pin = String(body.pin || "");
-    if (!username || username.length > 80 || device.length < 32 || device.length > 200 || !/^\d{4}$/.test(pin)) {
+    // v 2 (November 2026): one PIN per person, accepted on any TRUSTED browser (pin_check_v2).
+    // A page that has not been refreshed sends no "v" and still gets the first version
+    // (a separate PIN per person per computer, pin_check).
+    const v2 = Number(body.v) === 2;
+    if (!username || username.length > 80 || device.length > 200 || !/^\d{4}$/.test(pin)) {
       return reply({ ok: false, reason: "no_pin" });
     }
+    if (device.length < 32) return reply({ ok: false, reason: v2 ? "new_device" : "no_pin" });
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: chk, error: chkErr } = await admin.rpc("pin_check", {
+    const { data: chk, error: chkErr } = await admin.rpc(v2 ? "pin_check_v2" : "pin_check", {
       p_username: username, p_device: device, p_pin: pin,
     });
     if (chkErr) return reply({ ok: false, reason: "error" });

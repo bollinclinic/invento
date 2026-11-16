@@ -437,6 +437,81 @@
     .digital{font-size:28px}
   }
 
+  /* ---------- number keypad (sign-in and choosing a PIN) ---------- */
+  .logincard.kpcard{max-width:372px;padding:28px 22px 22px}
+  .kpwho{display:flex;align-items:center;gap:12px;justify-content:center;margin:2px 0 14px}
+  .kpwho strong{display:block;font-size:17px;color:var(--ink)} .kpwho span{display:block;font-size:13px;color:var(--ink-soft)}
+  .kpavatar{width:46px;height:46px;border-radius:50%;background:var(--pine);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;flex-shrink:0}
+  .kpstep{text-align:center;font-weight:700;font-size:15px;margin:6px 0 2px;min-height:20px}
+  .kp{margin:0 auto;max-width:330px}
+  .kpdots{display:flex;gap:16px;justify-content:center;padding:12px 0 16px}
+  .kpdot{width:15px;height:15px;border-radius:50%;border:2px solid var(--ink-soft);opacity:.55;transition:background-color .12s,transform .12s,opacity .12s}
+  .kpdot.on{background:var(--ink);border-color:var(--ink);opacity:1;transform:scale(1.12)}
+  .kpdots.shake{animation:kpShake .38s}
+  @keyframes kpShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+  .kpgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;background:color-mix(in srgb,var(--pine) 9%,var(--mist));padding:10px;border-radius:26px}
+  .kpkey{height:62px;border:none;border-radius:24px;background:var(--card);color:var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font:inherit;line-height:1;box-shadow:0 1px 1.5px rgba(20,40,60,.14);transition:background-color .1s,transform .08s;-webkit-tap-highlight-color:transparent;user-select:none}
+  .kpkey b{font-size:27px;font-weight:500} .kpkey i{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.2em;color:var(--ink-soft);margin-top:3px;min-height:10px;padding-left:.2em}
+  .kpkey:hover{background:color-mix(in srgb,var(--pine) 8%,var(--card))}
+  .kpkey:active{transform:scale(.95);background:color-mix(in srgb,var(--pine) 20%,var(--card))}
+  .kpkey.kpback{background:transparent;box-shadow:none;color:var(--ink)}
+  .kpkey.kpback:hover{background:color-mix(in srgb,var(--pine) 10%,transparent)}
+  .loginlinks{display:flex;gap:6px 18px;flex-wrap:wrap;justify-content:center;margin-top:12px;font-size:13px}
+  .loginlinks a{color:var(--pine);font-weight:600;text-decoration:none} .loginlinks a:hover{text-decoration:underline}
+  #pinDlg{margin:auto}   /* the keypad sits in the middle of the screen */
+  #pinDlg .m-body{padding-bottom:6px}
+  @media (prefers-reduced-motion:reduce){.kpdots.shake{animation:none}.kpkey,.kpdot{transition:none}}
+
+  /* ---------- dashboard tiles (soft tinted cards) ---------- */
+  .tile.dt{--tc:#E0A126;position:relative;overflow:hidden;min-height:150px;padding:14px 16px 14px 18px;border-radius:18px;border:1px solid color-mix(in srgb,var(--tc) 22%,var(--line));
+    border-left:5px solid var(--tc);background:linear-gradient(135deg,color-mix(in srgb,var(--tc) 15%,var(--card)) 0%,var(--card) 62%);
+    box-shadow:0 6px 18px color-mix(in srgb,var(--tc) 12%,transparent);transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+  .tile.dt:hover{transform:translateY(-2px);box-shadow:0 12px 26px color-mix(in srgb,var(--tc) 22%,transparent);border-color:color-mix(in srgb,var(--tc) 55%,var(--line))}
+  .tile.dt.t-amber{--tc:#E0A126} .tile.dt.t-red{--tc:#E0483F} .tile.dt.t-blue{--tc:#3B82D6} .tile.dt.t-green{--tc:#1E9E62}
+  .dt-badge{display:inline-flex;width:30px;height:30px;border-radius:50%;align-items:center;justify-content:center;background:var(--tc);color:#fff;font-size:15px;font-weight:800;
+    box-shadow:0 3px 8px color-mix(in srgb,var(--tc) 40%,transparent)}
+  .tile.dt .ic{position:absolute;top:10px;right:12px;font-size:44px;line-height:1;opacity:1;filter:drop-shadow(0 6px 8px rgba(0,0,0,.14))}
+  .tile.dt .ic::before{content:"";position:absolute;inset:-12px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--tc) 22%,transparent),transparent 70%);z-index:-1}
+  .dt-num{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;padding-right:58px}
+  .tile.dt .n{font-size:34px;font-weight:800;font-family:var(--sans);letter-spacing:-.02em;line-height:1.05;color:var(--ink)}
+  .dt-pill{display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;background:color-mix(in srgb,var(--tc) 24%,var(--card));color:color-mix(in srgb,var(--tc) 45%,var(--ink))}
+  .tile.dt.t-red .dt-pill{background:var(--tc);color:#fff}
+  .dt-pill.ok{background:color-mix(in srgb,#1E9E62 20%,var(--card));color:color-mix(in srgb,#1E9E62 55%,var(--ink))}
+  .tile.dt .l{font-size:13.5px;color:var(--ink);margin-top:4px;padding-right:44px;line-height:1.3}
+  .dt-viz{margin-top:10px;padding-right:44px;min-height:22px}
+  .dt-seg{display:flex;gap:2px;height:8px;border-radius:99px;overflow:hidden;background:color-mix(in srgb,var(--tc) 14%,var(--mist))}
+  .dt-seg i{display:block;background:var(--tc);min-width:3px}
+  .dt-cap{font-size:11px;color:var(--ink-soft);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dt-barrow{display:flex;align-items:center;gap:8px} .dt-barrow span{font-size:12px;font-weight:700;color:var(--ink-soft)}
+  .dt-bar{flex:1;height:9px;border-radius:99px;background:color-mix(in srgb,var(--tc) 14%,var(--mist));overflow:hidden}
+  .dt-bar i{display:block;height:100%;border-radius:99px;background:var(--tc)}
+  .dt-cols{display:flex;gap:5px;align-items:flex-end;height:34px}
+  .dt-cols span{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px}
+  .dt-cols i{display:block;width:100%;min-height:2px;border-radius:3px 3px 0 0;background:var(--tc)}
+  .dt-cols em{font-style:normal;font-size:9.5px;color:var(--ink-soft);line-height:1}
+  .dt-go{position:absolute;right:12px;bottom:12px;width:30px;height:30px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+    font-size:19px;font-weight:700;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.08);transition:transform .16s ease,background-color .16s}
+  .tile.dt:hover .dt-go{transform:translateX(3px);background:var(--tc);color:#fff;border-color:var(--tc)}
+  .tiles:has(.dt){grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px}
+  #twDischargeTileWrap{display:flex} #twDischargeTileWrap>.tile{flex:1}
+  @media (prefers-reduced-motion:reduce){.tile.dt,.dt-go{transition:none}.tile.dt:hover{transform:none}}
+
+  /* ---------- sticker printer: free-form labels ---------- */
+  .freewrap{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+  .freecol{flex:1;min-width:320px}
+  .freerow{display:flex;gap:6px;align-items:center;padding:7px;border:1.5px solid var(--line);border-radius:10px;margin-top:6px;cursor:pointer}
+  .freerow.on{border-color:var(--pine);background:color-mix(in srgb,var(--pine) 7%,var(--card))}
+  .freenum{width:24px;height:24px;border-radius:50%;background:var(--pine);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+  .freeprev{background:repeating-conic-gradient(var(--mist) 0 25%,var(--card) 0 50%) 0 0/18px 18px;border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;justify-content:center}
+  .freeprev canvas{max-width:100%;height:auto;background:#fff;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.14)}
+  .freeblk{margin-top:8px}
+  .freemap{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;width:132px;margin-top:10px}
+  .freecell{height:15px;border-radius:3px;border:1px solid var(--line);background:var(--card);font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;color:var(--ink-soft)}
+  .freecell.on{background:color-mix(in srgb,var(--pine) 28%,var(--card));border-color:var(--pine);color:var(--ink)}
+  .freecell.on.cur{background:var(--pine);color:#fff}
+  .freecell.skip{background:repeating-linear-gradient(45deg,var(--mist) 0 3px,var(--line) 3px 5px)}
+
   /* ---------- Security group ---------- */
   .secpeople{display:flex;gap:6px;flex-wrap:wrap;max-height:176px;overflow-y:auto;padding:2px}
   .secperson{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:7px 12px;border:1.5px solid var(--line);border-radius:10px;
@@ -692,7 +767,7 @@
     <div class="userbox">
       <div id="userName"></div>
       <button id="pwBtn" onclick="openPw()" style="display:none">Password</button>
-      <button id="pinBtn" onclick="openPinDlg('manage')" style="display:none" title="Sign in on this computer with a 4-number PIN">PIN</button>
+      <button id="pinBtn" onclick="openPinDlg('manage')" style="display:none" title="Set, change or remove your 4-number sign-in PIN">PIN</button>
       <button id="outBtn" onclick="signOut()" style="display:none">Sign out</button>
     </div>
   </header>
@@ -1160,8 +1235,8 @@
   </div>
 </dialog>
 
-<dialog id="pinDlg" onclose="pinDlgClear()" style="max-width:440px">
-  <div class="m-head" id="pinDlgTitle">PIN for this computer</div>
+<dialog id="pinDlg" onclose="pinDlgClear()" style="max-width:380px">
+  <div class="m-head" id="pinDlgTitle">PIN</div>
   <div class="m-body" id="pinDlgBody"></div>
   <div class="m-actions" id="pinDlgActions"></div>
 </dialog>
@@ -1281,6 +1356,7 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 let buf='', lastKey=0;
 document.addEventListener('keydown', e => {
   if(e.target.id === 'scanInput') return;          // handled by its own listener
+  if(typeof kpActive==='function' && kpActive()) return;   // a PIN keypad is showing: numbers go to it
   // a PIN or password typed quickly must never be read as a barcode
   if(e.target.closest && e.target.closest('#loginWrap,#pinDlg,#pwDlg,#setPwDlg')) return;
   if(e.target.matches('input,select,textarea')) {
@@ -1707,7 +1783,48 @@ function samplesAwaitingTile(){
   if(!viewAllowed('samples')) return '';
   const a = samplesAwaiting();
   if(!a.patients) return '';
-  return `<div class="tile warn attn" onclick="nav('samples')" title="Samples recorded and not yet marked as Sent. Open Sample collection to mark them."><span class="ic">🧪</span><div class="n">${a.patients}</div><div class="l">Patient sample${a.patients===1?'':'s'} awaiting collection · ${a.specimens} specimen${a.specimens===1?'':'s'}</div></div>`;
+  return dashTile({tone:'amber', badge:'⚗', art:'🧪', nav:"nav('samples')", title:'Samples recorded and not yet marked as Sent. Open Sample collection to mark them.',
+    n:a.patients, pill:'To collect', label:`Patient sample${a.patients===1?'':'s'} awaiting collection · ${a.specimens} specimen${a.specimens===1?'':'s'}`, viz:''});
+}
+/* Dashboard tiles (Yasar's design, November 2026): a soft tinted card with a coloured edge, a
+   small round badge, the number with a status pill, a label, a small bar or columns, a picture
+   and an arrow. Every bar and column is drawn from real figures on this screen (there is no
+   history of past counts to draw a trend line from, so none is invented).
+   o = {tone:'amber'|'red'|'blue'|'green', badge, art, nav, n, pill, label, viz, title} */
+function dashTile(o){
+  return `<div class="tile dt t-${o.tone}" onclick="${o.nav}"${o.title?` title="${o.title}"`:''}>
+    <span class="dt-badge" aria-hidden="true">${o.badge}</span><span class="ic" aria-hidden="true">${o.art}</span>
+    <div class="dt-num"><div class="n">${o.n}</div>${o.pill?`<span class="dt-pill${o.pill==='Clear'?' ok':''}">${o.pill}</span>`:''}</div>
+    <div class="l">${o.label}</div>
+    <div class="dt-viz">${o.viz||''}</div>
+    <span class="dt-go" aria-hidden="true">›</span></div>`;
+}
+// items counted per tracker, biggest first: [{label, n}]
+function dashByTracker(items){
+  const m = {}; items.forEach(i=>{ m[i.tracker] = (m[i.tracker]||0) + 1; });
+  return Object.keys(m).map(k=>({label:TRACKER_LABEL[k]||k, n:m[k]})).sort((a,b)=>b.n-a.n);
+}
+// expiring items by how soon: already expired, within 30, 60 and 90 days
+function dashExpiryBuckets(items){
+  const b = [{label:'Expired', n:0}, {label:'30 days', n:0}, {label:'60 days', n:0}, {label:'90 days', n:0}];
+  items.forEach(i=>{ const d = daysTo(i.expiry); if(d==null || d>90) return; b[d<0 ? 0 : d<=30 ? 1 : d<=60 ? 2 : 3].n++; });
+  return b;
+}
+// one bar split into parts in proportion (a part's name and number show when pointed at)
+function dashSeg(parts){
+  const tot = parts.reduce((s,p)=>s+p.n, 0);
+  if(!tot) return '';
+  return `<div class="dt-seg" title="${parts.map(p=>p.label+': '+p.n).join(' · ')}">${parts.map((p,i)=>`<i style="flex:${p.n};opacity:${Math.max(.3, 1 - i*.2)}"></i>`).join('')}</div>
+    <div class="dt-cap">${parts.slice(0,2).map(p=>p.label+' '+p.n).join(' · ')}${parts.length>2?' · +'+(parts.length-2)+' more':''}</div>`;
+}
+function dashBar(pct, title, showPct){
+  const p = Math.max(0, Math.min(100, Math.round(Number(pct)||0)));
+  return `<div class="dt-barrow" title="${title||''}"><div class="dt-bar"><i style="width:${p}%"></i></div>${showPct?`<span>${p}%</span>`:''}</div>`;
+}
+function dashCols(buckets){
+  const max = Math.max(1, ...buckets.map(b=>b.n));
+  if(!buckets.some(b=>b.n)) return '';
+  return `<div class="dt-cols" title="${buckets.map(b=>b.label+': '+b.n).join(' · ')}">${buckets.map(b=>`<span><i style="height:${Math.round(b.n/max*100)}%"></i><em>${b.label.replace(' days','d')}</em></span>`).join('')}</div>`;
 }
 function dashboardView(){
   const stock = state.items.filter(i=>i.tracker!=='instruments' && i.tracker!=='services' && !i.obsolete && i.loc!==OFFSITE_STORE);
@@ -1722,19 +1839,21 @@ function dashboardView(){
   const impAwaitRet = state.implants.filter(i=>i.status==='Delivered' && !i.returnDetails).length;
   if(twDashCountsDate !== todayISO()) twRefreshDashCounts();   // fire-and-forget; patches its own tile when it resolves
   const intro = dashIntro();   // the tiles arrive one by one, once, after a sign-in
+  const instExp = instExpiring();
+  const impDelivered = state.implants.filter(i=>i.status==='Delivered').length;
   return `
     <h1>Dashboard</h1>
     <div class="sub">Live position across all five trackers</div>
     ${LIVE ? '' : '<div class="note">Demo mode — sample data only. Set CONFIG.SUPABASE_URL to connect the live Supabase project.</div>'}
     <div class="tiles${intro.cls}"${intro.style}>
-      <div class="tile warn ${low.length?'attn':''}" onclick="nav('dash-low')"><span class="ic">📉</span><div class="n">${low.length}</div><div class="l">Low stock items</div></div>
-      <div class="tile bad ${out.length?'attn':''}"  onclick="nav('dash-out')"><span class="ic">🚫</span><div class="n">${out.length}</div><div class="l">Out of stock</div></div>
-      <div class="tile exp ${exp.length?'attn':''}"  onclick="nav('dash-exp')"><span class="ic">⏳</span><div class="n">${exp.length}</div><div class="l">Expiring ≤ 90 days</div></div>
-      <div class="tile"      onclick="nav('instruments')"><span class="ic">🔁</span><div class="n">${away.length}</div><div class="l">Lines out at CSSD</div></div>
-      <div class="tile warn ${instExpiring().length?'attn':''}" onclick="sterTab='onhand';nav('instruments')"><span class="ic">🧰</span><div class="n">${instExpiring().length}</div><div class="l">Instruments expiring ≤ 60 days</div></div>
-      ${can('values')?`<div class="tile" onclick="nav('values')"><span class="ic">💷</span><div class="n">£${val.toFixed(0)}</div><div class="l">Stock value (${costed} of ${stock.length} items costed)</div></div>`:''}
-      <div class="tile ${pend?'attn':''}" onclick="nav('requests')"><span class="ic">📨</span><div class="n">${pend}</div><div class="l">Requests awaiting response</div></div>
-      ${can('implants')?`<div class="tile ${(impOrdered+impAwaitRet)?'attn':''}" onclick="nav('implants')"><span class="ic">⚕️</span><div class="n">${impOrdered}</div><div class="l">Implants ordered · ${impAwaitRet} awaiting return</div></div>`:''}
+      ${dashTile({tone:'amber', badge:'⚠', art:'📦', nav:"nav('dash-low')", n:low.length, pill:low.length?'Needs action':'Clear', label:'Low stock items', viz:dashSeg(dashByTracker(low))})}
+      ${dashTile({tone:'red', badge:'!', art:'💊', nav:"nav('dash-out')", n:out.length, pill:out.length?'Critical':'Clear', label:'Out of stock', viz:dashSeg(dashByTracker(out))})}
+      ${dashTile({tone:'amber', badge:'🕒', art:'🗓️', nav:"nav('dash-exp')", n:exp.length, pill:exp.length?'Due soon':'Clear', label:'Expiring ≤ 90 days', viz:dashCols(dashExpiryBuckets(exp))})}
+      ${dashTile({tone:'blue', badge:'🔗', art:'🧼', nav:"nav('instruments')", n:away.length, label:'Lines out at CSSD', viz:dashBar(state.dispatch.length ? away.length/state.dispatch.length*100 : 0, away.length + ' of ' + state.dispatch.length + ' dispatched lines still out')})}
+      ${dashTile({tone:instExp.length?'amber':'green', badge:instExp.length?'🕒':'✓', art:'✂️', nav:"sterTab='onhand';nav('instruments')", n:instExp.length, pill:instExp.length?'Due soon':'Clear', label:'Instruments expiring ≤ 60 days', viz:''})}
+      ${can('values')?dashTile({tone:'green', badge:'£', art:'🪙', nav:"nav('values')", n:'£'+val.toFixed(0), label:`Stock value (${costed} of ${stock.length} items costed)`, viz:dashBar(stock.length ? costed/stock.length*100 : 0, costed + ' of ' + stock.length + ' items have a cost', true)}):''}
+      ${dashTile({tone:'blue', badge:'💬', art:'✉️', nav:"nav('requests')", n:pend, pill:pend?'Awaiting':'Clear', label:'Requests awaiting response', viz:dashBar(state.requests.length ? (state.requests.length-pend)/state.requests.length*100 : 0, (state.requests.length-pend) + ' of ' + state.requests.length + ' requests answered')})}
+      ${can('implants')?dashTile({tone:'green', badge:'🔩', art:'🦴', nav:"nav('implants')", n:impOrdered, label:`Implants ordered · ${impAwaitRet} awaiting return`, viz:dashBar(impDelivered ? (impDelivered-impAwaitRet)/impDelivered*100 : 0, (impDelivered-impAwaitRet) + ' of ' + impDelivered + ' delivered implants returned or used')}):''}
       <div id="twDischargeTileWrap">${twDischargeTileHtml()}</div>
       ${samplesAwaitingTile()}
     </div>
@@ -6345,6 +6464,18 @@ const stkMed = { med:'', mixed:'' };      // medication label tab (blocks / infi
 let stkTto = 0;                            // selected TTO (to-take-home) label
 const stkSel = new Set();          // selected item indices for codes mode
 let stkCodeType = 'barcode';       // 'barcode' | 'qr'
+let stkCodeOrder = 'ticked';       // order on the sheet: 'ticked' | 'az' | 'za' | 'loc' | 'code'
+const STK_ORDERS = [['ticked','In the order ticked'],['az','Name A → Z'],['za','Name Z → A'],['loc','Location, then name'],['code','Code / barcode']];
+// the ticked items in the order they will be printed
+function stkCodesPicked(){
+  const picked = [...stkSel].map(ix=>state.items[ix]).filter(Boolean);
+  const nm = i=>String(i.name==null?'':i.name), by = (a,b)=>nm(a).localeCompare(nm(b), 'en', {sensitivity:'base', numeric:true});
+  if(stkCodeOrder==='az') picked.sort(by);
+  else if(stkCodeOrder==='za') picked.sort((a,b)=>by(b,a));
+  else if(stkCodeOrder==='loc') picked.sort((a,b)=>String(a.loc||'').localeCompare(String(b.loc||''), 'en', {sensitivity:'base', numeric:true}) || by(a,b));
+  else if(stkCodeOrder==='code') picked.sort((a,b)=>String(a.barcode||a.code||'').localeCompare(String(b.barcode||b.code||''), 'en', {numeric:true}) || by(a,b));
+  return picked;
+}
 
 function loadStkPreset(){
   try{
@@ -6366,8 +6497,9 @@ function stickersView(){
       ${tabBtn('medication','Medication labels')}
       ${tabBtn('tto','TTO / discharge')}
       ${tabBtn('codes','Barcode / QR stickers')}
+      ${tabBtn('free','Free-form labels')}
     </div>
-    ${stkMode==='patient'?stkPatientTab():stkMode==='medication'?stkMedTab():stkMode==='tto'?stkTtoTab():stkCodesTab()}
+    ${stkMode==='patient'?stkPatientTab():stkMode==='medication'?stkMedTab():stkMode==='tto'?stkTtoTab():stkMode==='free'?stkFreeTab():stkCodesTab()}
     ${stkMarginPanel()}`;
 }
 
@@ -6406,6 +6538,330 @@ async function saveStkPreset(){
 }
 
 /* --- patient sticker tab --- */
+/* --- free-form labels tab: your own text, pictures and logos on the 3 x 7 sheet ---
+   A sheet is a list of labels, each printed a number of times, starting at any position (so a
+   part-used sheet can be finished). A label has up to three text blocks (heading, text, small
+   print), an optional picture or logo in one of four arrangements, and an optional barcode or QR
+   code. Text that is too big for the label is shrunk to fit, never cut off.
+   ONE layout function (freeOps) works out where everything goes, in millimetres; the PDF and
+   the on-screen preview both draw from its answer, so the preview is what prints.
+   Labels are remembered on this computer only (localStorage 'bollin_free_labels'). */
+const FREE_LAYOUTS = [['text','Text only'],['left','Picture left'],['right','Picture right'],['top','Picture on top'],['image','Picture only']];
+const FREE_FONTS = [['helvetica','Plain'],['times','Serif'],['courier','Typewriter']];
+const FREE_CSS_FONT = {helvetica:'Arial, Helvetica, sans-serif', times:'"Times New Roman", Times, serif', courier:'"Courier New", Courier, monospace'};
+const FREE_PX = 6;                       // preview pixels per millimetre
+const free = {labels:null, sel:0, start:1, loaded:false};
+function freeNewLabel(n){
+  return {id:'f' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), name:'Label ' + n, copies:1, layout:'text', img:null, imgSize:100,
+    title:{t:'', size:14, bold:true, italic:false}, body:{t:'', size:9, bold:false, italic:false}, foot:{t:'', size:7, bold:false, italic:false},
+    align:'center', font:'helvetica', color:'#111111', border:false, code:'none', codeVal:''};
+}
+function freeClean(l, i){
+  const d = freeNewLabel(i + 1), o = (l && typeof l==='object') ? l : {};
+  const blk = (b, def)=>({t:String((b && b.t)==null ? '' : b.t), size:Math.min(48, Math.max(4, Number(b && b.size) || def.size)), bold:!!(b && b.bold), italic:!!(b && b.italic)});
+  return {id:String(o.id || d.id), name:String(o.name==null ? d.name : o.name).slice(0, 60), copies:Math.min(210, Math.max(0, parseInt(o.copies, 10) >= 0 ? parseInt(o.copies, 10) : 1)),
+    layout:FREE_LAYOUTS.some(x=>x[0]===o.layout) ? o.layout : 'text',
+    img:(o.img && typeof o.img.src==='string' && /^data:image\//.test(o.img.src) && o.img.w > 0 && o.img.h > 0) ? {src:o.img.src, w:Number(o.img.w), h:Number(o.img.h)} : null,
+    imgSize:Math.min(100, Math.max(20, Number(o.imgSize) || 100)),
+    title:blk(o.title, d.title), body:blk(o.body, d.body), foot:blk(o.foot, d.foot),
+    align:['left','center','right'].includes(o.align) ? o.align : 'center', font:FREE_FONTS.some(x=>x[0]===o.font) ? o.font : 'helvetica',
+    color:/^#[0-9a-f]{6}$/i.test(String(o.color||'')) ? o.color : '#111111', border:!!o.border,
+    code:['none','barcode','qr'].includes(o.code) ? o.code : 'none', codeVal:String(o.codeVal==null ? '' : o.codeVal).slice(0, 80)};
+}
+function freeLoad(){
+  if(free.loaded) return;
+  free.loaded = true;
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem('bollin_free_labels')||'null'); }catch(e){}
+  const list = saved && Array.isArray(saved.labels) ? saved.labels.map(freeClean) : [];
+  free.labels = list.length ? list : [freeNewLabel(1)];
+  free.start = Math.min(21, Math.max(1, parseInt(saved && saved.start, 10) || 1));
+  free.sel = 0;
+}
+let _freeSaveT = null, _freeSaveWarned = false;
+function freeSave(){
+  if(_freeSaveT) clearTimeout(_freeSaveT);
+  _freeSaveT = setTimeout(()=>{ _freeSaveT = null;
+    try{ localStorage.setItem('bollin_free_labels', JSON.stringify({labels:free.labels, start:free.start})); }
+    catch(e){ if(!_freeSaveWarned){ _freeSaveWarned = true; toast('These labels are too big to be remembered on this computer. They will still print now'); } }
+  }, 400);
+}
+function freeCur(){ freeLoad(); return free.labels[Math.min(free.sel, free.labels.length - 1)] || free.labels[0]; }
+
+/* ---- the layout: everything in mm from the label's top-left corner ----
+   measure(text, font, bold, italic, sizePt) -> width in mm. Returns {ops, shrunk, clipped}. */
+function freeWrap(text, maxW, measure, font, bold, italic, size){
+  const out = [];
+  String(text).replace(/\r/g, '').split('\n').forEach(par=>{
+    const words = par.split(/\s+/).filter(Boolean);
+    if(!words.length){ out.push(''); return; }
+    let line = '';
+    words.forEach(w=>{
+      // a single word wider than the label is broken up
+      while(measure(w, font, bold, italic, size) > maxW && w.length > 1){
+        let k = w.length - 1;
+        while(k > 1 && measure(w.slice(0, k), font, bold, italic, size) > maxW) k--;
+        if(line){ out.push(line); line = ''; }
+        out.push(w.slice(0, k)); w = w.slice(k);
+      }
+      const t = line ? line + ' ' + w : w;
+      if(line && measure(t, font, bold, italic, size) > maxW){ out.push(line); line = w; } else line = t;
+    });
+    out.push(line);
+  });
+  return out;
+}
+function freeOps(l, W, H, measure){
+  const PAD = 2.5, ops = [];
+  const inner = {x:PAD, y:PAD, w:W - 2*PAD, h:H - 2*PAD};
+  if(l.border) ops.push({type:'rect', x:0.7, y:0.7, w:W - 1.4, h:H - 1.4, r:1.6});
+  const lay = (l.img || l.layout==='text') ? l.layout : 'text';     // no picture chosen yet: text gets the whole label
+  let ib = null, tb = inner;
+  if(lay==='left' || lay==='right'){
+    const iw = inner.w * 0.34, gap = 2;
+    ib = {x: lay==='left' ? inner.x : inner.x + inner.w - iw, y:inner.y, w:iw, h:inner.h};
+    tb = {x: lay==='left' ? inner.x + iw + gap : inner.x, y:inner.y, w:inner.w - iw - gap, h:inner.h};
+  } else if(lay==='top'){
+    const ih = inner.h * 0.42, gap = 1.2;
+    ib = {x:inner.x, y:inner.y, w:inner.w, h:ih};
+    tb = {x:inner.x, y:inner.y + ih + gap, w:inner.w, h:inner.h - ih - gap};
+  } else if(lay==='image'){ ib = inner; tb = null; }
+  if(ib && l.img){
+    const k = Math.min(ib.w / l.img.w, ib.h / l.img.h) * (l.imgSize / 100);
+    const w = l.img.w * k, h = l.img.h * k;
+    ops.push({type:'img', src:l.img.src, x:ib.x + (ib.w - w)/2, y:ib.y + (ib.h - h)/2, w, h});
+  }
+  if(!tb) return {ops, shrunk:false, clipped:false};
+  // a barcode or QR code sits at the bottom of the text area
+  const val = String(l.codeVal||'').trim();
+  if(l.code!=='none' && val){
+    if(l.code==='qr'){ const q = Math.min(15, tb.h * 0.55, tb.w);
+      ops.push({type:'code', kind:'qr', val, x:tb.x + (tb.w - q)/2, y:tb.y + tb.h - q, w:q, h:q}); tb = {x:tb.x, y:tb.y, w:tb.w, h:tb.h - q - 1}; }
+    else { const bh = Math.min(10, tb.h * 0.4), bw = Math.min(tb.w, 52);
+      ops.push({type:'code', kind:'barcode', val, x:tb.x + (tb.w - bw)/2, y:tb.y + tb.h - bh, w:bw, h:bh}); tb = {x:tb.x, y:tb.y, w:tb.w, h:tb.h - bh - 1}; }
+  }
+  const blocks = [l.title, l.body, l.foot].filter(b=>String(b.t).trim()!=='');
+  if(!blocks.length || tb.h <= 0) return {ops, shrunk:false, clipped:false};
+  const MM = 0.3528, LEAD = 1.18, GAP = 0.8;
+  let k = 1, laid = null, fits = false;
+  for(; k >= 0.3; k = Math.round((k - 0.05) * 100) / 100){
+    laid = blocks.map(b=>{ const size = Math.max(3.5, b.size * k);
+      return {size, bold:b.bold, italic:b.italic, lines:freeWrap(b.t, tb.w, measure, l.font, b.bold, b.italic, size)}; });
+    const total = laid.reduce((s, b)=>s + b.lines.length * b.size * MM * LEAD, 0) + GAP * (laid.length - 1);
+    laid.total = total;
+    if(total <= tb.h){ fits = true; break; }
+  }
+  let y = tb.y + Math.max(0, (tb.h - laid.total) / 2);
+  const x = l.align==='left' ? tb.x : l.align==='right' ? tb.x + tb.w : tb.x + tb.w/2;
+  laid.forEach((b, bi)=>{
+    const lh = b.size * MM * LEAD;
+    b.lines.forEach(str=>{ if(str!=='' && y + lh <= tb.y + tb.h + 0.2) ops.push({type:'text', str, x, y: y + b.size * MM * 0.92, size:b.size, bold:b.bold, italic:b.italic, align:l.align}); y += lh; });
+    if(bi < laid.length - 1) y += GAP;
+  });
+  return {ops, shrunk: k < 1, clipped: !fits};
+}
+// a barcode / QR picture for a value (null if it cannot be made)
+function freeCodeCanvas(kind, val){
+  try{
+    if(kind==='qr'){ const holder = document.createElement('div');
+      new QRCode(holder, {text:String(val), width:220, height:220, correctLevel:QRCode.CorrectLevel.M});
+      return holder.querySelector('canvas'); }
+    const cv = document.createElement('canvas');
+    JsBarcode(cv, String(val), {format:'CODE128', displayValue:false, margin:2, height:70, width:2});
+    return cv;
+  }catch(e){ return null; }
+}
+// one sticker for the PDF sheet
+function freeCell(l){
+  return { draw:(doc, x0, y0, w, h)=>{
+    const style = (b, i)=>b && i ? 'bolditalic' : b ? 'bold' : i ? 'italic' : 'normal';
+    const measure = (t, font, b, i, size)=>{ doc.setFont(font, style(b, i)); doc.setFontSize(size); return doc.getTextWidth(String(t)); };
+    const ink = hexToRgb(l.color);
+    freeOps(l, w, h, measure).ops.forEach(o=>{
+      if(o.type==='text'){ doc.setFont(l.font, style(o.bold, o.italic)); doc.setFontSize(o.size); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(o.str, x0 + o.x, y0 + o.y, {align:o.align}); }
+      else if(o.type==='rect'){ doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.2); doc.roundedRect(x0 + o.x, y0 + o.y, o.w, o.h, o.r, o.r, 'S'); }
+      else if(o.type==='img'){ try{ doc.addImage(o.src, /^data:image\/jpe?g/i.test(o.src) ? 'JPEG' : 'PNG', x0 + o.x, y0 + o.y, o.w, o.h); }catch(e){} }
+      else if(o.type==='code'){ const cv = freeCodeCanvas(o.kind, o.val); if(cv){ try{ doc.addImage(cv.toDataURL('image/png'), 'PNG', x0 + o.x, y0 + o.y, o.w, o.h); }catch(e){} } }
+    });
+  }};
+}
+// the stickers in sheet order: blanks up to the start position, then each label its number of times
+function freeCells(){
+  freeLoad();
+  const cells = [];
+  for(let i = 1; i < free.start; i++) cells.push({blank:true, draw:()=>{}});
+  free.labels.forEach((l, li)=>{ for(let c = 0; c < l.copies; c++) cells.push(Object.assign(freeCell(l), {label:li})); });
+  return cells;
+}
+function freeCount(){ freeLoad(); return free.labels.reduce((s, l)=>s + l.copies, 0); }
+function freeOut(download){
+  const n = freeCount();
+  if(!n){ toast('Set how many of each label to print'); return; }
+  if(!free.labels.some(l=>l.copies > 0 && (l.img || [l.title, l.body, l.foot].some(b=>String(b.t).trim()) || (l.code!=='none' && String(l.codeVal).trim())))){ toast('The labels are empty. Type some text or add a picture first'); return; }
+  const doc = buildStickerDoc(freeCells());
+  if(download){ doc.save('Labels_' + n + '.pdf'); toast('PDF downloaded'); }
+  else { doc.autoPrint(); window.open(doc.output('bloburl'), '_blank'); }
+}
+
+/* ---- preview: the same layout, drawn on a canvas ---- */
+const _freeImgs = {};
+function freeImg(src){
+  let im = _freeImgs[src];
+  if(!im){ im = _freeImgs[src] = new Image(); im.onload = ()=>freePaint(); im.src = src; }
+  return im;
+}
+function freePaint(){
+  const cv = document.getElementById('freePrev'); if(!cv || !cv.getContext) return;
+  const l = freeCur(), W = stkr.w, H = stkr.h, S = FREE_PX;
+  cv.width = Math.round(W * S); cv.height = Math.round(H * S);
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+  const fontOf = (font, b, i, size)=>(i ? 'italic ' : '') + (b ? 'bold ' : '') + (size * 0.3528 * S) + 'px ' + FREE_CSS_FONT[font];
+  const measure = (t, font, b, i, size)=>{ ctx.font = fontOf(font, b, i, size); return ctx.measureText(String(t)).width / S; };
+  const res = freeOps(l, W, H, measure);
+  res.ops.forEach(o=>{
+    if(o.type==='text'){ ctx.font = fontOf(l.font, o.bold, o.italic, o.size); ctx.fillStyle = l.color; ctx.textAlign = o.align; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(o.str, o.x * S, o.y * S); }
+    else if(o.type==='rect'){ ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.strokeRect(o.x * S, o.y * S, o.w * S, o.h * S); }
+    else if(o.type==='img'){ const im = freeImg(o.src); if(im.complete && im.naturalWidth) ctx.drawImage(im, o.x * S, o.y * S, o.w * S, o.h * S); }
+    else if(o.type==='code'){ const c = freeCodeCanvas(o.kind, o.val); if(c){ try{ ctx.drawImage(c, o.x * S, o.y * S, o.w * S, o.h * S); }catch(e){} } }
+  });
+  const note = document.getElementById('freeNote');
+  if(note) note.textContent = res.clipped ? 'There is more text than fits, even at the smallest size. Shorten it.' : res.shrunk ? 'The text was made smaller to fit the label.' : '';
+  const map = document.getElementById('freeMap'); if(map) map.innerHTML = freeMapHtml();
+  const tot = document.getElementById('freeTotal'); if(tot) tot.textContent = freeTotalText();
+}
+function freeTotalText(){
+  const n = freeCount(), used = n + free.start - 1, sheets = Math.ceil(used / 21);
+  return n + ' label' + (n===1?'':'s') + (free.start > 1 ? ', starting at position ' + free.start : '') + ' · ' + sheets + ' sheet' + (sheets===1?'':'s');
+}
+function freeMapHtml(){
+  const cells = freeCells().slice(0, 21);
+  let h = '';
+  for(let i = 0; i < 21; i++){ const c = cells[i];
+    h += `<span class="freecell ${c ? (c.blank ? 'skip' : 'on' + (c.label===free.sel ? ' cur' : '')) : ''}" title="Position ${i + 1}">${c && !c.blank ? (c.label + 1) : ''}</span>`; }
+  return h;
+}
+
+/* ---- editing ---- */
+function freeSet(path, v){
+  const l = freeCur(), p = path.split('.');
+  if(p.length===2) l[p[0]][p[1]] = v; else l[path] = v;
+  free.labels[free.sel] = freeClean(l, free.sel);
+  freeSave(); freePaint();
+}
+function freeSetR(path, v){ freeSet(path, v); render(); }                     // for buttons: redraw the editor too
+function freeTog(path){ const l = freeCur(), p = path.split('.'); freeSetR(path, !(p.length===2 ? l[p[0]][p[1]] : l[path])); }
+function freeSelect(i){ free.sel = Math.min(free.labels.length - 1, Math.max(0, i)); render(); }
+function freeAdd(){ freeLoad(); free.labels.push(freeNewLabel(free.labels.length + 1)); free.sel = free.labels.length - 1; freeSave(); render(); }
+function freeDup(i){ const c = freeClean(JSON.parse(JSON.stringify(free.labels[i])), i); c.id = freeNewLabel(0).id; c.name = (c.name + ' copy').slice(0, 60);
+  free.labels.splice(i + 1, 0, c); free.sel = i + 1; freeSave(); render(); }
+function freeDel(i){
+  if(free.labels.length===1){ free.labels = [freeNewLabel(1)]; free.sel = 0; }
+  else { if(!confirm('Remove "' + free.labels[i].name + '"?')) return; free.labels.splice(i, 1); free.sel = Math.min(free.sel, free.labels.length - 1); }
+  freeSave(); render();
+}
+function freeCopies(i, d, abs){
+  const l = free.labels[i]; if(!l) return;
+  l.copies = Math.min(210, Math.max(0, abs!=null ? (parseInt(abs, 10) || 0) : l.copies + d));
+  freeSave();
+  const el = document.getElementById('freeCopies' + i); if(el && String(el.value)!==String(l.copies)) el.value = l.copies;
+  freePaint();
+}
+function freeFill(){ const l = freeCur(); l.copies = Math.max(1, 21 - (free.start - 1)); free.labels.forEach(x=>{ if(x!==l) x.copies = 0; }); freeSave(); render(); }
+function freeStart(v){ free.start = Math.min(21, Math.max(1, parseInt(v, 10) || 1)); freeSave(); freePaint(); }
+// a chosen picture is scaled down to at most 900 px, so it stores and prints quickly
+function freePickImage(input){
+  const f = input && input.files && input.files[0]; if(!f) return;
+  if(!/^image\//.test(f.type)){ toast('Choose a picture file (PNG or JPG)'); return; }
+  const rd = new FileReader();
+  rd.onerror = ()=>toast('That picture could not be read');
+  rd.onload = ()=>{ const im = new Image();
+    im.onerror = ()=>toast('That picture could not be opened');
+    im.onload = ()=>{
+      const k = Math.min(1, 900 / Math.max(im.naturalWidth, im.naturalHeight));
+      const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(im.naturalWidth * k)); cv.height = Math.max(1, Math.round(im.naturalHeight * k));
+      cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+      const l = freeCur();
+      l.img = {src:cv.toDataURL('image/png'), w:cv.width, h:cv.height};
+      if(l.layout==='text') l.layout = 'left';
+      freeSave(); render();
+    };
+    im.src = rd.result; };
+  rd.readAsDataURL(f);
+}
+function freeNoImage(){ const l = freeCur(); l.img = null; if(l.layout==='image') l.layout = 'text'; freeSave(); render(); }
+
+function stkFreeTab(){
+  freeLoad();
+  const l = freeCur(), e = loginEsc;
+  const inp = 'padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;width:100%';
+  const chip = (on, label, onclick, title)=>`<div class="chip ${on?'on':''}" onclick="${onclick}" ${title?`title="${title}"`:''}>${label}</div>`;
+  const block = (key, label, ph, rows)=>{ const b = l[key];
+    return `<div class="freeblk"><div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+        <label style="flex:1;font-size:12.5px;color:var(--ink-soft);font-weight:600">${label}</label>
+        <input type="number" min="4" max="48" step="0.5" value="${b.size}" title="Text size (points)" oninput="freeSet('${key}.size',parseFloat(this.value)||${b.size})" style="width:64px;padding:6px;border:1px solid var(--line);border-radius:8px">
+        ${chip(b.bold, '<b>B</b>', `freeTog('${key}.bold')`, 'Bold')}${chip(b.italic, '<i>I</i>', `freeTog('${key}.italic')`, 'Italic')}</div>
+      <textarea id="free_${key}" rows="${rows}" placeholder="${ph}" oninput="freeSet('${key}.t',this.value)" style="${inp};font-family:inherit;resize:vertical">${e(b.t)}</textarea></div>`; };
+  return `<div class="freewrap">
+    <div class="freecol">
+      <div class="gaspanel" style="margin-top:0">
+        <h2>Labels on this sheet</h2>
+        ${free.labels.map((x, i)=>`<div class="freerow ${i===free.sel?'on':''}" onclick="freeSelect(${i})">
+            <span class="freenum">${i + 1}</span>
+            <input type="text" value="${e(x.name)}" title="A name for this label (not printed)" onclick="event.stopPropagation()" oninput="free.labels[${i}].name=this.value.slice(0,60);freeSave()" style="flex:1;min-width:0;padding:7px 8px;border:1px solid var(--line);border-radius:8px">
+            <div class="stepper" onclick="event.stopPropagation()" title="How many of this label"><button onclick="freeCopies(${i},-1)">−</button>
+              <input id="freeCopies${i}" value="${x.copies}" inputmode="numeric" style="width:46px" oninput="freeCopies(${i},0,this.value)"><button onclick="freeCopies(${i},1)">＋</button></div>
+            <button class="btn" style="padding:6px 9px" title="Make a copy of this label" onclick="event.stopPropagation();freeDup(${i})">⧉</button>
+            <button class="btn" style="padding:6px 9px;color:var(--red)" title="Remove this label" onclick="event.stopPropagation();freeDel(${i})">✕</button></div>`).join('')}
+        <div class="toolrow" style="margin:10px 0 0">
+          <button class="btn" onclick="freeAdd()">＋ Another label</button>
+          <button class="btn" onclick="freeFill()" title="Print this label on every remaining position of one sheet, and none of the others">Fill the sheet with label ${free.sel + 1}</button>
+        </div>
+        <div class="toolrow" style="margin:10px 0 0;align-items:center">
+          <label style="font-size:13px;font-weight:600">Start at position</label>
+          <input type="number" min="1" max="21" value="${free.start}" oninput="freeStart(this.value)" title="Use 1 for a new sheet. On a part-used sheet, the first empty sticker (counting left to right, top to bottom)" style="width:70px;padding:8px;border:1px solid var(--line);border-radius:8px">
+          <span id="freeTotal" style="font-size:13px;color:var(--ink-soft)">${freeTotalText()}</span>
+        </div>
+        <div class="freemap" id="freeMap" title="Where each label lands on the first sheet">${freeMapHtml()}</div>
+        <div class="toolrow" style="margin:12px 0 0">
+          <button class="btn primary" style="padding:12px 22px" onclick="freeOut(false)">🖨 Print sheet</button>
+          <button class="btn" onclick="freeOut(true)">Download PDF</button>
+        </div>
+        <div class="sub" style="margin:8px 0 0">Your labels are remembered on this computer, so they are here next time.</div>
+      </div>
+    </div>
+    <div class="freecol">
+      <div class="gaspanel" style="margin-top:0">
+        <h2>Label ${free.sel + 1}: ${e(l.name)}</h2>
+        <div class="freeprev"><canvas id="freePrev" width="${Math.round(stkr.w * FREE_PX)}" height="${Math.round(stkr.h * FREE_PX)}" aria-label="Preview of the label"></canvas></div>
+        <div id="freeNote" class="sub" style="margin:4px 0 8px;min-height:16px;color:var(--amber);font-weight:600"></div>
+        <label style="font-size:12.5px;color:var(--ink-soft);font-weight:600">Arrangement</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px">${FREE_LAYOUTS.map(x=>chip(l.layout===x[0], x[1], `freeSetR('layout','${x[0]}')`)).join('')}</div>
+        <div class="toolrow" style="margin:0 0 10px;align-items:center">
+          <label class="btn" style="cursor:pointer">🖼 ${l.img ? 'Change picture / logo' : 'Add a picture / logo'}<input id="freeFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" onchange="freePickImage(this)" style="display:none"></label>
+          ${l.img ? `<button class="btn" style="color:var(--red)" onclick="freeNoImage()">Remove picture</button>
+            <label style="font-size:13px;display:flex;gap:6px;align-items:center">Size <input type="range" min="20" max="100" step="5" value="${l.imgSize}" oninput="freeSet('imgSize',parseInt(this.value,10))" title="Picture size"></label>` : ''}
+        </div>
+        ${l.layout==='image' ? '' : block('title', 'Heading', 'e.g. Bollin Clinic', 1) + block('body', 'Text', 'Type what the label should say. Press Enter for a new line.', 3) + block('foot', 'Small print', 'e.g. a date, a batch number, a phone number', 1)}
+        ${l.layout==='image' ? '' : `<div class="toolrow" style="margin:8px 0 0;align-items:center">
+          <span style="font-size:12.5px;color:var(--ink-soft);font-weight:600">Text</span>
+          ${chip(l.align==='left', 'Left', "freeSetR('align','left')")}${chip(l.align==='center', 'Centre', "freeSetR('align','center')")}${chip(l.align==='right', 'Right', "freeSetR('align','right')")}
+          <select onchange="freeSetR('font',this.value)" title="Lettering" style="padding:8px;border:1px solid var(--line);border-radius:8px">${FREE_FONTS.map(x=>`<option value="${x[0]}" ${l.font===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select>
+          <label style="font-size:13px;display:flex;gap:6px;align-items:center">Colour <input type="color" value="${e(l.color)}" oninput="freeSet('color',this.value)" style="width:38px;height:32px;padding:0;border:1px solid var(--line);border-radius:6px"></label>
+        </div>`}
+        <div class="toolrow" style="margin:10px 0 0;align-items:center">
+          ${chip(l.border, 'Outline', "freeTog('border')", 'A thin line round the label. Useful when printing on plain paper to cut out')}
+          ${l.layout==='image' ? '' : `<select onchange="freeSetR('code',this.value)" title="Add a barcode or QR code under the text" style="padding:8px;border:1px solid var(--line);border-radius:8px">
+            <option value="none" ${l.code==='none'?'selected':''}>No barcode</option><option value="barcode" ${l.code==='barcode'?'selected':''}>Barcode</option><option value="qr" ${l.code==='qr'?'selected':''}>QR code</option></select>
+          ${l.code!=='none' ? `<input type="text" value="${e(l.codeVal)}" placeholder="What the code should contain" oninput="freeSet('codeVal',this.value)" style="${inp};flex:1;min-width:160px;width:auto">` : ''}`}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function stkPatientTab(){
   const fld = (lab,key,ph)=>`<div class="m-row" style="margin-bottom:10px">
     <label style="display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-bottom:4px">${lab}</label>
@@ -6767,6 +7223,8 @@ function stkCodesTab(){
         <input type="checkbox" ${allSel?'checked':''} onchange="stkSelAll(this.checked)" style="width:18px;height:18px">
         Tick all shown (${list.length})</label>
       <span style="color:var(--ink-soft);font-size:13px">${stkSel.size} selected</span>
+      <label style="display:flex;gap:6px;align-items:center;font-size:13px" title="The order the ticked stickers are printed in, left to right, top to bottom">Print order
+        <select id="stkOrder" onchange="stkCodeOrder=this.value">${STK_ORDERS.map(o=>`<option value="${o[0]}" ${stkCodeOrder===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></label>
       ${isSuperadmin('stock.bulk') && shownNoBc ? `<button class="btn" onclick="stkAssignMissing()" title="Creates a new, unused code for each item shown that has no barcode. Items that already have one are not touched.">＋ Give the ${shownNoBc} without a barcode a code</button>` : ''}
       <button class="btn primary" style="margin-left:auto" onclick="printCodeStickers()">🖨 Print sheet (21/page)</button>
       <button class="btn" onclick="downloadCodePDF()">Download PDF</button>
@@ -6898,7 +7356,7 @@ function patientOut(download){
 function printCodeStickers(){ codeOut(false); }
 function downloadCodePDF(){ codeOut(true); }
 function codeOut(download){
-  const picked=[...stkSel].map(ix=>state.items[ix]).filter(Boolean);
+  const picked = stkCodesPicked();
   if(!picked.length){ toast('Tick at least one item'); return; }
   // ensure each has a code -- matched and saved by item id, not by its (possibly blank) code
   // text, since item_set_barcode's tracker+code match would silently touch zero rows (or the
@@ -6930,14 +7388,16 @@ function usersView(){
     </select></td>
     <td data-label=""><button class="btn" style="padding:5px 10px;font-size:12.5px" onclick="resetUserPassword(${i})" title="Generate a new password and reveal it once">🔑 Reset password</button>
       <button class="btn" style="padding:5px 10px;font-size:12.5px" onclick="openSetPw(${i})" title="Give this person a password you choose">✎ Set password</button></td>
+    <td data-label="PIN" style="white-space:nowrap">${usersPinCell(u, i)}</td>
     </tr>`).join('');
   return `<h1>Users &amp; roles</h1>
     <div class="sub">Developer-only area. Appoint the <strong>super admins</strong> here (target: 3). Super admins can do everything admins can, plus the <strong>Rota</strong>. Role changes apply from the user's next reload or sign-in.</div>
     <div class="sub">Current super admins: <strong>${supers}</strong> of 3</div>
     <div class="sub" style="color:var(--ink-soft)">Passwords can't be viewed once a user has changed theirs — they're never stored anywhere in readable form. "Reset password" generates a brand-new one and shows it once, to pass on directly. "Set password" gives them one you choose. Either way their sign-in PIN is removed, and they can change the password themselves afterwards.</div>
+    <div class="sub" style="color:var(--ink-soft)"><strong>PIN:</strong> each person's 4-number sign-in PIN. Set or change it for them, or Reset to remove it (they then sign in with their password and choose a new one). PINs are hidden until you press Show.</div>
     <div class="toolrow"><button class="btn primary" onclick="openAddUser()">＋ Add user</button></div>
-    <table><thead><tr><th>User</th><th>Active</th><th>Role</th><th>Password</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="4" style="color:var(--ink-soft)">No users loaded — reload the app.</td></tr>'}</tbody></table>`;
+    <table><thead><tr><th>User</th><th>Active</th><th>Role</th><th>Password</th><th>PIN <button class="btn" id="showPinsBtn" style="padding:2px 8px;font-size:11.5px;margin-left:4px;text-transform:none;letter-spacing:0" onclick="_showPins=!_showPins;render()" title="Show or hide everyone's PIN on this screen">${_showPins?'🙈 Hide':'👁 Show'}</button></th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="5" style="color:var(--ink-soft)">No users loaded — reload the app.</td></tr>'}</tbody></table>`;
 }
 function openAddUser(){
   if(!isDeveloper()) return;
@@ -7026,7 +7486,7 @@ function openSetPw(i){
     <div class="sub" style="margin:0 0 10px">Type the password to give <strong>${loginEsc(_setPwUser.name)}</strong> (username <span style="font-family:var(--mono)">${loginEsc(_setPwUser.username)}</span>). At least 6 characters.</div>
     ${box('setPwNew','New password')}${box('setPwNew2','Repeat it')}
     <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-soft);cursor:pointer"><input type="checkbox" id="setPwShow" onchange="['setPwNew','setPwNew2'].forEach(id=>document.getElementById(id).classList.toggle('shown',this.checked))"> Show what I typed</label>
-    <div class="sub" style="margin:8px 0 0">Their old password stops working at once and their sign-in PIN is removed from every computer. Tell them the new password directly; they can change it after signing in.</div>
+    <div class="sub" style="margin:8px 0 0">Their old password stops working at once and their sign-in PIN is removed. Tell them the new password directly; they can change it after signing in.</div>
     <div id="setPwErr" style="color:var(--red);font-size:13px;min-height:18px;margin-top:6px"></div>`;
   setPwDlg.showModal();
   setTimeout(()=>{ const el = document.getElementById('setPwNew'); if(el && el.focus) el.focus(); }, 50);
@@ -7042,7 +7502,7 @@ async function saveSetPw(){
   _setPwBusy = true; setPwErr('Saving…');
   try{
     await api({action:'setUserPassword', username:who.username, password:a});
-    if(session && String(session.username).toLowerCase() === who.username.toLowerCase()) pinForget(who.username);   // my own: the database dropped my PINs too
+    if(session && String(session.username).toLowerCase() === who.username.toLowerCase()) lastHereSetPin(who.username, false);   // my own: the database dropped my PIN too
     closeSetPw();
     toast('Password set for ' + who.name + '. Tell them directly');
   }catch(err){ setPwErr('Not changed — ' + (err.message||'try again')); }
@@ -10560,8 +11020,10 @@ async function twRefreshDashCounts(){
 }
 function twDischargeTileHtml(){
   const s = twSurgeriesToday, n = twDischargeCount;
-  return `<div class="tile ${n>0?'bad attn':''}" onclick="nav('theatreward')" title="Theatre & Ward — today's activity">
-    <span class="ic">🛏</span><div class="n">${s==null?'…':s}</div><div class="l">Surgeries today · ${n==null?'…':n} awaiting discharge</div></div>`;
+  const done = (s!=null && n!=null && s>0) ? Math.max(0, s-n)/s*100 : 0;
+  return dashTile({tone:(n>0)?'amber':'blue', badge:'🔪', art:'🛏️', nav:"nav('theatreward')", title:"Theatre &amp; Ward — today's activity",
+    n:(s==null?'…':s), pill:'Today', label:`Surgeries today · ${n==null?'…':n} awaiting discharge`,
+    viz:(s!=null && n!=null && s>0) ? dashBar(done, (s-n) + ' of ' + s + ' discharged') : ''});
 }
 
 function twTheatreFormHtml(){
@@ -11584,7 +12046,8 @@ function nav(view){
   if(typeof applyNavGroups==='function') applyNavGroups();
   render();
   if(view==='procedures' && typeof procPoll==='function') procPoll();   // bring the running cases up to date
-  if(view==='security' && typeof secLoad==='function') secLoad(true); }   // always the latest ticks
+  if(view==='security' && typeof secLoad==='function') secLoad(true);   // always the latest ticks
+  if(view==='users' && typeof usersLoadPins==='function'){ _showPins = false; usersLoadPins(); } }   // PINs hidden again each time the page opens
 // Item usage search sits under both Stock and Records, so a page can have two links: mark both.
 function navMarkActive(view){
   document.querySelectorAll('nav a').forEach(x=>{
@@ -11629,7 +12092,7 @@ function render(){
   else if(v==='assets') m.innerHTML = assetsView();
   else if(v==='gas'){ m.innerHTML = gasView(); paintDeliv('o2'); paintDeliv('air'); }
   else if(v==='monitor') m.innerHTML = monitorView();
-  else if(v==='stickers') m.innerHTML = stickersView();
+  else if(v==='stickers'){ m.innerHTML = stickersView(); if(stkMode==='free') freePaint(); }
   else if(v==='procedures') m.innerHTML = procView();
   else if(v==='samples') m.innerHTML = samplesView();
   else if(v==='theatreward') m.innerHTML = theatreWardView();
@@ -11828,14 +12291,15 @@ async function sbSessionProfile(data){
    database (five tries, then the PIN is deleted) and, only if right, returns a one-time token
    that is exchanged here for a normal session. A refusal carries a reason in err.code. */
 const PIN_REFUSED = {
-  wrong:    'Wrong PIN',
-  locked:   'Too many wrong tries, so that PIN has been removed. Sign in with your password, then set a new PIN',
-  no_pin:   'That PIN is no longer set up on this computer. Sign in with your password',
-  inactive: 'This account has been deactivated',
+  wrong:      'Wrong PIN',
+  locked:     'Too many wrong tries, so that PIN has been removed. Sign in with the password, then set a new PIN',
+  no_pin:     'No PIN is set for that username. Sign in with the password',
+  new_device: 'This browser has not been used with a password yet. Sign in with a password once, then PINs work here',
+  inactive:   'This account has been deactivated',
 };
 async function sbPinSignIn(username, device, pin){
   let data = null, error = null;
-  try{ ({data, error} = await sb.functions.invoke('pin-login', {body:{username, device, pin}})); }
+  try{ ({data, error} = await sb.functions.invoke('pin-login', {body:{v:2, username, device, pin}})); }
   catch(e){ error = e; }
   if(error || !data) throw new Error('Could not check the PIN. Check the connection, or sign in with your password');
   if(!data.ok){
@@ -11849,18 +12313,36 @@ async function sbPinSignIn(username, device, pin){
   if(vErr || !v || !v.session || !v.user) throw new Error('Could not sign in with the PIN. Use your password');
   return sbSessionProfile(v);
 }
-async function sbPinSet(device, pin){
-  const {error} = await sb.rpc('pin_set', {p_device: device, p_pin: pin});
-  if(error) throw new Error(error.message||'The PIN was not saved');
+// make this browser one where PINs are accepted (only a password session can)
+async function sbDeviceTrust(device){
+  const {data, error} = await sb.rpc('device_trust', {p_device: device});
+  if(error) throw new Error(error.message);
+  return !!(data && data.ok);
 }
-async function sbPinClear(device){
-  const {error} = await sb.rpc('pin_clear', {p_device: device});
-  if(error) throw new Error(error.message||'The PIN was not removed');
-}
-async function sbPinStatus(device){
-  const {data, error} = await sb.rpc('pin_status', {p_device: device});
+async function sbPinMine(){
+  const {data, error} = await sb.rpc('pin_mine');
   if(error) throw new Error(error.message);
   return data===true;
+}
+async function sbPinSetMine(pin){
+  const {error} = await sb.rpc('pin_set_mine', {p_pin: pin});
+  if(error) throw new Error(error.message||'The PIN was not saved');
+}
+async function sbPinClearMine(){
+  const {error} = await sb.rpc('pin_clear_mine');
+  if(error) throw new Error(error.message||'The PIN was not removed');
+}
+// developer: {username: pin} for everyone who has one
+async function sbPinsAdminList(){
+  const {data, error} = await sb.rpc('pins_admin_list');
+  if(error) throw new Error(error.message);
+  const out = {}; Object.keys(data||{}).forEach(k=>{ out[String(k).toLowerCase()] = String(data[k]); });
+  return out;
+}
+// developer: set (4 numbers) or remove (null) someone's PIN
+async function sbPinAdminSet(username, pin){
+  const {error} = await sb.rpc('pin_admin_set', {p_username: username, p_pin: pin});
+  if(error) throw new Error(error.message||'The PIN was not changed');
 }
 async function sbChangePassword(oldPassword, newPassword){
   const {data: u} = await sb.auth.getUser();
@@ -12709,42 +13191,55 @@ function can(p){ const t = permTick(CAN_KEY[p]); if(t!==null) return t; const r 
    The sign-in card exists on the page ONLY while someone has to sign in: showLogin writes it,
    hideLogin takes it out again. A password box left filled in (even hidden) makes the browser
    offer to save the password again on every refresh.
-   Two ways in: username + password, or -- on a computer where the person has set one -- a
-   4-number PIN. PIN boxes are plain text fields drawn as dots, so the browser never tries to
-   save them. */
-let _loginMode = 'password';     // 'password' | 'pin'
+
+   Three screens (_loginMode):
+     'pin'      the last person who signed in here, by name, with a number keypad. This is what
+                opens whenever that person has a PIN, including after the browser was closed:
+                nobody gets into someone else's account without that person's PIN.
+     'password' username + password ("Use my password instead").
+     'other'    someone else: their username, then the keypad ("Sign in as someone else").
+
+   A PIN is one 4-number code per person (migration 20261117100000_pin_everywhere.sql). The
+   server accepts it only from a browser that has been used with a full password before
+   (deviceKey / device_trust), counts wrong tries and removes the PIN after five. */
+let _loginMode = 'password';     // 'pin' | 'password' | 'other'
 let _loginBusy = false;
+let _loginPrefill = '';          // username to put in the password screen
 let _signOutP = null;            // the last sign-out still on its way to the server
 function loginEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function loginErr(msg){ const el = document.getElementById('loginErr'); if(el) el.textContent = msg||''; }
 
-/* PINs on this computer: localStorage bollin_pins = { "<username>": {dev, name} }.
-   dev is this browser's long random key for that person; the database holds only its hash. */
-function pinStore(){
-  try{ const o = JSON.parse(localStorage.getItem('bollin_pins')||'{}'); return (o && typeof o==='object' && !Array.isArray(o)) ? o : {}; }
-  catch(e){ return {}; }
-}
-function pinStoreSave(o){ try{ localStorage.setItem('bollin_pins', JSON.stringify(o)); }catch(e){} }
-function pinHere(username){
-  const e = pinStore()[String(username||'').trim().toLowerCase()];
-  return (e && typeof e.dev==='string' && e.dev.length>=32) ? e : null;
-}
-function pinUsersHere(){
-  const o = pinStore();
-  return Object.keys(o).filter(u=>pinHere(u)).map(u=>({username:u, name:String(o[u].name||u)}))
-    .sort((a,b)=>a.name.localeCompare(b.name));
-}
-function pinRemember(username, dev, name){
-  const o = pinStore(); o[String(username).toLowerCase()] = {dev, name:String(name||username)}; pinStoreSave(o);
-}
-function pinForget(username){ const o = pinStore(); delete o[String(username||'').toLowerCase()]; pinStoreSave(o); }
+// This browser's own long random key. The server keeps only its hash, and only once somebody
+// has signed in here with a password (a "trusted" browser).
 function pinNewDeviceKey(){
   const b = new Uint8Array(32); crypto.getRandomValues(b);
   return Array.from(b, x=>x.toString(16).padStart(2,'0')).join('');
 }
+function deviceKey(){
+  try{
+    let k = String(localStorage.getItem('bollin_device')||'');
+    if(!/^[0-9a-f]{64}$/.test(k)){ k = pinNewDeviceKey(); localStorage.setItem('bollin_device', k); }
+    return k;
+  }catch(e){ return ''; }
+}
+// Who signed in on this browser last: {u, name, pin}. pin = they have a PIN (as far as this
+// browser knows; the server decides).
+function lastHere(){
+  try{
+    const o = JSON.parse(localStorage.getItem('bollin_last')||'null');
+    if(o && typeof o==='object' && typeof o.u==='string' && o.u) return {u:o.u.toLowerCase(), name:String(o.name||o.u), pin:!!o.pin};
+  }catch(e){}
+  return null;
+}
+function lastHereSave(u, name, pin){
+  try{ localStorage.setItem('bollin_last', JSON.stringify({u:String(u||'').toLowerCase(), name:String(name||u||''), pin:!!pin})); }catch(e){}
+}
+function lastHereSetPin(u, pin){
+  const l = lastHere();
+  if(l && l.u===String(u||'').toLowerCase()) lastHereSave(l.u, l.name, pin);
+}
 // the same list the database refuses (pin_too_easy)
 function pinTooEasy(pin){ return /^(\d)\1{3}$/.test(pin) || ['1234','4321','0123','2580'].includes(pin); }
-function pinDigits(el){ const v = String(el.value||'').replace(/\D/g,'').slice(0,4); if(el.value!==v) el.value = v; return v; }
 function pinNoAsk(username){
   try{ const o = JSON.parse(localStorage.getItem('bollin_pin_noask')||'{}'); return !!(o && o[String(username||'').toLowerCase()]); }catch(e){ return false; }
 }
@@ -12753,62 +13248,130 @@ function pinSetNoAsk(username){
   o[String(username||'').toLowerCase()] = 1;
   try{ localStorage.setItem('bollin_pin_noask', JSON.stringify(o)); }catch(e){}
 }
-function lastUserHere(){ try{ return String(localStorage.getItem('bollin_last_user')||''); }catch(e){ return ''; } }
 
+/* ---- the number keypad (sign-in card and the PIN dialog) ----
+   One keypad is live at a time (_kp). Keys are big buttons; the number keys on a keyboard work
+   too. Four dots fill as numbers go in; the fourth number calls onDone(pin). Nothing typed here
+   is ever in a text box, so the browser has nothing to save or auto-fill. */
+const KP_LETTERS = {2:'ABC', 3:'DEF', 4:'GHI', 5:'JKL', 6:'MNO', 7:'PQRS', 8:'TUV', 9:'WXYZ'};
+let _kp = null;                  // {id, buf, onDone, busy}
+function keypadHtml(id){
+  const key = d=>`<button type="button" class="kpkey" data-k="${d}" onclick="kpPress('${d}')" aria-label="${d}"><b>${d}</b><i>${KP_LETTERS[d]||''}</i></button>`;
+  return `<div class="kp" id="kp-${id}">
+    <div class="kpdots" id="kpdots-${id}" role="status" aria-label="PIN, 4 numbers">${[0,1,2,3].map(()=>'<span class="kpdot"></span>').join('')}</div>
+    <div class="kpgrid">
+      ${[1,2,3,4,5,6,7,8,9].map(key).join('')}
+      <span class="kpgap" aria-hidden="true"></span>${key(0)}
+      <button type="button" class="kpkey kpback" data-k="back" onclick="kpBack()" aria-label="Delete the last number" title="Delete">
+        <svg viewBox="0 0 32 24" width="30" height="23" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2h16a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H11a3 3 0 0 1-2.3-1.1L2 12l6.7-8.9A3 3 0 0 1 11 2z"/><path d="M15 8l8 8M23 8l-8 8"/></svg></button>
+    </div></div>`;
+}
+function kpStart(id, onDone){ _kp = {id, buf:'', onDone, busy:false}; kpPaint(); }
+function kpStop(id){ if(_kp && (!id || _kp.id===id)) _kp = null; }
+function kpActive(){ return !!(_kp && document.getElementById('kp-' + _kp.id)); }
+function kpPaint(){
+  if(!_kp) return;
+  const host = document.getElementById('kpdots-' + _kp.id); if(!host) return;
+  Array.from(host.children||[]).forEach((d, i)=>{ if(d.classList) d.classList.toggle('on', i < _kp.buf.length); });
+}
+function kpPress(d){
+  if(!_kp || _kp.busy || _kp.buf.length>=4 || !/^\d$/.test(String(d))) return;
+  _kp.buf += String(d);
+  kpPaint();
+  if(_kp.buf.length===4){
+    const k = _kp, pin = k.buf;
+    setTimeout(()=>{ if(_kp===k && k.buf===pin && !k.busy) k.onDone(pin); }, 140);   // let the 4th dot show first
+  }
+}
+function kpBack(){ if(!_kp || _kp.busy || !_kp.buf) return; _kp.buf = _kp.buf.slice(0,-1); kpPaint(); }
+// empty the dots; shake them when the PIN was wrong
+function kpClear(shake){
+  if(!_kp) return;
+  _kp.buf = ''; kpPaint();
+  const host = document.getElementById('kpdots-' + _kp.id);
+  if(shake && host && host.classList){ host.classList.remove('shake'); void host.offsetWidth; host.classList.add('shake'); }
+}
+// number keys and Backspace on a real keyboard, unless the person is typing in a box
+if(typeof document.addEventListener==='function') document.addEventListener('keydown', e=>{
+  if(!kpActive() || e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if(t && t.matches && t.matches('input,textarea,select')) return;
+  if(/^\d$/.test(e.key)){ e.preventDefault(); kpPress(e.key); }
+  else if(e.key==='Backspace'){ e.preventDefault(); kpBack(); }
+});
+
+function loginInitials(name){
+  const p = String(name||'').trim().split(/\s+/).filter(Boolean);
+  return ((p[0]||'?')[0] + (p.length>1 ? p[p.length-1][0] : '')).toUpperCase();
+}
 function loginCardHtml(msg){
-  const pins = pinUsersHere();
-  const mode = (_loginMode==='pin' && pins.length) ? 'pin' : 'password';
-  const last = lastUserHere();
-  const modes = pins.length ? `<div class="loginmodes" role="tablist">
-      <div class="chip ${mode==='pin'?'on':''}" id="liModePin" role="tab" tabindex="0" onclick="loginSetMode('pin')" onkeydown="if(event.key==='Enter')loginSetMode('pin')">PIN</div>
-      <div class="chip ${mode==='password'?'on':''}" id="liModePass" role="tab" tabindex="0" onclick="loginSetMode('password')" onkeydown="if(event.key==='Enter')loginSetMode('password')">Password</div></div>` : '';
-  const form = mode==='pin' ? `
-    <label for="liPinUser">Who is signing in?</label>
-    <select id="liPinUser" onchange="loginErr('');const p=document.getElementById('liPin');if(p){p.value='';p.focus();}">
-      ${pins.map(p=>`<option value="${loginEsc(p.username)}" ${p.username===last?'selected':''}>${loginEsc(p.name)}</option>`).join('')}</select>
-    <label for="liPin">PIN</label>
-    <input id="liPin" class="pinbox" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" data-lpignore="true" data-1p-ignore
-           aria-label="4-number PIN" oninput="if(pinDigits(this).length===4)doPinLogin()" onkeydown="if(event.key==='Enter')doPinLogin()">
-    <button class="btn primary" type="button" onclick="doPinLogin()">Sign in</button>` : `
+  const last = lastHere();
+  const mode = (_loginMode==='pin' && !(last && last.pin)) ? 'password' : _loginMode;
+  const link = (id, label, onclick)=>`<a href="#" id="${id}" onclick="${onclick};return false">${label}</a>`;
+  let body;
+  if(mode==='pin'){
+    body = `<div class="kpwho"><div class="kpavatar" aria-hidden="true">${loginEsc(loginInitials(last.name))}</div>
+        <div><strong id="liWho">${loginEsc(last.name)}</strong><span>Enter your PIN</span></div></div>
+      ${keypadHtml('login')}
+      <div id="loginErr">${loginEsc(msg||'')}</div>
+      <div class="loginlinks">${link('liUsePass', 'Use my password instead', "loginSetMode('password')")}
+        ${link('liOther', 'Sign in as someone else', "loginSetMode('other')")}</div>`;
+  } else if(mode==='other'){
+    body = `<h2>Sign in as someone else</h2>
+      <label for="liOtherUser">Username</label>
+      <input id="liOtherUser" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore placeholder="e.g. jsmith" oninput="loginErr('')">
+      <label>PIN</label>
+      ${keypadHtml('login')}
+      <div id="loginErr">${loginEsc(msg||'')}</div>
+      <div class="loginlinks">${link('liUsePass', 'Use a password instead', "loginSetMode('password')")}
+        ${last && last.pin ? link('liBack', 'Back to ' + loginEsc(last.name), "loginSetMode('pin')") : ''}</div>`;
+  } else {
+    body = `<h2>Sign in</h2>
     <form id="liForm" onsubmit="event.preventDefault();doLogin()" autocomplete="on">
     <label for="liUser">Username</label>
-    <input id="liUser" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false">
+    <input id="liUser" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" value="${loginEsc(_loginPrefill)}">
     <label for="liPass">Password</label>
     <div class="pwfield">
       <input id="liPass" name="password" type="password" autocomplete="current-password">
       <button class="pw-eye" type="button" onclick="togglePwVisibility(this,'liPass')" title="Show/hide password">👁</button>
     </div>
     <button class="btn primary" type="submit">Sign in</button>
-    </form>`;
-  return `<div class="logincard">
-    <img src="logo.png" alt="Bollin Clinic Stock Manager">
-    <h2>Sign in</h2>
-    ${modes}${form}
+    </form>
     <div id="loginErr">${loginEsc(msg||'')}</div>
-    <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--ink-soft)">
-      ${mode==='pin' ? 'Your PIN works on this computer only. You can always use your password instead.'
-        : 'Accounts are created by the clinic administrator.<br>You can change your password after signing in.'}</div>
+    <div class="loginlinks">${last && last.pin ? link('liUsePin', 'Use ' + loginEsc(last.name.split(/\s+/)[0]) + '’s PIN instead', "loginSetMode('pin')") : ''}
+      ${link('liOther', 'Sign in with someone else’s PIN', "loginSetMode('other')")}</div>
+    <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--ink-soft)">
+      Accounts are created by the clinic administrator.<br>After signing in you can choose a 4-number PIN.</div>`;
+  }
+  return `<div class="logincard ${mode==='password'?'':'kpcard'}" data-mode="${mode}">
+    <img src="logo.png" alt="Bollin Clinic Stock Manager">
+    ${body}
   </div>`;
 }
 function showLogin(msg, keepMode){
-  const pins = pinUsersHere();
-  // open on PIN when the last person here has one (or anyone has), otherwise on the password
-  if(!keepMode) _loginMode = pins.length ? 'pin' : 'password';
-  if(!pins.length) _loginMode = 'password';
+  const last = lastHere();
+  if(!keepMode){ _loginMode = (last && last.pin) ? 'pin' : 'password'; _loginPrefill = ''; }   // the PIN first, whenever there is one
+  if(_loginMode==='pin' && !(last && last.pin)) _loginMode = 'password';
   const w = $('#loginWrap');
   w.innerHTML = loginCardHtml(msg);
   w.style.display = 'flex';
-  setTimeout(()=>{ const el = document.getElementById(_loginMode==='pin' ? 'liPin' : 'liUser'); if(el && el.focus) el.focus(); }, 50);
+  if(_loginMode==='password') kpStop('login'); else kpStart('login', doPinLogin);
+  setTimeout(()=>{ const el = document.getElementById(_loginMode==='password' ? (_loginPrefill ? 'liPass' : 'liUser') : _loginMode==='other' ? 'liOtherUser' : '');
+    if(el && el.focus) el.focus(); }, 50);
 }
-function hideLogin(){ const w = $('#loginWrap'); w.style.display = 'none'; w.innerHTML = ''; }
-function loginSetMode(mode){ _loginMode = mode; showLogin('', true); }
+function hideLogin(){ kpStop('login'); const w = $('#loginWrap'); w.style.display = 'none'; w.innerHTML = ''; }
+function loginSetMode(mode){
+  const last = lastHere();
+  _loginPrefill = (mode==='password' && _loginMode==='pin' && last) ? last.u : '';
+  _loginMode = mode;
+  showLogin('', true);
+}
 
 // Shared by both ways in: remember the session, close the card, greet, load.
 function loginDone(data, how){
   session = {token:data.token, role:data.role, displayName:data.displayName, username:data.username};
   myName = data.displayName;
   try{ localStorage.setItem('bollin_session', JSON.stringify(session)); }catch(e){}
-  try{ localStorage.setItem('bollin_last_user', String(data.username||'').toLowerCase()); }catch(e){}
   hideLogin(); paintName();
   if(!(currentView in TRACKER_TAB) && !viewAllowed(currentView)) nav('dashboard');
   const w = welcomeStart(how);
@@ -12824,33 +13387,40 @@ async function doLogin(){
   try{
     if(_signOutP){ await _signOutP; }
     const data = await sbSignIn(u, p);
+    // a password sign-in makes this browser one where PINs are accepted, and tells us whether
+    // this person has a PIN. Neither may stop the sign-in.
+    let has = false;
+    try{ await sbDeviceTrust(deviceKey()); }catch(e){}
+    try{ has = await sbPinMine(); }catch(e){}
+    lastHereSave(data.username, data.displayName, has);
     loginDone(data, 'password');
   }catch(err){ loginErr(err.message||'Sign-in failed'); }
   finally{ _loginBusy = false; }
 }
-async function doPinLogin(){
+async function doPinLogin(pin){
   if(_loginBusy) return;
-  const uEl = document.getElementById('liPinUser'), pEl = document.getElementById('liPin');
-  const u = String(uEl ? uEl.value : '').toLowerCase(), pin = String(pEl ? pEl.value : '');
-  const e = pinHere(u);
-  if(!e){ _loginMode = 'password'; showLogin('No PIN is set up for that person on this computer. Sign in with your password', true); return; }
-  if(!/^\d{4}$/.test(pin)){ loginErr('Enter your 4-number PIN'); return; }
+  const last = lastHere(), other = _loginMode==='other';
+  const uEl = document.getElementById('liOtherUser');
+  const u = String(other ? (uEl ? uEl.value : '') : (last ? last.u : '')).trim().toLowerCase();
+  if(!u){ loginErr('Type the username first'); kpClear(); if(uEl && uEl.focus) uEl.focus(); return; }
+  if(!/^\d{4}$/.test(String(pin||''))){ loginErr('Enter your 4-number PIN'); kpClear(); return; }
   loginErr('Signing in…');
-  _loginBusy = true;
+  _loginBusy = true; if(_kp) _kp.busy = true;
   try{
     if(_signOutP){ await _signOutP; }
-    const data = await sbPinSignIn(u, e.dev, pin);
-    // keep the name on the sign-in list up to date
-    pinRemember(String(data.username||u).toLowerCase(), e.dev, data.displayName);
+    const data = await sbPinSignIn(u, deviceKey(), pin);
+    lastHereSave(data.username, data.displayName, true);
     loginDone(data, 'pin');
   }catch(err){
-    if(err.code==='locked' || err.code==='no_pin'){
-      pinForget(u);                      // the server no longer has it: stop offering it here
-      _loginMode = 'password';
+    if(_kp) _kp.busy = false;
+    const code = err.code;
+    if(code==='locked' || code==='no_pin' || code==='new_device'){
+      if(code!=='new_device') lastHereSetPin(u, false);      // the server no longer has it: stop offering it here
+      _loginPrefill = u; _loginMode = 'password';
       showLogin(err.message, true);
     } else {
       loginErr(err.message||'Sign-in failed');
-      const p2 = document.getElementById('liPin'); if(p2){ p2.value = ''; if(p2.focus) p2.focus(); }
+      kpClear(code==='wrong');
     }
   }
   finally{ _loginBusy = false; }
@@ -12861,7 +13431,63 @@ function signOut(){
   if(LIVE){ const p = sb.auth.signOut().catch(()=>{}).then(()=>{ if(_signOutP===p) _signOutP = null; }); _signOutP = p; }
   welcomeCancel();
   closePinDlg(); closePw();
+  if(typeof closeSetPw==='function') closeSetPw();
   paintName(); showLogin();
+}
+
+/* ---- the browser was closed: sign in again ----
+   Staff were carrying on in whoever's account was left open. So when every tab of the app has
+   been closed and it is opened again, the saved session is dropped and the sign-in card comes
+   up, on the last person's PIN keypad. A refresh, or a second tab while one is still open, is
+   NOT a close. How it is told apart (no cookies, nothing sent anywhere):
+     - each tab keeps an id in sessionStorage (it survives a refresh, not a close) and a line in
+       localStorage 'bollin_tabs' that it refreshes while it is open;
+     - closing a tab stamps its line "closed"; a refresh comes back within TAB_REFRESH_MS;
+     - a new tab with no other line alive within TAB_ALIVE_MS means the browser was closed. */
+const TAB_ALIVE_MS = 150000, TAB_REFRESH_MS = 20000;
+let _tabId = '', _tabClosing = false;
+function tabReg(){
+  try{ const o = JSON.parse(localStorage.getItem('bollin_tabs')||'{}'); return (o && typeof o==='object' && !Array.isArray(o)) ? o : {}; }
+  catch(e){ return {}; }
+}
+function tabRegSave(o){ try{ localStorage.setItem('bollin_tabs', JSON.stringify(o)); }catch(e){} }
+// Has every tab of the app been closed? myId = this tab's id from sessionStorage ('' = a new tab).
+function tabWasClosed(now, myId, reg){
+  const mine = myId ? reg[myId] : null;
+  if(mine && !mine.closed) return false;                                          // this very tab, never closed
+  if(mine && mine.closed && now - mine.closed < TAB_REFRESH_MS) return false;       // this tab, refreshed
+  return !Object.keys(reg).some(k=>k!==myId && reg[k] && !reg[k].closed && now - (Number(reg[k].beat)||0) < TAB_ALIVE_MS);
+}
+// "I am still open". Never once this tab has started closing: the browser fires other events
+// after pagehide, and a beat then would make a closed tab look open again.
+function tabBeat(){
+  if(!_tabId || _tabClosing) return;
+  const reg = tabReg(); reg[_tabId] = {beat:Date.now()}; tabRegSave(reg);
+}
+function tabClose(){
+  if(!_tabId) return;
+  _tabClosing = true;
+  const reg = tabReg(); reg[_tabId] = {beat:Date.now(), closed:Date.now()}; tabRegSave(reg);
+}
+function tabBack(){ _tabClosing = false; tabBeat(); }      // the page came back (e.g. from the back/forward cache)
+// Called once as the page starts. Returns true when the browser had been closed.
+function tabStart(){
+  let id = '';
+  try{ id = String(sessionStorage.getItem('bollin_tab')||''); }catch(e){}
+  const now = Date.now(), reg = tabReg();
+  const closed = tabWasClosed(now, id, reg);
+  if(!id){ id = 't' + now.toString(36) + Math.random().toString(36).slice(2,8); try{ sessionStorage.setItem('bollin_tab', id); }catch(e){} }
+  Object.keys(reg).forEach(k=>{ const e = reg[k];
+    if(!e || (e.closed && now - e.closed > TAB_REFRESH_MS) || (!e.closed && now - (Number(e.beat)||0) > TAB_ALIVE_MS)) delete reg[k]; });
+  reg[id] = {beat:now}; tabRegSave(reg);
+  _tabId = id;
+  try{
+    setInterval(tabBeat, 15000);
+    window.addEventListener('pagehide', tabClose);
+    window.addEventListener('pageshow', tabBack);
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') tabBeat(); });
+  }catch(e){}
+  return closed;
 }
 
 /* ---------------- change password: boxes exist only while the dialog is open ---------------- */
@@ -12872,7 +13498,7 @@ function openPw(){
   const row = (id, label, ac)=>`<div class="m-row"><label for="${id}">${label}</label><div class="pwfield"><input id="${id}" type="password" autocomplete="${ac}">
       <button class="pw-eye" type="button" onclick="togglePwVisibility(this,'${id}')" title="Show/hide password">👁</button></div></div>`;
   $('#pwDlgBody').innerHTML = row('pwOld','Current','current-password') + row('pwNew','New (6+ chars)','new-password') + row('pwNew2','Repeat new','new-password')
-    + '<div class="sub" style="margin:8px 0 0">Changing your password removes your sign-in PIN from every computer. You can set a new PIN afterwards.</div>';
+    + '<div class="sub" style="margin:8px 0 0">Changing your password removes your sign-in PIN. You can set a new PIN afterwards.</div>';
   pwDlg.showModal();
 }
 async function doChangePassword(){
@@ -12881,91 +13507,139 @@ async function doChangePassword(){
   if(n!==n2){ toast('New passwords do not match'); return; }
   try{
     await api({action:'changePassword', oldPassword:o, newPassword:n});
-    if(session) pinForget(session.username);   // the database dropped this person's PINs with the old password
+    if(session) lastHereSetPin(session.username, false);   // the database dropped this person's PIN with the old password
     closePw(); toast('Password changed');
   }catch(err){ toast(err.message); }
 }
 
-/* ---------------- PIN for this computer ----------------
-   'offer'  : shown once after a password sign-in on a computer with no PIN for this person
-              (Not now / Don't ask again on this computer / Save).
-   'manage' : the PIN button in the header (set, change or remove). */
-let _pinDlgMode = 'manage';
-function pinDlgClear(){ const d = document.getElementById('pinDlg'); if(d && d.open) return; ['pinDlgBody','pinDlgActions'].forEach(id=>{ const b = document.getElementById(id); if(b) b.innerHTML = ''; }); }
-function pinBox(id, label){
-  return `<div class="m-row"><label for="${id}">${label}</label><input id="${id}" class="pinbox" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4"
-    autocomplete="off" data-lpignore="true" data-1p-ignore oninput="pinDigits(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();pinSave();}"></div>`;
-}
-function openPinDlg(mode){
-  if(!LIVE || !session) return;
-  _pinDlgMode = mode==='offer' ? 'offer' : 'manage';
-  const has = !!pinHere(session.username);
-  $('#pinDlgTitle').textContent = _pinDlgMode==='offer' ? 'Quicker sign-in on this computer' : 'PIN for this computer';
-  $('#pinDlgBody').innerHTML = `
-    <div class="sub" style="margin:0 0 10px">${_pinDlgMode==='offer'
-      ? 'Choose a 4-number PIN. Next time you sign in <strong>on this computer</strong> you can use your PIN or your password, whichever you like.'
-      : has ? 'You have a PIN on this computer. Enter a new one to change it, or remove it.'
-            : 'Choose a 4-number PIN to sign in on <strong>this computer</strong> without typing your password. Your password still works.'}</div>
-    ${pinBox('pinNew', has?'New PIN':'PIN')}${pinBox('pinNew2','Repeat PIN')}
-    <div class="sub" style="margin:8px 0 0">The PIN only works on this computer. Five wrong tries remove it, and so does changing your password. Don't use one that is easy to guess.</div>
-    <div id="pinDlgErr" style="color:var(--red);font-size:13px;min-height:18px;margin-top:6px"></div>`;
-  $('#pinDlgActions').innerHTML = _pinDlgMode==='offer'
-    ? `<button class="btn" style="white-space:nowrap" onclick="pinOfferNever()" title="Don't offer me a PIN on this computer again. You can still set one with the PIN button at the top">Don't ask again</button>
-       <button class="btn" onclick="closePinDlg()">Not now</button>
-       <button class="btn primary" id="pinSaveBtn" onclick="pinSave()">Save PIN</button>`
-    : `${has?'<button class="btn" style="color:var(--red)" onclick="pinRemove()">Remove PIN</button>':''}
-       <button class="btn" onclick="closePinDlg()">Cancel</button>
-       <button class="btn primary" id="pinSaveBtn" onclick="pinSave()">${has?'Change PIN':'Save PIN'}</button>`;
-  pinDlg.showModal();
-  setTimeout(()=>{ const el = document.getElementById('pinNew'); if(el && el.focus) el.focus(); }, 50);
-}
+/* ---------------- choosing a PIN (keypad dialog) ----------------
+   'offer'  : once after a password sign-in when the person has no PIN (Not now / Don't ask again).
+   'manage' : the PIN button in the header (set, change or remove my own).
+   'admin'  : a developer setting someone else's PIN from Users & roles (_pinDlg.target).
+   Always two steps on the keypad: choose 4 numbers, then enter them again. */
+let _pinDlg = null;              // {mode, step, first, target:{username, name}|null}
+let _pinBusy = false;
+function pinDlgClear(){ const d = document.getElementById('pinDlg'); if(d && d.open) return;
+  ['pinDlgBody','pinDlgActions'].forEach(id=>{ const b = document.getElementById(id); if(b) b.innerHTML = ''; }); kpStop('pin'); _pinDlg = null; }
 function closePinDlg(){ const d = document.getElementById('pinDlg'); try{ if(d && d.open) d.close(); }catch(e){} pinDlgClear(); }
 function pinDlgErr(msg){ const el = document.getElementById('pinDlgErr'); if(el) el.textContent = msg||''; }
-let _pinBusy = false;
-async function pinSave(){
-  if(_pinBusy || !session) return;
-  const a = String(($('#pinNew')||{}).value||''), b = String(($('#pinNew2')||{}).value||'');
-  if(!/^\d{4}$/.test(a)){ pinDlgErr('The PIN must be 4 numbers'); return; }
-  if(a!==b){ pinDlgErr('The two PINs do not match'); return; }
-  if(pinTooEasy(a)){ pinDlgErr('That PIN is too easy to guess. Choose another'); return; }
-  const who = session.username, name = session.displayName;
-  const old = pinHere(who), dev = old ? old.dev : pinNewDeviceKey();
-  _pinBusy = true; pinDlgErr('Saving…');
+function pinDlgPaint(){
+  const p = _pinDlg; if(!p) return;
+  const el = document.getElementById('pinDlgStep');
+  if(el) el.textContent = p.step===1 ? (p.mode==='admin' ? 'Choose a 4-number PIN for ' + p.target.name : 'Choose a 4-number PIN')
+                                     : 'Enter it again to confirm';
+}
+function openPinDlg(mode, target){
+  if(!LIVE || !session) return;
+  const m = mode==='offer' ? 'offer' : mode==='admin' ? 'admin' : 'manage';
+  if(m==='admin' && (!isDeveloper() || !target || !target.username)) return;
+  _pinDlg = {mode:m, step:1, first:'', target: m==='admin' ? {username:String(target.username), name:String(target.name||target.username)} : null};
+  const mine = lastHere(), has = m==='manage' && !!(mine && mine.u===String(session.username).toLowerCase() && mine.pin);
+  $('#pinDlgTitle').textContent = m==='offer' ? 'Quicker sign-in with a PIN' : m==='admin' ? 'Set PIN — ' + _pinDlg.target.name : has ? 'Change my PIN' : 'Set my PIN';
+  $('#pinDlgBody').innerHTML = `
+    <div class="sub" style="margin:0 0 4px;text-align:center">${m==='admin'
+      ? 'They use it with their username on any clinic computer. Tell them directly.'
+      : 'One PIN for you on every clinic computer. Next time you are asked for it instead of your password; your password still works.'}</div>
+    <div id="pinDlgStep" class="kpstep"></div>
+    ${keypadHtml('pin')}
+    <div id="pinDlgErr" style="color:var(--red);font-size:13px;min-height:18px;margin-top:4px;text-align:center"></div>
+    <div class="sub" style="margin:2px 0 0;text-align:center">Exactly 4 numbers. Five wrong tries remove it, and so does changing the password.</div>`;
+  $('#pinDlgActions').innerHTML = m==='offer'
+    ? `<button class="btn" style="white-space:nowrap" onclick="pinOfferNever()" title="Don't offer me a PIN on this computer again. You can still set one with the PIN button at the top">Don't ask again</button>
+       <button class="btn" onclick="closePinDlg()">Not now</button>`
+    : `${has?'<button class="btn" style="color:var(--red)" onclick="pinRemove()">Remove my PIN</button>':''}
+       <button class="btn" onclick="closePinDlg()">Cancel</button>`;
+  pinDlg.showModal();
+  kpStart('pin', pinDlgEntered);
+  pinDlgPaint();
+}
+// the keypad has 4 numbers
+async function pinDlgEntered(pin){
+  const p = _pinDlg; if(!p || _pinBusy || !session) return;
+  if(p.step===1){
+    if(pinTooEasy(pin)){ pinDlgErr('That PIN is too easy to guess. Choose another'); kpClear(true); return; }
+    p.first = pin; p.step = 2; pinDlgErr(''); kpClear(); pinDlgPaint();
+    return;
+  }
+  if(pin!==p.first){ p.step = 1; p.first = ''; pinDlgErr('The two PINs did not match. Start again'); kpClear(true); pinDlgPaint(); return; }
+  _pinBusy = true; if(_kp) _kp.busy = true; pinDlgErr('Saving…');
+  const who = session.username;
   try{
-    await sbPinSet(dev, a);
-    pinRemember(who, dev, name);         // only once the database has it
-    closePinDlg();
-    toast('PIN saved. Use it next time you sign in on this computer');
-  }catch(err){ pinDlgErr(err.message||'The PIN was not saved'); }
+    if(p.mode==='admin'){
+      await sbPinAdminSet(p.target.username, pin);
+      (state.userPins = state.userPins || {})[p.target.username.toLowerCase()] = pin;
+      closePinDlg();
+      toast('PIN set for ' + p.target.name + '. Tell them directly');
+      if(currentView==='users') render();
+    } else {
+      await sbPinSetMine(pin);
+      lastHereSetPin(who, true);                 // only once the database has it
+      if(state.userPins && isDeveloper()) state.userPins[String(who).toLowerCase()] = pin;
+      closePinDlg();
+      toast('PIN saved. Next time, use it on any clinic computer');
+    }
+  }catch(err){
+    if(_kp) _kp.busy = false;
+    p.step = 1; p.first = '';
+    pinDlgErr(err.message||'The PIN was not saved'); kpClear(true); pinDlgPaint();
+  }
   finally{ _pinBusy = false; }
 }
 async function pinRemove(){
   if(_pinBusy || !session) return;
-  const who = session.username, e = pinHere(who);
-  if(!e){ closePinDlg(); return; }
-  if(!confirm('Remove your PIN from this computer? You will sign in here with your password.')) return;
+  if(!confirm('Remove your PIN? You will sign in with your password until you set a new one.')) return;
+  const who = session.username;
   _pinBusy = true; pinDlgErr('Removing…');
   try{
-    await sbPinClear(e.dev);
-    pinForget(who);
-    closePinDlg(); toast('PIN removed from this computer');
+    await sbPinClearMine();
+    lastHereSetPin(who, false);
+    if(state.userPins) delete state.userPins[String(who).toLowerCase()];
+    closePinDlg(); toast('PIN removed');
   }catch(err){ pinDlgErr(err.message||'The PIN was not removed'); }
   finally{ _pinBusy = false; }
 }
 function pinOfferNever(){ if(session) pinSetNoAsk(session.username); closePinDlg(); toast('OK. You can set a PIN any time with the PIN button at the top'); }
-// After a PASSWORD sign-in: offer a PIN if this person has none on this computer. If the page
-// remembers one that the database has since dropped (password change, five wrong tries), forget it.
-async function pinOfferMaybe(how){
+// After a PASSWORD sign-in: offer a PIN if this person has none.
+function pinOfferMaybe(how){
   if(!LIVE || !session || how!=='password') return;
-  const who = session.username;
-  const e = pinHere(who);
-  if(e){
-    try{ if(await sbPinStatus(e.dev)) return; }catch(err){ return; }   // can't tell: leave it alone
-    pinForget(who);
-  }
-  if(!session || session.username!==who || pinNoAsk(who)) return;
+  const who = String(session.username).toLowerCase(), l = lastHere();
+  if((l && l.u===who && l.pin) || pinNoAsk(who)) return;
   if(document.querySelector && document.querySelector('dialog[open]')) return;   // never on top of something already open
   openPinDlg('offer');
+}
+
+/* ---- developer: everyone's PIN, on the Users & roles page ---- */
+let _showPins = false;
+async function usersLoadPins(){
+  if(!LIVE || !isDeveloper()) return;
+  try{ state.userPins = await sbPinsAdminList(); state.userPinsErr = ''; }
+  catch(e){ state.userPins = null; state.userPinsErr = e.message || 'could not load'; }
+  if(currentView==='users') render();
+}
+function usersPinCell(u, i){
+  const pins = state.userPins;
+  if(!pins) return `<span style="color:var(--ink-soft);font-size:12.5px">${state.userPinsErr ? 'Not loaded' : 'Loading…'}</span>`;
+  const pin = pins[String(u.username).toLowerCase()];
+  const b = 'padding:4px 9px;font-size:12px';
+  return `<span class="code" data-pin-for="${loginEsc(u.username)}" style="font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.12em;margin-right:6px">${pin ? (_showPins ? loginEsc(pin) : '••••') : '<span style="font-weight:400;letter-spacing:0;color:var(--ink-soft);font-size:12.5px">none</span>'}</span>
+    <button class="btn" style="${b}" onclick="usersSetPin(${i})" title="${pin?'Give this person a different PIN':'Give this person a PIN'}">${pin?'Change':'Set'}</button>
+    ${pin?`<button class="btn" style="${b};color:var(--red)" onclick="usersRemovePin(${i})" title="Remove this person's PIN. They sign in with their password until a new one is set">Reset</button>`:''}`;
+}
+function usersSetPin(i){
+  const u = (state.users||[])[i]; if(!u || !isDeveloper()) return;
+  openPinDlg('admin', {username:u.username, name:u.name||u.username});
+}
+async function usersRemovePin(i){
+  const u = (state.users||[])[i]; if(!u || !isDeveloper()) return;
+  const name = u.name||u.username, uname = String(u.username);
+  if(!confirm('Remove the PIN for ' + name + '? They will sign in with their password until a new PIN is set.')) return;
+  try{
+    await sbPinAdminSet(uname, null);
+    if(state.userPins) delete state.userPins[uname.toLowerCase()];
+    if(session && String(session.username).toLowerCase()===uname.toLowerCase()) lastHereSetPin(uname, false);
+    toast('PIN removed for ' + name);
+    render();
+  }catch(err){ toast('Not removed — ' + (err.message||'try again')); }
 }
 
 /* ---------------- welcome, and the dashboard tiles arriving ----------------
@@ -13259,11 +13933,24 @@ function paintThemePop(){
 loadPrefs();
 
 /* ---------------- init ---------------- */
+// If every tab of the app was closed since the last sign-in, the saved session is dropped here,
+// before anything is drawn, and the sign-in card (the last person's PIN keypad) comes up.
+const _browserWasClosed = (LIVE && typeof tabStart==='function') ? tabStart() : false;
+let _bootSignedOut = false;
+if(_browserWasClosed && session){
+  session = null; myName = ''; _bootSignedOut = true;
+  try{ localStorage.removeItem('bollin_session'); }catch(e){}
+}
 applyPrefs();
 applyNavPerms();
 render();                          // instant paint
 async function bootAuth(){
   if(!LIVE){ loadAll(); return; }
+  if(_bootSignedOut){
+    // also forget Supabase's own saved sign-in on this browser (nothing is sent to the server)
+    const p = sb.auth.signOut({scope:'local'}).catch(()=>{}).then(()=>{ if(_signOutP===p) _signOutP = null; }); _signOutP = p;
+    paintName(); showLogin(); return;
+  }
   if(!session){ showLogin(); return; }
   // The old system's login also wrote to localStorage under this app's origin, so a
   // browser that only ever used the old system can have a cached bollin_session that
